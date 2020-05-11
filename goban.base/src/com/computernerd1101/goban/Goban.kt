@@ -1,0 +1,506 @@
+@file:Suppress("NOTHING_TO_INLINE")
+@file:JvmMultifileClass
+@file:JvmName("GobanKt")
+
+package com.computernerd1101.goban
+
+import com.computernerd1101.goban.internal.*
+import java.util.concurrent.atomic.*
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.contract
+
+sealed class AbstractGoban(
+    @JvmField val width: Int,
+    @JvmField val height: Int,
+    private val rows: AtomicLongArray,
+    /** Updated by [InternalGoban.count] */
+    @Volatile private var count: Long
+) {
+
+    companion object {
+
+        init {
+            InternalGoban.count = atomicLongUpdater("count")
+            InternalGoban.abstractSecrets = object: InternalGoban.AbstractSecrets {
+                override fun rows(goban: AbstractGoban) = goban.rows
+            }
+        }
+
+        @JvmStatic
+        fun contentEquals(a: AbstractGoban?, b: AbstractGoban?) = when {
+            a == null -> b == null
+            b == null -> false
+            else -> a contentEquals b
+        }
+
+    }
+
+    constructor() : this(19, 19, AtomicLongArray(19), 0L)
+
+    constructor(width: Int, height: Int): this(
+        width, height, AtomicLongArray(if (width > 32) height*2 else height), 0L
+    )
+
+    constructor(other: AbstractGoban, rows: AtomicLongArray): this(
+        other.width, other.height,
+        rows, InternalGoban.copyRows(other.rows, rows)
+    )
+
+    constructor(other: AbstractGoban): this(other, AtomicLongArray(other.rows.length()))
+
+    val blackCount: Int
+        @JvmName("blackCount")
+        get() = count.toInt()
+
+    val whiteCount: Int
+        @JvmName("whiteCount")
+        get() = count.shr(32).toInt()
+
+    val emptyCount: Int
+        @JvmName("emptyCount")
+        get() {
+            val count = this.count
+            return width*height - (count + count.shr(32)).toInt()
+        }
+
+    fun count(color: GoColor?): Int {
+        val count = this.count
+        return when (color) {
+            null -> width*height - (count + count.shr(32)).toInt()
+            GoColor.BLACK -> count.toInt()
+            GoColor.WHITE -> count.shr(32).toInt()
+        }
+    }
+
+    fun isEmpty() = count == 0L
+
+    fun isNotEmpty() = !isEmpty()
+
+    operator fun get(x: Int, y: Int): GoColor? {
+        if (x !in 0 until width)
+            throw InternalGoban.indexOutOfBoundsException(x, width)
+        if (y !in 0 until height)
+            throw InternalGoban.indexOutOfBoundsException(y, height)
+        return InternalGoban.get(width, rows, x, y)
+    }
+
+    operator fun get(p: GoPoint) = this[p.x, p.y]
+
+    operator fun contains(p: GoPoint) = this[p] != null
+
+    /**
+     * Returns this instance if it is already a [FixedGoban], otherwise
+     * copies the contents of this instance into a new [FixedGoban] instance,
+     * or a pre-instantiated [FixedGoban] instance if it is an empty square.
+     */
+    abstract fun readOnly(): FixedGoban
+
+    /**
+     * Returns this instance if it is already a [Goban], otherwise
+     * copies the contents of this instance into a new [Goban] instance.
+     */
+    abstract fun playable(): Goban
+
+    /**
+     * Returns this instance if it is already a [MutableGoban], otherwise
+     * copies the contents of this instance into a new [MutableGoban] instance.
+     */
+    abstract fun edit(): MutableGoban
+
+    /**
+     * Returns this instance if it is already an [AbstractMutableGoban], otherwise
+     * copies the contents of this instance into a new [Goban] instance
+     * if the stones are in a legal board position, or a new [MutableGoban] instance
+     * if the board contains any stones that should have been captured.
+     */
+    abstract fun editable(): AbstractMutableGoban
+
+    fun toPointSet(color: GoColor?): GoPointSet {
+        return InternalGoPointSet.secrets.init(toPointSetBits(color))
+    }
+
+    fun toMutablePointSet(color: GoColor?): MutableGoPointSet {
+        return InternalGoPointSet.mutableSecrets.init(toPointSetBits(color))
+    }
+
+    private fun toPointSetBits(color: GoColor?): AtomicLongArray {
+        val rows = AtomicLongArray(52)
+        val emptyBits: Long = (1L shl width) - 1L
+        var i = 0
+        for(y in 0 until height) {
+            var row = this.rows[i++]
+            // mask.lo = row.lo
+            var mask = row.and(-1L ushr 32)
+            // stones.lo = row.hi
+            var stones = row ushr 32
+            if (width > 32) {
+                row = this.rows[i++]
+                // mask.hi = row.lo
+                mask = mask or row.shl(32)
+                // stones.hi = row.hi
+                stones = stones or row.and(-1L shl 32)
+            }
+            if (color == GoColor.WHITE) stones = stones.inv()
+            rows[y] = if (color == null) (mask xor emptyBits) else (mask and stones)
+        }
+        return rows
+    }
+
+    infix fun contentEquals(other: AbstractGoban): Boolean {
+        if (width != other.width || height != other.height) return false
+        for(i in 0 until rows.length()) if (rows[i] != other.rows[i]) return false
+        return true
+    }
+
+    override fun toString(): String {
+        return "${javaClass.name}[${width}x$height]"
+    }
+
+}
+
+@Suppress("unused")
+@OptIn(ExperimentalContracts::class)
+inline fun AbstractGoban?.isNullOrEmpty(): Boolean {
+    contract {
+        returns(false) implies (this@isNullOrEmpty != null)
+    }
+    return this?.isEmpty() != false
+}
+
+@Suppress("unused")
+inline infix fun AbstractGoban?.contentEquals(other: AbstractGoban?) = AbstractGoban.contentEquals(this, other)
+
+class FixedGoban: AbstractGoban {
+
+    @Suppress("UNUSED_PARAMETER")
+    private constructor(width: Int, height: Int, marker: Unit): super(width, height) {
+        hash = 0
+    }
+
+    private constructor(size: Int, marker: Unit): this(size, size, marker)
+
+    private constructor(other: AbstractGoban): super(other) {
+        var hash = 0
+        var i = 0
+        val rows = InternalGoban.abstractSecrets.rows(this)
+        repeat(height) {
+            var row = rows[i++]
+            // mask.lo = row.lo
+            var mask = row.and(-1L ushr 32)
+            // stones.lo = row.hi
+            var stones = row ushr 32
+            if (width > 32) {
+                row = rows[i++]
+                // mask.hi = row.lo
+                mask = mask or row.shl(32)
+                // stones.hi = row.hi
+                stones = stones or row.and(-1L shl 32)
+            }
+            row = mask.shl(-width) + stones
+            hash = 31*hash + row.xor(row ushr 32).toInt()
+        }
+        this.hash = hash
+    }
+
+    private val hash: Int
+
+    companion object {
+
+        init {
+            InternalGoban.fixedSecrets = object: InternalGoban.FixedSecrets {
+                override fun copy(goban: AbstractGoban): FixedGoban {
+                    val width = goban.width
+                    return if (width == goban.height && goban.isEmpty())
+                        emptySquareCache[width - 1]
+                    else FixedGoban(goban)
+                }
+            }
+        }
+
+        private val emptySquareCache = Array(52) {
+            FixedGoban(it + 1, Unit)
+        }
+
+        @JvmStatic
+        @JvmName("empty")
+        operator fun invoke(width: Int, height: Int): FixedGoban {
+            return when {
+                width !in 1..52 -> throw InternalGoban.illegalSizeException(width)
+                width == height -> emptySquareCache[width - 1]
+                height !in 1..52 -> throw InternalGoban.illegalSizeException(height)
+                else -> FixedGoban(width, height, Unit)
+            }
+        }
+
+        @JvmStatic
+        @JvmName("empty")
+        operator fun invoke(size: Int = 19): FixedGoban {
+            if (size !in 1..52) throw InternalGoban.illegalSizeException(size)
+            return emptySquareCache[size - 1]
+        }
+
+        inline operator fun invoke() = EMPTY
+
+        @Suppress("unused")
+        @JvmField
+        val EMPTY = emptySquareCache[18] // size=19
+
+    }
+
+    /**
+     * Returns this instance.
+     * @return this instance
+     */
+    override fun readOnly() = this
+
+    /**
+     * Returns a new [Goban] instance with the same contents
+     * as this instance.
+     * @return a new [Goban] instance with the same contents
+     * as this instance
+     */
+    override fun playable() = Goban(this)
+
+    /**
+     * Returns a new [MutableGoban] instance with the same contents
+     * as this instance.
+     * @return a new [MutableGoban] instance with the same contents
+     * as this instance
+     */
+    override fun edit() = MutableGoban(this)
+
+    /**
+     * Returns a new [AbstractMutableGoban] with the same contents
+     * as this instance. The new instance will be a [Goban] if the
+     * board position is legal, or a [MutableGoban] if it contains
+     * any stones that should have been captured.
+     * @return a new [AbstractMutableGoban] with the same contents
+     * as this instance
+     */
+    override fun editable(): AbstractMutableGoban {
+        val width = this.width
+        val height = this.height
+        val oldRows = InternalGoban.abstractSecrets.rows(this)
+        val rows = AtomicLongArray(oldRows.length())
+        val count = InternalGoban.copyRows(oldRows, rows)
+        val metaCluster: MutableGoPointSet = InternalGoban.threadMetaCluster
+        metaCluster.clear()
+        val cluster: MutableGoPointSet = InternalGoban.threadCluster
+        var secrets: InternalGoban.EditableSecrets<AbstractMutableGoban> =
+            InternalGoban.playableSecrets
+        rows@ for(i in 0 until rows.length()) {
+            val row = rows[i]
+            val black = (row ushr 32).toInt()
+            var unseen = row.toInt()
+            while(unseen != 0) {
+                val bit = unseen and -unseen
+                unseen -= bit
+                var x = trailingZerosPow2(bit)
+                val y: Int = if (width <= 32) i
+                else {
+                    if (i and 1 != 0) x += 32
+                    i shr 1
+                }
+                val p = GoPoint(x, y)
+                if (p in metaCluster) continue
+                val color = (black and bit != 0).goBlackOrWhite()
+                if (!InternalGoban.isAlive(width, height, rows, p, color)) {
+                    secrets = InternalGoban.mutableSecrets
+                    break@rows
+                }
+                metaCluster.addAll(cluster)
+            }
+        }
+        return secrets.goban(width, height, rows, count)
+    }
+
+    override fun equals(other: Any?): Boolean {
+        return other is FixedGoban && this contentEquals other
+    }
+
+    override fun hashCode() = hash
+
+}
+
+sealed class AbstractMutableGoban: AbstractGoban {
+
+    constructor(width: Int, height: Int, rows: AtomicLongArray, count: Long):
+            super(width, height, rows, count)
+
+    constructor(width: Int, height: Int): super(
+        if (width in 1..52) width else throw InternalGoban.illegalSizeException(width),
+        if (height in 1..52) height else throw InternalGoban.illegalSizeException(height)
+    )
+
+    constructor(size: Int): super(
+        if (size in 1..52) size else throw InternalGoban.illegalSizeException(size),
+        size
+    )
+
+    constructor(): super()
+
+    constructor(other: AbstractGoban): super(other)
+
+    operator fun set(x: Int, y: Int, stone: GoColor?) {
+        InternalGoban.set(this, x, y, stone, stone)
+    }
+
+    operator fun set(p: GoPoint, stone: GoColor?) {
+        this[p.x, p.y] = stone
+    }
+
+    fun setAll(points: Set<GoPoint>, color: GoColor?): Boolean {
+        if (points is GoPointSet)
+            return GobanSetAllOp.setAll(this, points, color)
+        var changed = false
+        for(p in points)
+            if (InternalGoban.set(this, p.x, p.y, color, color) != color)
+                changed = true
+        return changed
+    }
+
+    /**
+     * Returns a [FixedGoban] with the same contents as this instance.
+     * The returned instance will be newly created unless it is an empty square,
+     * in which case it will be a preexisting instance.
+     * @return a [FixedGoban] with the same contents as this instance
+     */
+    override fun readOnly(): FixedGoban = InternalGoban.fixedSecrets.copy(this)
+
+    /**
+     * Returns this instance.
+     * @return this instance
+     */
+    override fun editable() = this
+
+}
+
+class MutableGoban: AbstractMutableGoban {
+
+    companion object {
+
+        init {
+            InternalGoban.mutableSecrets = object: InternalGoban.EditableSecrets<MutableGoban> {
+                override fun goban(width: Int, height: Int, rows: AtomicLongArray, count: Long) =
+                    MutableGoban(width, height, rows, count)
+            }
+        }
+
+    }
+
+    private constructor(width: Int, height: Int, rows: AtomicLongArray, count: Long):
+            super(width, height, rows, count)
+
+    constructor(width: Int, height: Int): super(width, height)
+
+    @Suppress("unused")
+    constructor(size: Int): super(size)
+
+    @Suppress("unused")
+    constructor()
+
+    constructor(other: AbstractGoban): super(other)
+
+    /**
+     * Returns a new [Goban] instance with the same contents
+     * as this instance.
+     * @return a new [Goban] instance with the same contents
+     * as this instance
+     */
+    override fun playable() = Goban(this)
+
+    /**
+     * Returns this instance.
+     * @return this instance
+     */
+    override fun edit() = this
+
+}
+
+class Goban: AbstractMutableGoban {
+
+    companion object {
+
+        init {
+            InternalGoban.playableSecrets = object: InternalGoban.EditableSecrets<Goban> {
+                override fun goban(width: Int, height: Int, rows: AtomicLongArray, count: Long) =
+                    Goban(width, height, rows, count)
+            }
+        }
+
+    }
+
+    private constructor(width: Int, height: Int, rows: AtomicLongArray, count: Long):
+            super(width, height, rows, count)
+
+    constructor(width: Int, height: Int): super(width, height)
+
+    @Suppress("unused")
+    constructor(size: Int): super(size)
+
+    @Suppress("unused")
+    constructor(): super()
+
+    constructor(other: AbstractGoban): super(other)
+
+    /**
+     * Returns this instance.
+     * @return this instance
+     */
+    override fun playable() = this
+
+    /**
+     * Returns a new [MutableGoban] instance with the same contents
+     * as this instance.
+     * @return a new [MutableGoban] instance with the same contents
+     * as this instance
+     */
+    override fun edit() = MutableGoban(this)
+
+    fun play(p: GoPoint?, stone: GoColor): Boolean {
+        if (p == null) return false
+        val (x, y) = p
+        if (x >= width || y >= height || InternalGoban.set(this, x, y, stone, null) != null)
+            return false
+        var isAlive = false
+        var multiStone = false
+        val metaCluster: MutableGoPointSet = InternalGoban.threadMetaCluster
+        metaCluster.clear()
+        val cluster: MutableGoPointSet = InternalGoban.threadCluster
+        val rows = InternalGoban.abstractSecrets.rows(this)
+        for(i in 0..6 step 2) {
+            val nx = x + InternalGoban.NEIGHBOR_OFFSETS[i]
+            val ny = y + InternalGoban.NEIGHBOR_OFFSETS[i + 1]
+            if (nx in 0 until width && ny in 0 until height) {
+                val neighborColor = this[nx, ny]
+                if (neighborColor == null) {
+                    isAlive = true
+                    continue
+                }
+                if (neighborColor == stone) {
+                    multiStone = true
+                    continue
+                }
+                if (p in metaCluster) continue
+                if (InternalGoban.isAlive(width, height, rows, GoPoint(nx, ny), neighborColor))
+                    metaCluster.addAll(cluster)
+                else {
+                    GobanSetAllOp.setAll(this, cluster, null)
+                    isAlive = true
+                }
+            }
+        }
+        if (isAlive) return true
+        if (!multiStone) {
+            InternalGoban.set(this, x, y, null, null)
+            return false
+        }
+        if (!InternalGoban.isAlive(width, height, rows, p, stone))
+            GobanSetAllOp.setAll(this, cluster, null)
+        return true
+    }
+
+
+
+}
+
