@@ -20,9 +20,10 @@ open class GoPointMap<out V> protected constructor(entries: Array<out Any>?):
             InternalGoPointMap.size = atomicIntUpdater("_size")
             InternalGoPointMap.secrets = object: InternalGoPointMap.Secrets {
                 @Suppress("UNCHECKED_CAST")
-                override fun <V> rows(map: GoPointMap<V>): Array<Array<Map.Entry<GoPoint, V>?>?> {
-                    return map.rows as Array<Array<Map.Entry<GoPoint, V>?>?>
-                }
+                override fun <V> rows(map: GoPointMap<V>) = map.rows as Array<Array<Map.Entry<GoPoint, V>?>?>
+                override fun <V> entries(map: GoPointMap<V>) = map.immutableEntries
+                override fun <V> keys(map: GoPointMap<V>) = map.immutableKeys
+                override fun <V> values(map: GoPointMap<V>) = map.immutableValues
             }
         }
 
@@ -60,11 +61,10 @@ open class GoPointMap<out V> protected constructor(entries: Array<out Any>?):
     private val rows: Array<out Array<out Map.Entry<GoPoint, V>?>?>
 
     init {
+        @Suppress("SpellCheckingInspection")
         if (this !is MutableGoPointMap<*>) {
-            @Suppress("SpellCheckingInspection")
             val klass = javaClass
             if (klass != GoPointMap::class.java)
-                @Suppress("SpellCheckingInspection")
                 throw IllegalAccessError("${klass.name} does not have permission to inherit from " +
                         "com.computernerd1101.goban.GoPointMap unless it also inherits from" +
                         "com.computernerd1101.goban.MutableGoPointMap")
@@ -114,29 +114,34 @@ open class GoPointMap<out V> protected constructor(entries: Array<out Any>?):
         return rows[key.y]?.get(key.x)?.value
     }
 
-    @JvmField
-    protected val immutableEntries: GoPointEntries<V, Map.Entry<GoPoint, @UnsafeVariance V>> =
+    private val immutableEntries: GoPointEntries<V, Map.Entry<GoPoint, V>> =
         GoPointEntries(this)
     override val entries: Set<Map.Entry<GoPoint, V>>
         get() = immutableEntries
 
-    @JvmField
-    protected val immutableKeys = GoPointKeys(this)
+    private val immutableKeys = GoPointKeys(this)
     override val keys: Set<GoPoint>
         get() = immutableKeys
 
-    @JvmField
-    protected val immutableValues = GoPointValues(this, immutableEntries)
+    private val immutableValues = GoPointValues(this, immutableEntries)
     override val values: Collection<V>
         get() = immutableValues
 
     override fun equals(other: Any?): Boolean {
         if (other === this) return true
         (other as? MutableGoPointMap<*>)?.expungeStaleRows()
-        if (other is GoPointMap<*>) {
+        if (other is GoPointMap<*>)
             return InternalGoPointMap.fastEquals(this, other)
+        if (other !is Map<*, *> || _size != other.size) return false
+        val entries: Set<*> = other.entries
+        for(e2 in entries) {
+            if (e2 !is Map.Entry<*, *>) return false
+            val key = e2.key as? GoPoint ?: return false
+            val row = rows[key.y] ?: return false
+            val e1 = row[key.x] ?: return false
+            if (e1.value != e2.value) return false
         }
-        return super.equals(other)
+        return true
     }
 
     override fun hashCode() = InternalGoPointMap.hashCode(immutableEntries)
@@ -146,7 +151,7 @@ open class GoPointMap<out V> protected constructor(entries: Array<out Any>?):
 }
 
 @Suppress("LeakingThis")
-open class MutableGoPointMap<V>: GoPointMap<V>,
+open class MutableGoPointMap<V> private constructor(entries: Array<out Any>?): GoPointMap<V>(entries),
     MutableMap<GoPoint, V> {
 
     companion object {
@@ -173,15 +178,37 @@ open class MutableGoPointMap<V>: GoPointMap<V>,
 
     }
 
-    constructor(): super(null)
+    private val weakRows = arrayOfNulls<WeakRow<V>>(52)
+    private val rowQueue = ReferenceQueue<Array<Map.Entry<GoPoint, V>?>?>()
 
-    constructor(vararg entries: Pair<GoPoint, V>): super(entries) {
-        initRows()
+    final override val entries: MutableSet<MutableMap.MutableEntry<GoPoint, V>>
+    final override val keys: MutableSet<GoPoint>
+    final override val values: MutableCollection<V>
+
+    init {
+        val secrets = InternalGoPointMap.secrets
+        this.entries = MutableGoPointEntries(this, secrets.entries(this))
+        keys = MutableGoPointKeys(this, secrets.keys(this))
+        values = MutableGoPointValues(this, secrets.values(this))
+        if (entries != null) {
+            val weak = weakRows
+            val rows = InternalGoPointMap.secrets.rows(this)
+            for(y in 0..51) if (rows[y] != null)
+                weak[y] = WeakRow(this, y)
+            // now safe to leak this
+            for(y in 0..51) {
+                val row = rows[y]
+                if (row != null) for(entry in row)
+                    if (entry != null) filterValue(entry.value)
+            }
+        }
     }
 
-    constructor(vararg entries: Map.Entry<GoPoint, V>): super(entries) {
-        initRows()
-    }
+    constructor(): this(null)
+
+    constructor(vararg entries: Pair<GoPoint, V>): this(entries)
+
+    constructor(vararg entries: Map.Entry<GoPoint, V>): this(entries)
 
     protected open fun isValidValue(value: Any?, throwIfInvalid: Boolean) = true
 
@@ -189,29 +216,6 @@ open class MutableGoPointMap<V>: GoPointMap<V>,
         if (!isValidValue(value, true))
             throw IllegalArgumentException("value")
     }
-
-    private val weakRows = arrayOfNulls<WeakRow<V>>(52)
-    private val rowQueue = ReferenceQueue<Array<Map.Entry<GoPoint, V>?>?>()
-
-    private fun initRows() {
-        val weak = weakRows
-        val rows = InternalGoPointMap.secrets.rows(this)
-        for(y in 0..51) if (rows[y] != null)
-            weak[y] = WeakRow(this, y)
-        // now safe to leak this
-        for(y in 0..51) {
-            val row = rows[y]
-            if (row != null) for(entry in row)
-                if (entry != null) filterValue(entry.value)
-        }
-    }
-
-    final override val entries: MutableSet<MutableMap.MutableEntry<GoPoint, V>> =
-        MutableGoPointEntries(this, immutableEntries)
-
-    final override val keys: MutableSet<GoPoint> = MutableGoPointKeys(this, immutableKeys)
-
-    final override val values: MutableCollection<V> = MutableGoPointValues(this, immutableValues)
 
     final override val size: Int
         get() {
@@ -226,7 +230,7 @@ open class MutableGoPointMap<V>: GoPointMap<V>,
 
     final override fun containsValue(value: V): Boolean {
         expungeStaleRows()
-        return immutableValues.contains(value)
+        return super.containsValue(value)
     }
 
     final override fun get(key: GoPoint): V? {
@@ -303,22 +307,18 @@ open class MutableGoPointMap<V>: GoPointMap<V>,
         this.expungeStaleRows()
         if (from is GoPointMap<V>) {
             val rows2 = InternalGoPointMap.secrets.rows(from)
-            for (y in 0..51) {
-                rows2[y]?.let { row2 ->
-                    val row1 = getOrCreateRow(y)
-                    val weak = weakRows[y]
-                    for(x in 0..51) {
-                        row2[x]?.let { entry2 ->
-                            val value = entry2.value
-                            filterValue(value)
-                            var entry1 = row1[x] as MutableGoPointEntry<V>?
-                            if (entry1 == null) {
-                                entry1 = MutableGoPointEntry(this, entry2.key, value)
-                                row1[x] = entry1
-                                InternalGoPointMap.size.getAndIncrement(this)
-                                InternalGoPointMap.rowSize.getAndIncrement(weak)
-                            }
-                        }
+            for (y in 0..51) rows2[y]?.let { row2 ->
+                val row1 = getOrCreateRow(y)
+                val weak = weakRows[y]
+                for(x in 0..51) row2[x]?.let { entry2 ->
+                    val value = entry2.value
+                    filterValue(value)
+                    var entry1 = row1[x] as MutableGoPointEntry<V>?
+                    if (entry1 == null) {
+                        entry1 = MutableGoPointEntry(this, entry2.key, value)
+                        row1[x] = entry1
+                        InternalGoPointMap.size.getAndIncrement(this)
+                        InternalGoPointMap.rowSize.getAndIncrement(weak)
                     }
                 }
             }
@@ -352,7 +352,7 @@ open class MutableGoPointMap<V>: GoPointMap<V>,
 
     final override fun hashCode(): Int {
         expungeStaleRows()
-        return immutableEntries.hashCode()
+        return super.hashCode()
     }
 
     final override fun toString(): String {

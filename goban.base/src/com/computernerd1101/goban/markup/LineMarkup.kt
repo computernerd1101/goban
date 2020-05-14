@@ -11,18 +11,25 @@ import java.lang.ref.*
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
+@Suppress("unused")
+inline fun lineMarkup(x1: Int, x2: Int, y1: Int, y2: Int) = LineMarkup.lineMarkup(x1, x2, y1, y2)
+
 inline infix fun GoPoint.lineMarkup(other: GoPoint) = LineMarkup.lineMarkup(this, other)
 
+@Suppress("unused")
+inline fun arrowMarkup(x1: Int, x2: Int, y1: Int, y2: Int) = LineMarkup.arrowMarkup(x1, x2, y1, y2)
+
 inline infix fun GoPoint.arrowMarkup(other: GoPoint) = LineMarkup.arrowMarkup(this, other)
+
 
 class LineMarkup private constructor(
     @JvmField val start: GoPoint,
     @JvmField val end: GoPoint,
-    @JvmField val isArrow: Boolean): Serializable {
+    @JvmField val isArrow: Boolean
+): Serializable {
 
     companion object {
 
-        @Suppress("unused")
         @JvmStatic
         fun lineMarkup(x1: Int, y1: Int, x2: Int, y2: Int) = lineMarkup(GoPoint(x1, y1), GoPoint(x2, y2))
 
@@ -42,7 +49,6 @@ class LineMarkup private constructor(
             return LineMarkup(p1, p2, false)
         }
 
-        @Suppress("unused")
         @JvmStatic
         fun arrowMarkup(x1: Int, y1: Int, x2: Int, y2: Int) = arrowMarkup(GoPoint(x1, y1), GoPoint(x2, y2))
 
@@ -222,7 +228,7 @@ class LineMarkupSet: MutableIterable<LineMarkup> {
 
     fun add(markup: LineMarkup): Boolean {
         expungeStaleSlots()
-        val (a, b) = markup
+        val (a, b, isArrow) = markup
         val startMap = getOrCreateStartMap()
         var endMap = startMap[a]?.endMap
         if (endMap == null)
@@ -232,7 +238,7 @@ class LineMarkupSet: MutableIterable<LineMarkup> {
         var oldValue = endMap.put(b, markup)
         var delta = 0
         if (oldValue == null) delta = 1
-        if (markup.isArrow) {
+        if (isArrow) {
             if (oldValue != null && oldValue.isArrow) return false
             if (a > b) {
                 val weakMap = startMap[b]

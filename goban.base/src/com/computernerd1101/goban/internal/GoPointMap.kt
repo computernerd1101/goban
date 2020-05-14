@@ -11,6 +11,9 @@ object InternalGoPointMap {
 
     interface Secrets {
         fun <V> rows(map: GoPointMap<V>): Array<Array<Map.Entry<GoPoint, V>?>?>
+        fun <V> entries(map: GoPointMap<V>): GoPointEntries<V, Map.Entry<GoPoint, V>>
+        fun <V> keys(map: GoPointMap<V>): GoPointKeys<V>
+        fun <V> values(map: GoPointMap<V>): GoPointValues<V>
     }
     lateinit var secrets: Secrets
 
@@ -376,7 +379,6 @@ class MutableGoPointEntries<V>(
     override fun elementFrom(entry: Map.Entry<GoPoint, V>): MutableMap.MutableEntry<GoPoint, V> {
         return when(entry) {
             is MutableGoPointEntry<V> -> entry
-            is SimpleEntry<GoPoint, V> -> entry
             else -> MutableGoPointEntry(map, entry.key, entry.value)
         }
     }
@@ -937,7 +939,7 @@ class MutableGoPointKeys<V>(
                 InternalGoPointMap.size.decrementAndGet(map)
                 if (InternalGoPointMap.rowSize.decrementAndGet(weakRows[y]) <= 0) {
                     rows[y] = null
-                    break
+                    return true
                 }
             }
         }

@@ -43,8 +43,8 @@ object InternalGoPointSet {
             }
             is GoPointKeys<*> -> for(y in 0..51)
                 rows[y] = rows[y] or element.rowBits(y)
-            else -> for(point in element)
-                rows[point.y] = rows[point.y] or 1L.shl(point.x)
+            else -> for((x, y) in element)
+                rows[y] = rows[y] or (1L shl x)
         }
         return rows
     }

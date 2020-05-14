@@ -77,7 +77,12 @@ open class GoPointSet protected constructor(
             var xMax = 0
             var yMax = 51
             while (rows[yMax] == 0L)
-                if (--yMax < 0) return emptyArray()
+                if (--yMax < 0) {
+                    compressed = emptyArray()
+                    if (this !is MutableGoPointSet)
+                        this.compressed = compressed
+                    return compressed
+                }
             while (rows[yMin] == 0L) yMin++
             for (y in yMin..yMax) {
                 val row = rows[y]
@@ -146,7 +151,7 @@ open class GoPointSet protected constructor(
     @Suppress("unused")
     fun compress(): Array<GoRectangle> {
         val compressed = compressed()
-        return  if (this is MutableGoPointSet) compressed
+        return if (this is MutableGoPointSet || compressed.isEmpty()) compressed
         else compressed.clone()
     }
 

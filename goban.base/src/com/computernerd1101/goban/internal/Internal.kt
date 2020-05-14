@@ -14,9 +14,9 @@ inline fun <T> threadLocal(crossinline supplier: () -> T): ThreadLocal<T> {
     return ThreadLocal.withInitial { supplier() }
 }
 
-operator fun <T> ThreadLocal<T>.getValue(thisRef: Any?, prop: KProperty<*>): T = get()
+operator fun <T> ThreadLocal<out T>.getValue(thisRef: Any?, prop: KProperty<*>): T = get()
 
-operator fun <T> ThreadLocal<T>.setValue(thisRef: Any?, prop: KProperty<*>, value: T) {
+operator fun <T> ThreadLocal<in T>.setValue(thisRef: Any?, prop: KProperty<*>, value: T) {
     set(value)
 }
 

@@ -33,7 +33,7 @@ class GoRectangle private constructor(
                         end   = GoPoint(x1, y2)
                     }
                 }
-                x1 <= x2 -> {
+                x1 < x2 -> {
                     start = GoPoint(x1, y2)
                     end   = GoPoint(x2, y1)
                 }
@@ -135,7 +135,6 @@ class GoRectangle private constructor(
 
     override fun contains(element: GoPoint) = element.x in start.x..end.x && element.y in start.y..end.y
 
-    @Suppress("USELESS_CAST")
     override fun containsAll(elements: Collection<GoPoint>): Boolean {
         when(elements) {
             is GoRectangle -> return contains(elements.start) && contains(elements.end)
@@ -155,14 +154,19 @@ class GoRectangle private constructor(
                     val row = rows[y] ?: continue
                     if (y !in start.y..end.y)
                         return false
-                    for (x in 0..51)
-                        if (x !in start.x..end.x && row[x] != null) return false
+                    for(x in 0 until start.x) if (row[x] != null) return false
+                    for(x in (end.x + 1)..51) if (row[x] != null) return false
                 }
             }
             is GoPointEntries<*, *> -> return elements.isEmpty()
-            else -> for(element in elements as Collection<*>)
-                if (element !is GoPoint || !contains(element)) return false
+            else -> return defaultContainsAll(elements)
         }
+        return true
+    }
+
+    private fun defaultContainsAll(elements: Collection<*>): Boolean {
+        for(element in elements)
+            if (element !is GoPoint || !contains(element)) return false
         return true
     }
 
@@ -170,17 +174,17 @@ class GoRectangle private constructor(
 
     private class Itr(
         // Every time the iterator starts a new row, x will reset to x1
-        val x1: Int,
+        private val x1: Int,
         // y1 is never needed after it is assigned to y
         y1: Int,
         // When to move on to the next row
-        val x2: Int,
+        private val x2: Int,
         // When to stop iterating entirely
-        val y2: Int
+        private val y2: Int
     ): Iterator<GoPoint> {
 
-        var x = x1
-        var y = y1
+        private var x = x1
+        private var y = y1
 
         override fun hasNext() = y <= y2
 
@@ -211,7 +215,7 @@ class GoRectangle private constructor(
                 other.expungeStaleRows()
                 false
             }
-            is Set<*> -> size == other.size && other.all { contains(it) }
+            is Set<*> -> size == other.size && defaultContainsAll(other)
             else -> false
         }
     }
@@ -301,7 +305,7 @@ class GoRectangle private constructor(
                 start = GoPoint(x2, y1)
                 end   = GoPoint(x1, y2)
             }
-            x1 <= x2 -> {
+            x1 < x2 -> {
                 start = GoPoint(x1, y2)
                 end   = GoPoint(x2, y1)
             }

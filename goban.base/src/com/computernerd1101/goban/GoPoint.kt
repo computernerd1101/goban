@@ -22,6 +22,9 @@ class GoPoint private constructor(
     @Suppress("NOTHING_TO_INLINE")
     inline infix fun rect(other: GoPoint) = GoRectangle.rect(this, other)
 
+    @Suppress("unused")
+    fun rect(x2: Int, y2: Int) = GoRectangle.rect(this, GoPoint(x2, y2))
+
     init {
         val cx = toChar(x)
         val cy = toChar(y)
