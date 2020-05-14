@@ -75,11 +75,11 @@ enum class GoRules(
                 suicide = true
                 preset = true
             }
-            "SSK" -> {
+            "SSK" -> if (!setKo) {
                 ko = Superko.SITUATIONAL
                 setKo = true
             }
-            "PSK" -> {
+            "PSK" -> if (!setKo) {
                 ko = Superko.POSITIONAL
                 setKo = true
             }
