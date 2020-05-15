@@ -1,5 +1,6 @@
 package com.computernerd1101.goban.desktop
 
+import com.computernerd1101.goban.*
 import com.computernerd1101.goban.annotations.PropertyFactory
 import com.computernerd1101.goban.desktop.internal.*
 import com.computernerd1101.goban.sgf.GameInfo
@@ -7,6 +8,7 @@ import com.computernerd1101.goban.time.Overtime
 import java.awt.*
 import java.awt.event.*
 import java.text.NumberFormat
+import java.util.*
 import javax.swing.*
 import javax.swing.event.ListDataListener
 
@@ -42,8 +44,8 @@ class GoGameSetupView: JComponent() {
     private val comboOvertime = JComboBox<Any>()
     private val overtimeView = OvertimeComponent(minRows = OvertimeModel(comboOvertime.renderer).maxEntries)
 
-    private var areaScore: Boolean = false
-    private var superko: Superko = Superko.NSSK
+    private var territoryScore: Boolean = false
+    private var superko: Superko = Superko.NATURAL
 
     init {
         val sizeModel = SizeModel(comboSize.renderer)
@@ -66,7 +68,9 @@ class GoGameSetupView: JComponent() {
         comboRules.model = rulesModel
         comboScore.model = ScoreModel()
         checkSuicide.addActionListener(rulesModel)
-        comboSuperko.model = SuperkoModel()
+        val superkoModel = SuperkoModel(comboSuperko.renderer)
+        comboSuperko.model = superkoModel
+        comboSuperko.renderer = superkoModel
         spinTimeLimit.model = TimeLimitFormatter()
         spinTimeLimit.adjustCaret = true
         layout = GridBagLayout()
@@ -140,18 +144,32 @@ class GoGameSetupView: JComponent() {
         private val RULES_PRESETS = enumValues<RulesPreset>()
         private val SUPERKO_VALUES = enumValues<Superko>()
 
+        private val rulesMap = EnumMap<GoRules, RulesPreset>(GoRules::class.java).apply {
+            for(preset in RULES_PRESETS)
+                if (preset != RulesPreset.CUSTOM) this[preset.rules] = preset
+        }
+
+        private val superkoMap = EnumMap<Superko, String>(Superko::class.java).apply {
+            this[Superko.NATURAL] = "Natural Situational Superko"
+            this[Superko.SITUATIONAL] = "Situational Superko"
+            this[Superko.POSITIONAL] = "Positional Superko"
+        }
+
         private const val TERRITORY_SCORE = "Score by Territory"
         private const val AREA_SCORE = "Score by Area"
 
     }
 
-    private enum class RulesPreset(val string: String) {
+    private enum class RulesPreset(
+        val string: String,
+        val rules: GoRules
+    ) {
 
-        JAPANESE("Japanese Rules"),
-        AGA("AGA Rules"),
-        NZ("New Zealand Rules"),
-        GOE("Ing Rules"),
-        CUSTOM("Custom Rules...");
+        JAPANESE("Japanese Rules", GoRules.JAPANESE),
+        AGA("AGA Rules", GoRules.AGA),
+        NZ("New Zealand Rules", GoRules.NEW_ZEALAND),
+        GOE("Ing Rules", GoRules.ING),
+        CUSTOM("Custom Rules...", GoRules.DEFAULT);
 
         override fun toString(): String {
             return string
@@ -159,85 +177,62 @@ class GoGameSetupView: JComponent() {
 
     }
 
-    private enum class Superko(
-        val string: String,
-        territory: String, territorySuicide: String,
-        area: String, areaSuicide: String,
-        vararg val presets: RulesPreset) {
-
-        PSK(
-            "Positional Superko",
-            "Japanese:PSK", "Japanese:Suicide:PSK", "AGA:PSK", "GOE",
-            RulesPreset.CUSTOM, RulesPreset.CUSTOM, RulesPreset.CUSTOM, RulesPreset.GOE
-        ),
-        SSK(
-            "Situational Superko",
-            "Japanese:SSK", "Japanese:Suicide:SSK", "AGA", "NZ",
-            RulesPreset.CUSTOM, RulesPreset.CUSTOM, RulesPreset.AGA, RulesPreset.NZ
-        ),
-        NSSK(
-            "Natural Situational Superko",
-            "Japanese", "Japanese:Suicide", "AGA:NSSK", "NZ:NSSK",
-            RulesPreset.JAPANESE, RulesPreset.CUSTOM, RulesPreset.CUSTOM, RulesPreset.CUSTOM
-        );
-
-        private val strings: Array<out String> = arrayOf(
-            territory, territorySuicide, area, areaSuicide
-        )
-
-        private fun index(area: Boolean, suicide: Boolean): Int {
-            return (if (area) 2 else 0) + (if (suicide) 1 else 0)
-        }
-
-        fun getString(area: Boolean, suicide: Boolean): String {
-            return strings[index(area, suicide)]
-        }
-
-        fun getPreset(area: Boolean, suicide: Boolean): RulesPreset {
-            return presets[index(area, suicide)]
-        }
-
-        override fun toString() = string
-
-    }
+//    private enum class Superko(
+//        val string: String,
+//        territory: String, territorySuicide: String,
+//        area: String, areaSuicide: String,
+//        vararg val presets: RulesPreset) {
+//
+//        PSK(
+//            "Positional Superko",
+//            "Japanese:PSK", "Japanese:Suicide:PSK", "AGA:PSK", "GOE",
+//            RulesPreset.CUSTOM, RulesPreset.CUSTOM, RulesPreset.CUSTOM, RulesPreset.GOE
+//        ),
+//        SSK(
+//            "Situational Superko",
+//            "Japanese:SSK", "Japanese:Suicide:SSK", "AGA", "NZ",
+//            RulesPreset.CUSTOM, RulesPreset.CUSTOM, RulesPreset.AGA, RulesPreset.NZ
+//        ),
+//        NSSK(
+//            "Natural Situational Superko",
+//            "Japanese", "Japanese:Suicide", "AGA:NSSK", "NZ:NSSK",
+//            RulesPreset.JAPANESE, RulesPreset.CUSTOM, RulesPreset.CUSTOM, RulesPreset.CUSTOM
+//        );
+//
+//        private val strings: Array<out String> = arrayOf(
+//            territory, territorySuicide, area, areaSuicide
+//        )
+//
+//        private fun index(area: Boolean, suicide: Boolean): Int {
+//            return (if (area) 2 else 0) + (if (suicide) 1 else 0)
+//        }
+//
+//        fun getString(area: Boolean, suicide: Boolean): String {
+//            return strings[index(area, suicide)]
+//        }
+//
+//        fun getPreset(area: Boolean, suicide: Boolean): RulesPreset {
+//            return presets[index(area, suicide)]
+//        }
+//
+//        override fun toString() = string
+//
+//    }
 
     private inner class RulesModel: ComboBoxModel<RulesPreset>, ActionListener {
 
         override fun getSelectedItem(): RulesPreset {
-            return superko.getPreset(areaScore, checkSuicide.isSelected)
+            return rulesMap[gameSetup.gameInfo.rules] ?: RulesPreset.CUSTOM
         }
 
         override fun setSelectedItem(anItem: Any?) {
-            val rules = when(anItem) {
-                RulesPreset.JAPANESE -> {
-                    areaScore = false
-                    checkSuicide.isSelected = false
-                    superko = Superko.NSSK
-                    "Japanese"
-                }
-                RulesPreset.AGA -> {
-                    areaScore = true
-                    checkSuicide.isSelected = false
-                    superko = Superko.SSK
-                    "AGA"
-                }
-                RulesPreset.NZ -> {
-                    areaScore = true
-                    checkSuicide.isSelected = true
-                    superko = Superko.SSK
-                    "NZ"
-                }
-                RulesPreset.GOE -> {
-                    areaScore = true
-                    checkSuicide.isSelected = true
-                    superko = Superko.PSK
-                    "GOE"
-                }
-                else -> return
-            }
+            if (anItem !is RulesPreset || anItem == RulesPreset.CUSTOM) return
+            val rules = anItem.rules
+            territoryScore = rules.territoryScore
             comboScore.updateUI()
+            checkSuicide.isSelected = rules.allowSuicide
             comboSuperko.updateUI()
-            gameSetup.gameInfo.rulesString = rules
+            gameSetup.gameInfo.rules = anItem.rules
         }
 
         override fun getSize(): Int {
@@ -254,7 +249,10 @@ class GoGameSetupView: JComponent() {
 
         override fun actionPerformed(e: ActionEvent?) {
             comboRules.updateUI()
-            gameSetup.gameInfo.rulesString = superko.getString(areaScore, checkSuicide.isSelected)
+            gameSetup.gameInfo.rules = GoRules(
+                superko,
+                territoryScore = territoryScore,
+                allowSuicide = checkSuicide.isSelected)
         }
 
     }
@@ -262,18 +260,19 @@ class GoGameSetupView: JComponent() {
     private inner class ScoreModel: ComboBoxModel<String> {
 
         override fun getSelectedItem(): String {
-            return if (areaScore) AREA_SCORE else TERRITORY_SCORE
+            return if (territoryScore) TERRITORY_SCORE else AREA_SCORE
         }
 
         override fun setSelectedItem(anItem: Any?) {
-            val area = when(anItem) {
-                TERRITORY_SCORE -> false
-                AREA_SCORE -> true
+            val territory = when(anItem) {
+                AREA_SCORE -> false
+                TERRITORY_SCORE -> true
                 else -> return
             }
-            areaScore = area
+            territoryScore = territory
             comboRules.updateUI()
-            gameSetup.gameInfo.rulesString = superko.getString(area, checkSuicide.isSelected)
+            val gameInfo = gameSetup.gameInfo
+            gameInfo.rules = gameInfo.rules.copy(territoryScore = territory)
         }
 
         override fun getSize() = 2
@@ -290,7 +289,26 @@ class GoGameSetupView: JComponent() {
 
     }
 
-    private inner class SuperkoModel: ComboBoxModel<Superko> {
+    private inner class SuperkoModel(
+        parentRenderer: ListCellRenderer<in Superko>
+    ): ListCellRenderer<Superko>, ComboBoxModel<Superko> {
+
+        @Suppress("UNCHECKED_CAST")
+        val parentRenderer = parentRenderer as ListCellRenderer<Any?>
+
+        override fun getListCellRendererComponent(
+            list: JList<out Superko>,
+            value: Superko,
+            index: Int,
+            isSelected: Boolean,
+            cellHasFocus: Boolean
+        ): Component = parentRenderer.getListCellRendererComponent(
+            list,
+            superkoMap[value],
+            index,
+            isSelected,
+            cellHasFocus
+        )
 
         override fun getSelectedItem(): Superko {
             return superko
@@ -300,7 +318,8 @@ class GoGameSetupView: JComponent() {
             if (anItem is Superko) {
                 superko = anItem
                 comboRules.updateUI()
-                gameSetup.gameInfo.rulesString = anItem.getString(areaScore, checkSuicide.isSelected)
+                val gameInfo = gameSetup.gameInfo
+                gameInfo.rules = gameInfo.rules.copy(superko = anItem)
             }
         }
 

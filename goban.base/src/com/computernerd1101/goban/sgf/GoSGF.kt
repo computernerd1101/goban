@@ -472,7 +472,7 @@ sealed class GoSGFNode {
     private var thisGameInfo: GameInfo? = null
     var gameInfoNode: GoSGFNode? = null; private set
     var gameInfo: GameInfo?
-        get() = syncTree(null) {
+        get() = syncTree(null as GameInfo?) {
             if (isAlive) gameInfoNode?.thisGameInfo
             else null
         }

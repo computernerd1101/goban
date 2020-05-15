@@ -242,7 +242,6 @@ class GameInfo: Serializable {
     private var _rules = GoRules.DEFAULT
     private var _rulesString = ""
 
-    @Suppress("unused")
     var rules: GoRules
         get() = _rules
         set(value) {
