@@ -56,7 +56,7 @@ enum class GoRules(
         var territory = territoryScore
         var suicide = allowSuicide
         var preset = false
-        if (string != null) for(part in string.split(':')) when(part) {
+        if (string != null) for(part in string.split(':')) when(part.toUpperCase()) {
             "JAPANESE" -> if (!preset) {
                 territory = true
                 preset = true

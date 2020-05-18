@@ -257,7 +257,7 @@ sealed class GoSGFNode {
     }
 
     @get:JvmName("parent")
-    var parent: GoSGFNode? = null; private set
+    var parent: GoSGFNode? private set
     private var childArray: Array<GoSGFNode?>? = null
     private var childCount = 0
     val children: Int
@@ -506,19 +506,17 @@ sealed class GoSGFNode {
         }
         // minimize risk of StackOverflowError
         val n = current.childCount
-        current.childArray?.let{ next ->
-            for (i in 0 until n) {
-                current = next[i] ?: break
-                if (overwrite || current.gameInfoNode?.thisGameInfo == null) {
-                    current.thisGameInfo = null
-                    current.setGameInfoNode(node, overwrite)
-                }
+        val next = current.childArray ?: return
+        for (i in 0 until n) {
+            current = next[i] ?: break
+            if (overwrite || current.gameInfoNode?.thisGameInfo == null) {
+                current.thisGameInfo = null
+                current.setGameInfoNode(node, overwrite)
             }
         }
     }
 
-    @get:JvmName("hasGameInfoChildren")
-    val hasGameInfoChildren: Boolean get() = syncTree(false) {
+    val hasGameInfoChildren: Boolean @JvmName("hasGameInfoChildren") get() = syncTree(false) {
         isAlive && hasGameInfoChildrenRecursive(null)
     }
 
@@ -1447,7 +1445,7 @@ sealed class GoSGFNode {
             val bytes = value.list
             val s1 = bytes[0]
             val s2 = if (bytes.size >= 2) bytes[1] else null
-            pointSet = parsePointRect(points, s1, s2)
+            pointSet = parsePointRect(pointSet, s1, s2)
         }
         return pointSet
     }

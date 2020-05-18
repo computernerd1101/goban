@@ -182,10 +182,19 @@ class GoGameSetup {
     }
 
     override fun toString(): String {
-        return "GoGameSetup(width=$width, height=$height" +
-                ", blackPlayer=$blackPlayer, whitePlayer=$whitePlayer" +
-                ", isRandomPlayer=$isRandomPlayer, gameInfo=$gameInfo" +
-                ", isFreeHandicap=$isFreeHandicap)"
+        val width = this.width
+        val height = this.height
+        return buildString {
+            append("GoGameSetup(")
+            if (width == height)
+                append("size=")
+            else append("width=").append(width).append("height=")
+            append(height).append(", blackPlayer=").append(blackPlayer)
+                .append(", whitePlayer=").append(whitePlayer)
+                .append(", isRandomPlayer=").append(isRandomPlayer)
+                .append(", gameInfo=").append(gameInfo)
+                .append(", isFreeHandicap=").append(isFreeHandicap).append(")")
+        }
     }
 
 }

@@ -49,7 +49,7 @@ abstract class AbstractOvertimeModel(
 
     override fun getSelectedItem(): Any {
         val overtime = gameInfo?.overtime ?: return items[0]
-        var index = items.indexOfFirst { it::class == overtime::class }
+        var index = items.indexOfFirst { it.javaClass == overtime.javaClass }
         if (index < 0) index = 0
         return items[index]
     }

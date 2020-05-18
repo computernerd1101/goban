@@ -22,12 +22,6 @@ fun main() {
 
 class GoGameSetupView: JComponent() {
 
-    private val gameSetup = GoGameSetup(
-        gameInfo = GameInfo().apply {
-            rulesString = "Japanese"
-        }
-    )
-
     private val comboSize = JComboBox<Any>()
     private val checkHeight = JCheckBox("Height:")
     private val spinWidth = CN13Spinner()
@@ -44,10 +38,17 @@ class GoGameSetupView: JComponent() {
     private val comboOvertime = JComboBox<Any>()
     private val overtimeView = OvertimeComponent(minRows = OvertimeModel(comboOvertime.renderer).maxEntries)
 
-    private var territoryScore: Boolean = false
-    private var superko: Superko = Superko.NATURAL
+    private val gameSetup: GoGameSetup
+    private var territoryScore: Boolean
+    private var superko: Superko
 
     init {
+        val gameInfo = GameInfo()
+        val rules = GoRules.JAPANESE
+        gameInfo.rules = rules
+        gameSetup = GoGameSetup(gameInfo = gameInfo)
+        territoryScore = rules.territoryScore
+        superko = rules.superko
         val sizeModel = SizeModel(comboSize.renderer)
         comboSize.renderer = sizeModel
         comboSize.model = sizeModel
@@ -161,7 +162,7 @@ class GoGameSetupView: JComponent() {
     }
 
     private enum class RulesPreset(
-        val string: String,
+        private val string: String,
         val rules: GoRules
     ) {
 
@@ -176,48 +177,6 @@ class GoGameSetupView: JComponent() {
         }
 
     }
-
-//    private enum class Superko(
-//        val string: String,
-//        territory: String, territorySuicide: String,
-//        area: String, areaSuicide: String,
-//        vararg val presets: RulesPreset) {
-//
-//        PSK(
-//            "Positional Superko",
-//            "Japanese:PSK", "Japanese:Suicide:PSK", "AGA:PSK", "GOE",
-//            RulesPreset.CUSTOM, RulesPreset.CUSTOM, RulesPreset.CUSTOM, RulesPreset.GOE
-//        ),
-//        SSK(
-//            "Situational Superko",
-//            "Japanese:SSK", "Japanese:Suicide:SSK", "AGA", "NZ",
-//            RulesPreset.CUSTOM, RulesPreset.CUSTOM, RulesPreset.AGA, RulesPreset.NZ
-//        ),
-//        NSSK(
-//            "Natural Situational Superko",
-//            "Japanese", "Japanese:Suicide", "AGA:NSSK", "NZ:NSSK",
-//            RulesPreset.JAPANESE, RulesPreset.CUSTOM, RulesPreset.CUSTOM, RulesPreset.CUSTOM
-//        );
-//
-//        private val strings: Array<out String> = arrayOf(
-//            territory, territorySuicide, area, areaSuicide
-//        )
-//
-//        private fun index(area: Boolean, suicide: Boolean): Int {
-//            return (if (area) 2 else 0) + (if (suicide) 1 else 0)
-//        }
-//
-//        fun getString(area: Boolean, suicide: Boolean): String {
-//            return strings[index(area, suicide)]
-//        }
-//
-//        fun getPreset(area: Boolean, suicide: Boolean): RulesPreset {
-//            return presets[index(area, suicide)]
-//        }
-//
-//        override fun toString() = string
-//
-//    }
 
     private inner class RulesModel: ComboBoxModel<RulesPreset>, ActionListener {
 

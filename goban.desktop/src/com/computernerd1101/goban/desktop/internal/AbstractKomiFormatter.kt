@@ -10,7 +10,7 @@ abstract class AbstractKomiFormatter:
     CN13Spinner.Formatter(NumberFormat.getInstance()),
     ComboBoxModel<Any> {
 
-    private var value: Double? = Zero.plus
+    private var value: BoxedDouble? = Zero.plus
 
     init {
         commitsOnValidEdit = true
@@ -21,19 +21,19 @@ abstract class AbstractKomiFormatter:
     abstract val spinKomi: CN13Spinner
 
     override fun stringToValue(text: String?): Any? {
-        if (text.isNullOrEmpty()) {
+        if (text == null || text.isEmpty()) {
             if (gameInfo?.komi == 0.0) throw ParseException("", 0)
             return null
         }
         val isNegative: Boolean
-        var s = text
+        var s: String = text
         if (s[0] == '-') {
             isNegative = true
             if (s.length == 1) return Zero.minus
             s = s.substring(1)
         } else isNegative = false
         val hasFraction: Boolean
-        val i = text.indexOf('.')
+        val i = s.indexOf('.')
         if (i >= 0) {
             hasFraction = true
             s = s.substring(0, i)
@@ -60,19 +60,19 @@ abstract class AbstractKomiFormatter:
         val info = gameInfo ?: return null
         var value = this.value
         val komi = info.komi
-        if (value == komi) return value
-        value = komi
+        if (value as Double == komi) return value
+        value = komi as BoxedDouble
         this.value = value
-        return value
+        return value as Double?
     }
 
     override fun setValue(value: Any?) {
         val info = gameInfo ?: return
-        var boxed: Double? = null
+        var boxed: BoxedDouble? = null
         var unboxed = 0.0
-        if (value is Double) {
+        if (value is BoxedDouble) {
             boxed = value
-            unboxed = boxed
+            unboxed = boxed as Double
         } else if (value is Number) {
             unboxed = value.toDouble()
         }
@@ -81,7 +81,7 @@ abstract class AbstractKomiFormatter:
             val komi = info.komi
             if (komi != unboxed)
                 boxed = if (komi == 0.0) Zero.plus else null
-            if (boxed == null) boxed = komi
+            if (boxed == null) boxed = komi as BoxedDouble
             this.value = boxed
             fireChangeEvent()
             if (komi == 0.0) SwingUtilities.invokeLater {
