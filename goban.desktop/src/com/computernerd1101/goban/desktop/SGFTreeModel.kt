@@ -18,7 +18,6 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
 
     private val renderer = DefaultTreeCellRenderer()
 
-
 //    fun pointToString(p: GoPoint): String {
 //        val sgf = root ?: return ""
 //        val y = sgf.height - p.y
