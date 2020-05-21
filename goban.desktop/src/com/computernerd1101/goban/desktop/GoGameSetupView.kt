@@ -191,7 +191,7 @@ class GoGameSetupView: JComponent() {
             comboScore.updateUI()
             checkSuicide.isSelected = rules.allowSuicide
             comboSuperko.updateUI()
-            gameSetup.gameInfo.rules = anItem.rules
+            gameSetup.gameInfo.rules = rules
         }
 
         override fun getSize(): Int {
