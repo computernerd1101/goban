@@ -12,7 +12,7 @@ object InternalGoban: LongBinaryOperator {
     interface AbstractSecrets {
         fun rows(goban: AbstractGoban): AtomicLongArray
     }
-    var abstractSecrets: AbstractSecrets by SecretKeeper { AbstractGoban }
+    lateinit var abstractSecrets: AbstractSecrets
 
     lateinit var count: AtomicLongFieldUpdater<AbstractGoban>
 
@@ -104,10 +104,10 @@ object InternalGoban: LongBinaryOperator {
 
     override fun applyAsLong(row: Long, flags: Long): Long {
         val x = flags.toInt()
-        val oldFlags = flags and EXPECT_BLACK
-        if (oldFlags != 0L) {
+        val expected = flags and EXPECT_BLACK
+        if (expected != 0L) {
             val mask = BLACK shl x
-            val rowFlags: Long = when(oldFlags) {
+            val rowFlags: Long = when(expected) {
                 EXPECT_WHITE -> WHITE shl x
                 EXPECT_BLACK -> mask
                 else -> 0L
@@ -122,7 +122,7 @@ object InternalGoban: LongBinaryOperator {
             }
             NEW_WHITE -> {
                 o = WHITE shl x
-                ((1L shl 32) shl x).inv()
+                ((BLACK - WHITE) shl x).inv()
             }
             else -> (BLACK shl x).inv()
         }
@@ -219,7 +219,7 @@ object GobanSetAllOp: LongBinaryOperator {
             if (setRow(goban, i++, row.toInt() and mask1, color))
                 modified = true
             if (width > 32)
-                if (setRow(goban, i++, row.ushr(32).toInt() and mask2, color))
+                if (setRow(goban, i++, (row ushr 32).toInt() and mask2, color))
                     modified = true
         }
         return modified

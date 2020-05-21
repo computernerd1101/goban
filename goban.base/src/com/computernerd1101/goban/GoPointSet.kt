@@ -587,14 +587,12 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
     }
 
     override fun clear() {
-        val secrets = InternalGoPointSet.secrets
-        val rows = secrets.rows(this)
+        val rows = InternalGoPointSet.secrets.rows(this)
         var words = 0L
         for(y in 0..51)
             words -= InternalGoPointSet.sizeAndHash(rows.getAndSet(y, 0), y)
-        if (words != 0L) {
+        if (words != 0L)
             InternalGoPointSet.sizeAndHash.addAndGet(this, words)
-        }
     }
 
     companion object {

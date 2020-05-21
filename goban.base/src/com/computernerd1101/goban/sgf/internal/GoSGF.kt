@@ -13,7 +13,7 @@ object InternalGoSGF {
         fun writeSGFTree(node: GoSGFNode, tree: SGFTree)
         fun parseSGFNodes(node: GoSGFNode, fileFormat: Int, tree: SGFTree, hadGameInfo: Boolean, wasRoot: Boolean)
     }
-    var nodeSecrets: NodeSecrets by SecretKeeper { GoSGFNode }
+    lateinit var nodeSecrets: NodeSecrets
 
     interface MoveSecrets {
         fun moveNode(parent: GoSGFNode, playStoneAt: GoPoint?, turnPlayer: GoColor): GoSGFMoveNode
