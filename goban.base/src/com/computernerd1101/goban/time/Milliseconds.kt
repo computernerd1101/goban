@@ -61,49 +61,47 @@ class Milliseconds private constructor(private val value: Long, private val extr
         fun parse(s: String): Milliseconds {
             val m: Matcher = PATTERN.matcher(s)
             if (!m.find()) throw NumberFormatException("For input string: \"$s\"")
-            val s1: String = m.group(GROUP_SIGN)
-            val s2: String = m.group(GROUP_IPART)
-            var s3: String? = m.group(GROUP_FPART)
-            var s4: String? = null
+            val sign: String = m.group(GROUP_SIGN)
+            val sb = StringBuilder()
+                .append(sign)
+                .append(m.group(GROUP_IPART))
             var extra = 0
-            when (s3) {
-                null -> s3 = "000"
+            when (val fPart: String? = m.group(GROUP_FPART)) {
+                null -> sb.append("000")
                 "." -> {
                     extra = 1
-                    s3 = "000"
+                    sb.append("000")
                 }
                 ".0" -> {
                     extra = 2
-                    s3 = "000"
+                    sb.append("000")
                 }
                 ".00", ".000" -> {
                     extra = 3
-                    s3 = "000"
+                    sb.append("000")
                 }
                 else -> {
-                    s3 = s3.substring(1)
-                    var i = s3.length - 1
-                    while (i >= 0) {
-                        val ch = s3[i]
+                    val sf = fPart.substring(1)
+                    for(i in (sf.length - 1) downTo 0) {
+                        val ch = sf[i]
                         if (ch != '0') break
                         extra++
-                        i--
                     }
-                    when (s3.length) {
-                        1 -> s4 = "00"
-                        2 -> s4 = "0"
+                    sb.append(sf)
+                    when (sf.length) {
+                        1 -> sb.append("00")
+                        2 -> sb.append("0")
                         3 -> if (extra > 0) extra--
                     }
                 }
             }
-            if (s4 == null) s4 = ""
             val value: Long
             value = try {
-                (s1 + s2 + s3 + s4).toLong()
+                sb.toString().toLong()
             } catch (e: NumberFormatException) {
                 throw NumberFormatException("For input string: \"$s\"")
             }
-            if (value == 0L && s1 == "-") extra = -1 - extra
+            if (value == 0L && sign == "-") extra = -1 - extra
             return Milliseconds(value, extra)
         }
 
@@ -155,35 +153,42 @@ class Milliseconds private constructor(private val value: Long, private val extr
             ex = -ex
         }
         hash += ex
-        return (hash + hash.shr(32)).toInt()
+        return (hash + (hash shr 32)).toInt()
     }
 
+    private var string: String? = null
+
     override fun toString(): String {
-        val withPoint: String
-        val withoutPoint: String
-        when(extra) {
-            -4 -> return "-0.00"
-            -3 -> return "-0.0"
-            -2 -> return "-0."
-            -1 -> return "-"
-            0 -> {
-                withPoint = ""
-                withoutPoint = ""
+        var s = string
+        if (s == null) {
+            val withPoint: String
+            val withoutPoint: String
+            when (extra) {
+                -4 -> return "-0.00"
+                -3 -> return "-0.0"
+                -2 -> return "-0."
+                -1 -> return "-"
+                0 -> {
+                    withPoint = ""
+                    withoutPoint = ""
+                }
+                1 -> {
+                    withPoint = "."
+                    withoutPoint = "0"
+                }
+                2 -> {
+                    withPoint = ".0"
+                    withoutPoint = "00"
+                }
+                else -> {
+                    withPoint = ".00"
+                    withoutPoint = ""
+                }
             }
-            1 -> {
-                withPoint = "."
-                withoutPoint = "0"
-            }
-            2 -> {
-                withPoint = ".0"
-                withoutPoint = "00"
-            }
-            else -> {
-                withPoint = ".00"
-                withoutPoint = ""
-            }
+            s = value.millisToStringSeconds() + if (value % 1000 == 0L) withPoint else withoutPoint
+            string = s
         }
-        return value.millisToStringSeconds() + if (value % 1000 == 0L) withPoint else withoutPoint
+        return s
     }
 
 }

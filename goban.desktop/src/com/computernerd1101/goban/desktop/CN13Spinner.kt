@@ -11,7 +11,7 @@ import javax.swing.text.NumberFormatter
 
 class CN13Spinner: JSpinner() {
 
-    @get:JvmName("get-editor")
+    @get:JvmName("editor")
     lateinit var editor: Editor private set
 
     override fun getEditor(): Editor {
@@ -87,8 +87,7 @@ class CN13Spinner: JSpinner() {
         protected constructor(format: NumberFormat): super(format)
 
         private val listeners = mutableListOf<ChangeListener>()
-        @Suppress("LeakingThis")
-        private val event = ChangeEvent(this)
+        private val event by lazy(LazyThreadSafetyMode.PUBLICATION) { ChangeEvent(this) }
 
         protected fun fireChangeEvent() {
             for(i in (listeners.size - 1) downTo 0)

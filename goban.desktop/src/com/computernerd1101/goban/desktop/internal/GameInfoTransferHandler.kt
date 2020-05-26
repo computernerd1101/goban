@@ -1,4 +1,4 @@
-package com.computernerd1101.goban.desktop
+package com.computernerd1101.goban.desktop.internal
 
 import com.computernerd1101.goban.sgf.GameInfo
 import com.computernerd1101.sgf.*
@@ -10,7 +10,7 @@ import java.nio.*
 import java.nio.charset.*
 import javax.swing.*
 
-internal class GameInfoTransferHandler(
+class GameInfoTransferHandler(
     val tabs: JTabbedPane,
     val index: Int,
     var charset: Charset? = null
@@ -41,7 +41,12 @@ internal class GameInfoTransferHandler(
     }
 
     override fun createTransferable(c: JComponent?): Transferable? {
-        return gameInfo?.let { info -> GameInfoTransferable(info, charset) }
+        return gameInfo?.let { info ->
+            GameInfoTransferable(
+                info,
+                charset
+            )
+        }
     }
 
     override fun getSourceActions(c: JComponent?) = COPY
@@ -71,11 +76,17 @@ internal class GameInfoTransferHandler(
     companion object {
 
         @JvmField
-        val gameInfoFlavor = dataFlavor(DataFlavor.javaJVMLocalObjectMimeType +
-                    ";class=\"com.computernerd1101.goban.sgf.GameInfo\"")
+        val gameInfoFlavor =
+            dataFlavor(
+                DataFlavor.javaJVMLocalObjectMimeType +
+                        ";class=\"com.computernerd1101.goban.sgf.GameInfo\""
+            )
         @JvmField
-        val serializedGameInfoFlavor = dataFlavor(DataFlavor.javaSerializedObjectMimeType +
-                ";class=\"com.computernerd1101.goban.sgf.GameInfo\"")
+        val serializedGameInfoFlavor =
+            dataFlavor(
+                DataFlavor.javaSerializedObjectMimeType +
+                        ";class=\"com.computernerd1101.goban.sgf.GameInfo\""
+            )
 
         private fun dataFlavor(mimeType: String) = try {
             DataFlavor(mimeType)
@@ -103,24 +114,48 @@ internal class GameInfoTransferHandler(
         private val flavors = arrayOf(
             gameInfoFlavor,
             serializedGameInfoFlavor,
-            dataFlavor("text/plain;class=\"java.lang.String\""),
-            dataFlavor("application/x-go-sgf;class=\"java.lang.String\""),
+            dataFlavor(
+                "text/plain;class=\"java.lang.String\""
+            ),
+            dataFlavor(
+                "application/x-go-sgf;class=\"java.lang.String\""
+            ),
             "text/plain;class=\"java.io.InputStream\"",
             "application/x-go-sgf;class=\"java.io.InputStream\"",
             "text/plain;class=\"[B\"",
             "application/x-go-sgf;class=\"[B\"",
             "text/plain;class=\"java.nio.ByteBuffer\"",
             "application/x-go-sgf;class=\"java.nio.ByteBuffer\"",
-            dataFlavor("text/plain;class=\"java.io.Reader\""),
-            dataFlavor("application/x-go-sgf;class=\"java.io.Reader\""),
-            dataFlavor("text/plain;class=\"[C\""),
-            dataFlavor("application/x-go-sgf;class=\"[C\""),
-            dataFlavor("text/plain;class=\"java.nio.CharBuffer\""),
-            dataFlavor("application/x-go-sgf;class=\"java.nio.CharBuffer\""),
-            dataFlavor("text/plain;class=\"java.lang.StringBuilder\""),
-            dataFlavor("application/x-go-sgf;class=\"java.lang.StringBuilder\""),
-            dataFlavor("text/plain;class=\"java.lang.StringBuffer\""),
-            dataFlavor("application/x-go-sgf;class=\"java.lang.StringBuffer\"")
+            dataFlavor(
+                "text/plain;class=\"java.io.Reader\""
+            ),
+            dataFlavor(
+                "application/x-go-sgf;class=\"java.io.Reader\""
+            ),
+            dataFlavor(
+                "text/plain;class=\"[C\""
+            ),
+            dataFlavor(
+                "application/x-go-sgf;class=\"[C\""
+            ),
+            dataFlavor(
+                "text/plain;class=\"java.nio.CharBuffer\""
+            ),
+            dataFlavor(
+                "application/x-go-sgf;class=\"java.nio.CharBuffer\""
+            ),
+            dataFlavor(
+                "text/plain;class=\"java.lang.StringBuilder\""
+            ),
+            dataFlavor(
+                "application/x-go-sgf;class=\"java.lang.StringBuilder\""
+            ),
+            dataFlavor(
+                "text/plain;class=\"java.lang.StringBuffer\""
+            ),
+            dataFlavor(
+                "application/x-go-sgf;class=\"java.lang.StringBuffer\""
+            )
         )
 
     }
@@ -131,21 +166,21 @@ internal class GameInfoTransferHandler(
     ): Transferable {
 
         override fun getTransferData(flavor: DataFlavor): Any {
-            val charset = flavor.getParameter("charset")?.let { enc ->
-                try {
-                    Charset.forName(enc)
-                } catch(e: IllegalCharsetNameException) {
-                    null
-                } catch(e: UnsupportedCharsetException) {
-                    null
-                }
-            } ?: this.charset
             val isSGF = flavor.subType == "x-go-sgf"
             return when(val repClass: Class<*> = flavor.representationClass) {
                 GameInfo::class.java, Serializable::class.java,
                 Any::class.java -> info
                 InputStream::class.java, ByteArrayInputStream::class.java,
                 ByteArray::class.java, ByteBuffer::class.java -> {
+                    val charset = flavor.getParameter("charset")?.let { enc ->
+                        try {
+                            Charset.forName(enc)
+                        } catch(e: IllegalCharsetNameException) {
+                            null
+                        } catch(e: UnsupportedCharsetException) {
+                            null
+                        }
+                    } ?: this.charset
                     val output = ByteArrayOutputStream()
                     val node = SGFNode()
                     if (isSGF) {
@@ -206,7 +241,9 @@ internal class GameInfoTransferHandler(
         override fun getTransferDataFlavors() = Array(flavors.size) { index ->
             when(val flavor = flavors[index]) {
                 is DataFlavor -> flavor
-                else -> dataFlavor("$flavor;charset=${charset?.name() ?: "UTF-8"}")
+                else -> dataFlavor(
+                    "$flavor;charset=${charset?.name() ?: "UTF-8"}"
+                )
             }
         }
 

@@ -3,10 +3,7 @@
 package com.computernerd1101.goban.desktop
 
 import com.computernerd1101.goban.*
-import com.computernerd1101.goban.desktop.internal.AbstractKomiFormatter
-import com.computernerd1101.goban.desktop.internal.AbstractOvertimeModel
-import com.computernerd1101.goban.desktop.internal.AbstractTimeLimitFormatter
-import com.computernerd1101.goban.desktop.internal.Zero
+import com.computernerd1101.goban.desktop.internal.*
 import com.computernerd1101.goban.markup.*
 import com.computernerd1101.goban.sgf.*
 import com.computernerd1101.goban.sgf.Date
@@ -873,7 +870,8 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         tabs.addTab("Node", JScrollPane(panel))
     }
 
-    private val gameInfoTransferHandler = GameInfoTransferHandler(tabs, 3, sgf.charset)
+    private val gameInfoTransferHandler =
+        GameInfoTransferHandler(tabs, 3, sgf.charset)
     private val buttonCopyGameInfo = JButton("Copy")
     private val buttonPasteGameInfo = JButton("Paste")
     private val buttonDeleteGameInfo = JButton("Delete")

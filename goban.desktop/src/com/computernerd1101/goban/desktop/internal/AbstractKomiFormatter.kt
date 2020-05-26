@@ -60,9 +60,10 @@ abstract class AbstractKomiFormatter:
         val info = gameInfo ?: return null
         var value = this.value
         val komi = info.komi
-        if (value as Double == komi) return value
-        value = komi as BoxedDouble
-        this.value = value
+        if (value as Double? != komi) {
+            value = komi as BoxedDouble
+            this.value = value
+        }
         return value as Double?
     }
 

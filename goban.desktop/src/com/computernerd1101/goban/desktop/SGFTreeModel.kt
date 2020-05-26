@@ -1,6 +1,7 @@
 package com.computernerd1101.goban.desktop
 
 import com.computernerd1101.goban.*
+import com.computernerd1101.goban.desktop.internal.GameInfoTransferHandler
 import com.computernerd1101.goban.sgf.*
 import java.awt.Component
 import java.awt.datatransfer.*

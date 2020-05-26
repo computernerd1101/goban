@@ -31,8 +31,9 @@ class ByoYomi(periods: Int, millis: Long): Overtime() {
         var overtime = e.overtimeCode
         var flags = e.flags
         if (time > 0L) {
-            if (flags and FLAGS_OVERTIME_TICKING != TimeEvent.FLAG_OVERTIME) return e
-            time = millis
+            val t = millis
+            if (flags and FLAGS_OVERTIME_TICKING != TimeEvent.FLAG_OVERTIME || time == t) return e
+            time = t
         } else {
             overtime = (if (flags and TimeEvent.FLAG_OVERTIME != 0) overtime - 1 else periods) +
                     (time / millis).toInt()

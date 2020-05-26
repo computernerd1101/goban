@@ -120,8 +120,12 @@ class TimeLimit(mainTime: Long, val overtime: Overtime?) {
                 ticking -> if (e.flags and TimeEvent.FLAGS_EXPIRED_TICKING == 0) {
                     prevSystemTime = System.currentTimeMillis()
                     var time = e.timeRemaining
-                    e = TimeEvent(this, time, e.overtimeCode,
-                        e.flags or TimeEvent.FLAG_TICKING)
+                    e = TimeEvent(
+                        this,
+                        time,
+                        e.overtimeCode,
+                        e.flags or TimeEvent.FLAG_TICKING
+                    )
                     update = true
                     time %= 1000L
                     if (time <= 0) time += 1000L
@@ -155,7 +159,7 @@ class TimeLimit(mainTime: Long, val overtime: Overtime?) {
             r += 1000L
         prevSystemTime = System.currentTimeMillis()
         event = filterEvent(TimeEvent(
-            this@TimeLimit,
+            this,
             timeRemaining - r,
             event.overtimeCode,
             event.flags or TimeEvent.FLAG_TICKING
