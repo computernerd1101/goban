@@ -92,7 +92,7 @@ class GoRectangle private constructor(
             return String(buffer)
         }
 
-        private val buffer2 by threadLocal {
+        private val buffer2: CharArray by threadLocal {
             val buffer = CharArray(8)
             buffer[0] = '['
             // buffer[1] = x1
@@ -105,7 +105,7 @@ class GoRectangle private constructor(
             buffer
         }
 
-        private val bufferTruncate by threadLocal {
+        private val bufferTruncate: CharArray by threadLocal {
             val buffer = CharArray(13)
             buffer[0] = '['
             // buffer[1] = x1
@@ -140,7 +140,7 @@ class GoRectangle private constructor(
             is GoRectangle -> return contains(elements.start) && contains(elements.end)
             is GoPointSet -> {
                 val rows = InternalGoPointSet.secrets.rows(elements)
-                val mask: Long = (1L.shl(end.x + 1) - 1L.shl(start.x)).inv()
+                val mask: Long = ((1L shl (end.x + 1)) - (1L shl start.x)).inv()
                 for(y in 0..51) {
                     var row = rows[y]
                     if (y in start.y..end.y) row = row and mask

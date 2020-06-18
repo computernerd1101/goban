@@ -26,7 +26,7 @@ annotation class TimeProperty(
         override fun parse(s: String): Long? {
             return try {
                 s.secondsToMillis()
-            } catch(e: RuntimeException) {
+            } catch(e: Exception) {
                 null
             }
         }
@@ -43,9 +43,11 @@ annotation class TimeProperty(
         }
 
         override fun decrement(value: Long): Long? {
-            if (value <= min) return null
-            if (value - min < 1000L) return min
-            return value - 1000L
+            return when {
+                value <= min -> null
+                value - min < 1000L -> min
+                else -> value - 1000L
+            }
         }
 
     }

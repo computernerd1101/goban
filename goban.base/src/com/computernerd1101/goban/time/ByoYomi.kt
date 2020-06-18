@@ -1,6 +1,7 @@
 package com.computernerd1101.goban.time
 
 import com.computernerd1101.goban.annotations.*
+import java.util.*
 import java.util.regex.Pattern
 
 @PropertyOrder("Periods", "Seconds")
@@ -47,6 +48,14 @@ class ByoYomi(periods: Int, millis: Long): Overtime() {
     override fun toString() = "$periods*${millis.millisToStringSeconds()} Byo-Yomi"
 
     override fun getTypeString(): String? = "Byo-Yomi"
+
+    override fun getDisplayName(locale: Locale): String? {
+        val resources: ResourceBundle = ResourceBundle.getBundle(
+            "com.computernerd1101.goban.resources.OvertimeData",
+            locale
+        )
+        return resources.getString("overtime.ByoYomi")
+    }
 
     override fun parseThis(s: String): Boolean = parse(s, this) != null
 

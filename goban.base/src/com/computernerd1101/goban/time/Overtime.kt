@@ -15,6 +15,11 @@ abstract class Overtime: Cloneable {
 
     protected open fun getTypeString(): String? = null
 
+    @JvmOverloads
+    fun displayName(locale: Locale = Locale.getDefault()): String = getDisplayName(locale) ?: typeString
+
+    protected open fun getDisplayName(locale: Locale): String? = null
+
     companion object {
 
         @JvmStatic

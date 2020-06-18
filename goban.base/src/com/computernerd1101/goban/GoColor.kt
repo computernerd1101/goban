@@ -2,6 +2,7 @@ package com.computernerd1101.goban
 
 @Suppress("unused")
 enum class GoColor {
+
     BLACK, WHITE;
 
     val opponent : GoColor

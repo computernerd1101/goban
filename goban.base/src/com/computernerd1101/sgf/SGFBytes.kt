@@ -282,7 +282,7 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
         checkPositionIndex(index, size)
         checkBoundsIndexes(start, end, bs.size)
         if (start != end) {
-            if (this == bs) insertSelf(size, index, start, end)
+            if (this === bs) insertSelf(size, index, start, end)
             else insert0(size, index, bs.bytes, start, end)
         }
         return this
@@ -313,17 +313,23 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
     private fun insertSelf(size: Int, index: Int, start: Int, end: Int) {
         val more = end - start
         val total = size + more
-        var bytes = bytes
+        var bytes = this.bytes
         var src: ByteArray = bytes
-        return insertBytes(size, index,
-            if (bytes.size < total) {
-                bytes = grow(bytes, total)
-                start
-            } else if (index < end) {
-                src = bytes.copyOfRange(start, end)
-                0
-            } else start,
-            more, total, bytes, src)
+        insertBytes(
+            size, index,
+            when {
+                bytes.size < total -> {
+                    bytes = grow(bytes, total)
+                    start
+                }
+                index < end -> {
+                    src = bytes.copyOfRange(start, end)
+                    0
+                }
+                else -> start
+            },
+            more, total, bytes, src
+        )
     }
 
     private fun insertBytes(size: Int, index: Int, start: Int, more: Int, total: Int,

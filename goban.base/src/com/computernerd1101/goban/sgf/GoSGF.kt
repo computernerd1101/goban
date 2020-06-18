@@ -598,7 +598,7 @@ sealed class GoSGFNode {
 
     private fun createNextMoveNodeAsync(playStoneAt: GoPoint?, turnPlayer: GoColor): GoSGFMoveNode {
         for(i in 0 until childCount) {
-            val node = childArray?.get(i)!!
+            val node = fastChild(i)
             if (node is GoSGFMoveNode && node.playStoneAt == playStoneAt && node.turnPlayer == turnPlayer)
                 return node
         }
@@ -608,13 +608,12 @@ sealed class GoSGFNode {
     }
 
     fun createNextSetupNode(goban: AbstractGoban): GoSGFSetupNode {
-        val fixed = goban.readOnly()
-        return syncTreeOrThrow { createNextSetupNodeAsync(fixed) }
+        return syncTreeOrThrow { createNextSetupNodeAsync(goban.readOnly()) }
     }
 
     private fun createNextSetupNodeAsync(goban: FixedGoban): GoSGFSetupNode {
         for(i in 0 until childCount) {
-            val node = childArray?.get(i)!!
+            val node = fastChild(i)
             if (node is GoSGFSetupNode && node.goban == goban)
                 return node
         }
@@ -1166,7 +1165,7 @@ sealed class GoSGFNode {
                 val bytesList = propFG.list[0].list
                 var bytes = bytesList[0]
                 val s = bytes.toString()
-                if (s.isBlank() && bytes.size == 1) {
+                if (s.isBlank() && bytesList.size == 1) {
                     currentNode._figure = FIGURE_DEFAULT
                     currentNode._figureName = null
                 } else {
@@ -1538,7 +1537,7 @@ class GoSGFMoveNode private constructor(
                 flag = Flags.FORCED
                 op = IntBinOp.OR
             } else {
-                flag = Flags.FORCED.inv()
+                flag = Flags.FORCED xor -1
                 op = IntBinOp.AND
             }
             updateFlags.getAndAccumulate(this, flag, op)

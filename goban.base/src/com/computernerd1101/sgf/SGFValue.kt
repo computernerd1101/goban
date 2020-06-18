@@ -62,10 +62,8 @@ class SGFValue: RowColumn, Serializable {
         bytes.append(ba, lastIndex, ba.size)
     }
 
-    override fun toString(): String {
-        val buffer = StringBuilder()
-        SGFWriter.StringWriter(buffer).writeValue(this)
-        return buffer.toString()
+    override fun toString() = buildString {
+        SGFWriter.StringWriter(this).writeValue(this@SGFValue)
     }
 
     @Throws(IOException::class)

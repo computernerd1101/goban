@@ -27,7 +27,7 @@ enum class GoRules(
     JAPANESE_SSK(Superko.SITUATIONAL, "Japanese:SSK"), // territory
     JAPANESE_SUICIDE_SSK(Superko.SITUATIONAL, "Japanese:Suicide:SSK"), // territory, allow suicide
     PSK(Superko.POSITIONAL, "PSK"), // area
-    ING(Superko.POSITIONAL, "GOE"), // area, allow suicide
+    ING(Superko.POSITIONAL, "Goe"), // area, allow suicide
     JAPANESE_PSK(Superko.POSITIONAL, "Japanese:PSK"), // territory
     JAPANESE_SUICIDE_PSK(Superko.POSITIONAL, "Japanese:Suicide:PSK"); // territory, allow suicide
 

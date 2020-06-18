@@ -54,11 +54,8 @@ sealed class SGFWriter {
         write('('.toInt())
         var hasPrev = false
         for (node in tree.nodes) {
-            if (hasPrev) {
-                write(' '.toInt())
-            } else {
-                hasPrev = true
-            }
+            if (hasPrev) write(' '.toInt())
+            else hasPrev = true
             writeNode(node)
             write('\n'.toInt())
             writeTab(tab)

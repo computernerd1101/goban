@@ -67,19 +67,21 @@ object InternalGoSGF {
     fun parsePoint(bytes: SGFBytes?, ignoreCase: Boolean): GoPoint? {
         if (bytes?.size != 2) return null
         var ch = bytes[0].toChar()
-        val x = ch - when {
+        var offset = when {
             ch in 'a'..'z' -> 'a'
             ch !in 'A'..'Z' -> return null
             ignoreCase -> 'A'
             else -> 'A' - 26
         }
+        val x = ch - offset
         ch = bytes[1].toChar()
-        val y = ch - when {
+        offset = when {
             ch in 'a'..'z' -> 'a'
             ch !in 'A'..'Z' -> return null
             ignoreCase -> 'A'
             else -> 'A' - 26
         }
+        val y = ch - offset
         return GoPoint(x, y)
     }
 
@@ -101,9 +103,11 @@ fun GoSGFMoveNode.PlayerTime.parseTimeRemaining(time: SGFProperty?, overtime: SG
         try {
             this.time = s.secondsToMillis()
         } catch(e: NumberFormatException) {
-            warnings += SGFWarning(bytes.row, bytes.column, "${if (color == GoColor.BLACK)
-                "Unable to parse remaining time BL[" else "Unable to parse remaining time WL["
-            }$s]: $e", e)
+            warnings += SGFWarning(
+                bytes.row, bytes.column, "${if (color == GoColor.BLACK)
+                    "Unable to parse remaining time BL[" else "Unable to parse remaining time WL["
+                }$s]: $e", e
+            )
         }
     }
     if (overtime != null) {
@@ -112,9 +116,11 @@ fun GoSGFMoveNode.PlayerTime.parseTimeRemaining(time: SGFProperty?, overtime: SG
         try {
             this.overtime = s.toInt()
         } catch(e: NumberFormatException) {
-            warnings += SGFWarning(bytes.row, bytes.column, "${if (color == GoColor.BLACK)
-                "Unable to parse remaining overtime OB[" else "Unable to parse remaining overtime OW["
-            }$s]: $e", e)
+            warnings += SGFWarning(
+                bytes.row, bytes.column, "${if (color == GoColor.BLACK)
+                    "Unable to parse overtime OB[" else "Unable to parse overtime OW["
+                }$s]: $e", e
+            )
         }
     }
 }

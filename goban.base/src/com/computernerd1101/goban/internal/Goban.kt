@@ -9,35 +9,38 @@ import java.util.function.Supplier
 
 object InternalGoban: LongBinaryOperator {
 
-    interface AbstractSecrets {
-        fun rows(goban: AbstractGoban): AtomicLongArray
-    }
-    lateinit var abstractSecrets: AbstractSecrets
-
+    lateinit var rows: (AbstractGoban) -> AtomicLongArray
     lateinit var count: AtomicLongFieldUpdater<AbstractGoban>
 
-    interface FixedSecrets {
-        fun copy(goban: AbstractGoban): FixedGoban
+    interface Factory<out G: AbstractGoban> {
+        operator fun invoke(width: Int, height: Int, rows: AtomicLongArray, count: Long): G
     }
-    var fixedSecrets: FixedSecrets by SecretKeeper { FixedGoban }
-
-    interface EditableSecrets<out G: AbstractMutableGoban> {
-        fun goban(width: Int, height: Int, rows: AtomicLongArray, count: Long): G
-    }
-    var mutableSecrets: EditableSecrets<MutableGoban> by SecretKeeper { MutableGoban }
-    var playableSecrets: EditableSecrets<Goban> by SecretKeeper { Goban }
+    var fixedFactory: Factory<FixedGoban> by SecretKeeper { FixedGoban }
+    var mutableFactory: Factory<MutableGoban> by SecretKeeper { MutableGoban }
+    var playableFactory: Factory<Goban> by SecretKeeper { Goban }
 
     fun copyRows(src: AtomicLongArray, dst: AtomicLongArray): Long {
         var count = 0L
         for(i in 0 until src.length()) {
             val row = src[i]
             dst[i] = row
-            val blackStones = row.ushr(32).toInt()
-            val whiteStones = row.toInt() and blackStones.inv()
-            count += blackStones.countOneBits().toLong() +
-                    whiteStones.countOneBits().toLong().shl(32)
+//            val blackStones = row.ushr(32).toInt()
+//            val whiteStones = row.toInt() and blackStones.inv()
+//            count += blackStones.countOneBits().toLong() +
+//                    whiteStones.countOneBits().toLong().shl(32)
+            count += countStonesInRow(row)
         }
         return count
+    }
+
+    fun countStonesInRow(row: Long): Long {
+        var i = (row ushr 32) or ((row shl 32) and row.inv())
+        i -= (i ushr 1) and 0x5555_5555_5555_5555L
+        i = (i and 0x3333_3333_3333_3333L) + ((i ushr 2) and 0x3333_3333_3333_3333L)
+        i = (i + (i ushr 4)) and 0x0f0f_0f0f_0f0f_0f0fL
+        i += i ushr 8
+        i += i ushr 16
+        return i and 0x3f_0000_003fL
     }
 
     fun set(
@@ -57,7 +60,7 @@ object InternalGoban: LongBinaryOperator {
             x < 32 -> y*2
             else -> y*2 + 1
         }
-        val row = abstractSecrets.rows(goban).getAndAccumulate(y2,
+        val row = rows(goban).getAndAccumulate(y2,
             x2.toLong() or when(newColor) {
                 null -> 0L
                 GoColor.BLACK -> NEW_BLACK
@@ -226,7 +229,7 @@ object GobanSetAllOp: LongBinaryOperator {
     }
 
     private fun setRow(goban: AbstractMutableGoban, i: Int, setMask: Int, color: GoColor?): Boolean {
-        val row = InternalGoban.abstractSecrets.rows(goban).getAndAccumulate(i,
+        val row = InternalGoban.rows(goban).getAndAccumulate(i,
             setMask.toLong().and(-1L ushr 32) or when(color) {
                 null -> 0L
                 GoColor.BLACK -> InternalGoban.NEW_BLACK
@@ -260,10 +263,10 @@ object GobanSetAllOp: LongBinaryOperator {
         val setMask = flags and (-1L ushr 32)
         return when {
             flags and (1L shl 32) == 0L -> // empty
-                row and (setMask or setMask.shl(32)).inv()
+                row and (setMask or (setMask shl 32)).inv()
             flags and (1L shl 33) != 0L -> // black
-                row or (setMask or setMask.shl(32))
-            else -> (row or setMask) and setMask.shl(32).inv() // white
+                row or (setMask or (setMask shl 32))
+            else -> (row or setMask) and (setMask shl 32).inv() // white
         }
     }
 

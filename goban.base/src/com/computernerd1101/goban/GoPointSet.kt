@@ -71,8 +71,7 @@ open class GoPointSet protected constructor(
             val rows = compressBuffer
             for (i in 0..51)
                 rows[i] = this.rows[i]
-            var bit = 0L
-            var x = 51
+            var bit = 1L shl 51
             var yMin = 0
             var xMax = 0
             var yMax = 51
@@ -88,17 +87,14 @@ open class GoPointSet protected constructor(
                 val row = rows[y]
                 if (row != 0L) {
                     val b1 = row and -row
-                    val x1 = trailingZerosPow2(b1)
-                    val x2 = highestBitLength(row)
-                    if (x > x1) {
-                        x = x1
+                    if (bit > b1)
                         bit = b1
-                    }
+                    val x2 = highestBitLength(row)
                     if (xMax < x2) xMax = x2
                 }
             }
             val list = mutableListOf<GoRectangle>()
-            while (x <= xMax) {
+            for(x in trailingZerosPow2(bit)..xMax) {
                 for (y in yMin..yMax) {
                     val row = rows[y]
                     if (row and bit == 0L)
@@ -137,7 +133,6 @@ open class GoPointSet protected constructor(
                         y2--
                     }
                 }
-                x++
                 bit = bit shl 1
             }
             compressed = list.toTypedArray()
@@ -165,11 +160,13 @@ open class GoPointSet protected constructor(
                 val value = SGFValue(first.toSGFBytes())
                 if (first != second)
                     value.list.add(second.toSGFBytes())
-                prop?.list?.add(value) ?: SGFProperty(value).let { prop = it }
+                if (prop != null) prop.list.add(value)
+                else prop = SGFProperty(value)
             }
         } else for(point in this) {
             val value = SGFValue(point.toSGFBytes())
-            prop?.list?.add(value) ?: SGFProperty(value).let { prop = it }
+            if (prop != null) prop.list.add(value)
+            else prop = SGFProperty(value)
         }
         return prop
     }

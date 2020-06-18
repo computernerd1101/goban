@@ -21,9 +21,7 @@ sealed class AbstractGoban(
 
         init {
             InternalGoban.count = atomicLongUpdater("count")
-            InternalGoban.abstractSecrets = object: InternalGoban.AbstractSecrets {
-                override fun rows(goban: AbstractGoban) = goban.rows
-            }
+            InternalGoban.rows = AbstractGoban::rows
         }
 
         @JvmStatic
@@ -54,21 +52,21 @@ sealed class AbstractGoban(
 
     val whiteCount: Int
         @JvmName("whiteCount")
-        get() = count.shr(32).toInt()
+        get() = (count shr 32).toInt()
 
     val emptyCount: Int
         @JvmName("emptyCount")
         get() {
             val count = this.count
-            return width*height - (count + count.shr(32)).toInt()
+            return width*height - (count + (count shr 32)).toInt()
         }
 
     fun count(color: GoColor?): Int {
         val count = this.count
         return when (color) {
-            null -> width*height - (count + count.shr(32)).toInt()
+            null -> width*height - (count + (count shr 32)).toInt()
             GoColor.BLACK -> count.toInt()
-            GoColor.WHITE -> count.shr(32).toInt()
+            GoColor.WHITE -> (count shr 32).toInt()
         }
     }
 
@@ -173,16 +171,16 @@ inline infix fun AbstractGoban?.contentEquals(other: AbstractGoban?) = AbstractG
 class FixedGoban: AbstractGoban {
 
     @Suppress("UNUSED_PARAMETER")
-    private constructor(width: Int, height: Int, marker: Unit): super(width, height) {
+    private constructor(width: Int, height: Int, marker: PrivateMarker): super(width, height) {
         hash = 0
     }
 
-    private constructor(size: Int, marker: Unit): this(size, size, marker)
+    private constructor(size: Int, marker: PrivateMarker): this(size, size, marker)
 
-    private constructor(other: AbstractGoban): super(other) {
+    private constructor(width: Int, height: Int, rows: AtomicLongArray, count: Long):
+            super(width, height, rows, count) {
         var hash = 0
         var i = 0
-        val rows = InternalGoban.abstractSecrets.rows(this)
         repeat(height) {
             var row = rows[i++]
             // mask.lo = row.lo
@@ -204,21 +202,24 @@ class FixedGoban: AbstractGoban {
 
     private val hash: Int
 
+    private object PrivateMarker
+
     companion object {
 
         init {
-            InternalGoban.fixedSecrets = object: InternalGoban.FixedSecrets {
-                override fun copy(goban: AbstractGoban): FixedGoban {
-                    val width = goban.width
-                    return if (width == goban.height && goban.isEmpty())
+            InternalGoban.fixedFactory = object: InternalGoban.Factory<FixedGoban> {
+
+                override fun invoke(width: Int, height: Int, rows: AtomicLongArray, count: Long): FixedGoban {
+                    return if (width == height && count == 0L)
                         emptySquareCache[width - 1]
-                    else FixedGoban(goban)
+                    else FixedGoban(width, height, rows, count)
                 }
+
             }
         }
 
         private val emptySquareCache = Array(52) {
-            FixedGoban(it + 1, Unit)
+            FixedGoban(it + 1, PrivateMarker)
         }
 
         @JvmStatic
@@ -228,7 +229,7 @@ class FixedGoban: AbstractGoban {
                 width !in 1..52 -> throw InternalGoban.illegalSizeException(width)
                 width == height -> emptySquareCache[width - 1]
                 height !in 1..52 -> throw InternalGoban.illegalSizeException(height)
-                else -> FixedGoban(width, height, Unit)
+                else -> FixedGoban(width, height, PrivateMarker)
             }
         }
 
@@ -241,7 +242,6 @@ class FixedGoban: AbstractGoban {
 
         inline operator fun invoke() = EMPTY
 
-        @Suppress("unused")
         @JvmField
         val EMPTY = emptySquareCache[18] // size=19
 
@@ -280,14 +280,13 @@ class FixedGoban: AbstractGoban {
     override fun editable(): AbstractMutableGoban {
         val width = this.width
         val height = this.height
-        val oldRows = InternalGoban.abstractSecrets.rows(this)
+        val oldRows = InternalGoban.rows(this)
         val rows = AtomicLongArray(oldRows.length())
         val count = InternalGoban.copyRows(oldRows, rows)
         val metaCluster: MutableGoPointSet = InternalGoban.threadMetaCluster
         metaCluster.clear()
         val cluster: MutableGoPointSet = InternalGoban.threadCluster
-        var secrets: InternalGoban.EditableSecrets<AbstractMutableGoban> =
-            InternalGoban.playableSecrets
+        var factory: InternalGoban.Factory<AbstractMutableGoban> = InternalGoban.playableFactory
         rows@ for(i in 0 until rows.length()) {
             val row = rows[i]
             val black = (row ushr 32).toInt()
@@ -304,14 +303,14 @@ class FixedGoban: AbstractGoban {
                 val p = GoPoint(x, y)
                 if (p in metaCluster) continue
                 val color = (black and bit != 0).goBlackOrWhite()
-                if (!InternalGoban.isAlive(width, height, rows, p, color)) {
-                    secrets = InternalGoban.mutableSecrets
+                if (!InternalGoban.isAlive(width, height, rows, p, color)) { // updates cluster
+                    factory = InternalGoban.mutableFactory
                     break@rows
                 }
                 metaCluster.addAll(cluster)
             }
         }
-        return secrets.goban(width, height, rows, count)
+        return factory(width, height, rows, count)
     }
 
     override fun equals(other: Any?): Boolean {
@@ -359,13 +358,31 @@ sealed class AbstractMutableGoban: AbstractGoban {
         return changed
     }
 
+    @Suppress("unused")
+    fun clear() {
+        val rows = InternalGoban.rows(this)
+        var count = 0L
+        for (i in 0 until rows.length()) {
+            val row = rows.getAndSet(i, 0L)
+            count -= InternalGoban.countStonesInRow(row)
+        }
+        InternalGoban.count.addAndGet(this, count)
+    }
+
     /**
      * Returns a [FixedGoban] with the same contents as this instance.
      * The returned instance will be newly created unless it is an empty square,
      * in which case it will be a preexisting instance.
      * @return a [FixedGoban] with the same contents as this instance
      */
-    override fun readOnly(): FixedGoban = InternalGoban.fixedSecrets.copy(this)
+    override fun readOnly(): FixedGoban {
+        val width = this.width
+        val height = this.height
+        if (width == height && isEmpty()) return FixedGoban(width)
+        val oldRows = InternalGoban.rows(this)
+        val rows = AtomicLongArray(oldRows.length())
+        return InternalGoban.fixedFactory(width, height, rows, InternalGoban.copyRows(oldRows, rows))
+    }
 
     /**
      * Returns this instance.
@@ -380,8 +397,8 @@ class MutableGoban: AbstractMutableGoban {
     companion object {
 
         init {
-            InternalGoban.mutableSecrets = object: InternalGoban.EditableSecrets<MutableGoban> {
-                override fun goban(width: Int, height: Int, rows: AtomicLongArray, count: Long) =
+            InternalGoban.mutableFactory = object: InternalGoban.Factory<MutableGoban> {
+                override fun invoke(width: Int, height: Int, rows: AtomicLongArray, count: Long) =
                     MutableGoban(width, height, rows, count)
             }
         }
@@ -422,8 +439,8 @@ class Goban: AbstractMutableGoban {
     companion object {
 
         init {
-            InternalGoban.playableSecrets = object: InternalGoban.EditableSecrets<Goban> {
-                override fun goban(width: Int, height: Int, rows: AtomicLongArray, count: Long) =
+            InternalGoban.playableFactory = object: InternalGoban.Factory<Goban> {
+                override fun invoke(width: Int, height: Int, rows: AtomicLongArray, count: Long) =
                     Goban(width, height, rows, count)
             }
         }
@@ -467,7 +484,7 @@ class Goban: AbstractMutableGoban {
         val metaCluster: MutableGoPointSet = InternalGoban.threadMetaCluster
         metaCluster.clear()
         val cluster: MutableGoPointSet = InternalGoban.threadCluster
-        val rows = InternalGoban.abstractSecrets.rows(this)
+        val rows = InternalGoban.rows(this)
         for(i in 0..6 step 2) {
             val nx = x + InternalGoban.NEIGHBOR_OFFSETS[i]
             val ny = y + InternalGoban.NEIGHBOR_OFFSETS[i + 1]
@@ -482,7 +499,7 @@ class Goban: AbstractMutableGoban {
                     continue
                 }
                 if (p in metaCluster) continue
-                if (InternalGoban.isAlive(width, height, rows, GoPoint(nx, ny), neighborColor))
+                if (InternalGoban.isAlive(width, height, rows, GoPoint(nx, ny), neighborColor)) // updates cluster
                     metaCluster.addAll(cluster)
                 else {
                     GobanSetAllOp.setAll(this, cluster, null)
@@ -495,7 +512,7 @@ class Goban: AbstractMutableGoban {
             InternalGoban.set(this, x, y, null, null)
             return false
         }
-        if (!InternalGoban.isAlive(width, height, rows, p, stone))
+        if (!InternalGoban.isAlive(width, height, rows, p, stone)) // updates cluster
             GobanSetAllOp.setAll(this, cluster, null)
         return true
     }

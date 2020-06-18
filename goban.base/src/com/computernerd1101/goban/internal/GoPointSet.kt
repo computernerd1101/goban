@@ -63,6 +63,8 @@ object InternalGoPointSet {
         while(unseen != 0L) {
             val bit = unseen and -unseen
             unseen -= bit
+            // add x + 52*y to hash and add 1 to size, broken up as follows:
+            //       add x to hash                                     add 52*y 5o hash and add 1 to size
             words += trailingZerosPow2(bit).toLong().shl(32) + inc
         }
         return words

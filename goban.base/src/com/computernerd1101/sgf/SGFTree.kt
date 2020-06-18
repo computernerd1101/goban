@@ -60,16 +60,19 @@ class SGFTree: RowColumn, Serializable {
         subTreeList = SubTrees()
     }
 
+    @Suppress("unused")
     constructor(node1: SGFNode, nodes: Array<out SGFNode>, vararg subTrees: SGFTree) {
         nodeList = Nodes(node1, nodes)
         subTreeList = SubTrees(subTrees)
     }
 
+    @Suppress("unused")
     constructor(nodes: Collection<SGFNode>) {
         nodeList = Nodes(nodes)
         subTreeList = SubTrees()
     }
 
+    @Suppress("unused")
     constructor(nodes: Collection<SGFNode>, subTrees: Collection<SGFTree>) {
         nodeList = Nodes(nodes)
         subTreeList = SubTrees(subTrees)
@@ -77,6 +80,7 @@ class SGFTree: RowColumn, Serializable {
 
     @Throws(SGFException::class)
     @JvmOverloads
+    @Suppress("unused")
     constructor(toParse: String, warnings: SGFWarningList = SGFWarningList()):
             this(startReading(SGFReader.StringReader(toParse, warnings)))
 
@@ -113,10 +117,8 @@ class SGFTree: RowColumn, Serializable {
         if (ch != ')'.toInt()) throw reader.newException("')'")
     }
 
-    override fun toString(): String {
-        val buffer = StringBuilder()
-        SGFWriter.StringWriter(buffer).writeTree(this, 0)
-        return buffer.toString()
+    override fun toString() = buildString {
+        SGFWriter.StringWriter(this).writeTree(this@SGFTree, 0)
     }
 
     @Throws(IOException::class)
@@ -150,6 +152,13 @@ class SGFTree: RowColumn, Serializable {
     }
 
     companion object {
+
+        @Suppress("unused")
+        inline operator fun invoke(node1: SGFNode, vararg nodes: SGFNode, subTrees: SGFTree.() -> Unit): SGFTree {
+            val tree = SGFTree(node1, *nodes)
+            tree.subTrees()
+            return tree
+        }
 
         private const val serialVersionUID = 1L
         private val serialPersistentFields = arrayOf(

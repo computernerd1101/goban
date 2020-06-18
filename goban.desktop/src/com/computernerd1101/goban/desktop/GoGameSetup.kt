@@ -91,6 +91,15 @@ class GoGameSetup {
         }
     var blackPlayer: GoPlayerController?
     var whitePlayer: GoPlayerController?
+
+    var player1: GoPlayerController?
+        get() = blackPlayer
+        set(player) { blackPlayer = player}
+
+    var player2: GoPlayerController?
+        get() = whitePlayer
+        set(player) { whitePlayer = player}
+
     var isRandomPlayer: Boolean
         get() = flags and RANDOM_PLAYER != 0
         set(value) = setFlag(RANDOM_PLAYER, value)
@@ -189,11 +198,13 @@ class GoGameSetup {
             if (width == height)
                 append("size=")
             else append("width=").append(width).append("height=")
-            append(height).append(", blackPlayer=").append(blackPlayer)
-                .append(", whitePlayer=").append(whitePlayer)
-                .append(", isRandomPlayer=").append(isRandomPlayer)
-                .append(", gameInfo=").append(gameInfo)
-                .append(", isFreeHandicap=").append(isFreeHandicap).append(")")
+            append(height)
+            if (isRandomPlayer)
+                append(", player1=").append(player1).append(", player2=").append(player2)
+                    .append(", isRandomPlayer=true, gameInfo=")
+            else append(", blackPlayer=").append(blackPlayer).append(", whitePlayer=").append(whitePlayer)
+                .append(", isRandomPlayer=false, gameInfo=")
+            append(gameInfo).append(", isFreeHandicap=").append(isFreeHandicap).append(")")
         }
     }
 

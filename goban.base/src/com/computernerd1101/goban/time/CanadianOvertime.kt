@@ -1,6 +1,7 @@
 package com.computernerd1101.goban.time
 
 import com.computernerd1101.goban.annotations.*
+import java.util.*
 import java.util.regex.Pattern
 
 @PropertyOrder("Seconds", "Moves")
@@ -51,6 +52,14 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime() {
     override fun toString() = "${millis.millisToStringSeconds()}/$moves Canadian"
 
     override fun getTypeString(): String? = "Canadian"
+
+    override fun getDisplayName(locale: Locale): String? {
+        val resources: ResourceBundle = ResourceBundle.getBundle(
+            "com.computernerd1101.goban.resources.OvertimeData",
+            locale
+        )
+        return resources.getString("overtime.Canadian")
+    }
 
     override fun parseThis(s: String): Boolean = parse(s, this) != null
 

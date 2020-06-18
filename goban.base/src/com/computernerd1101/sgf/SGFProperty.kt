@@ -36,10 +36,8 @@ class SGFProperty: RowColumn, Serializable {
         sequence = Sequence(elements)
     }
 
-    override fun toString(): String {
-        val buffer = StringBuilder()
-        SGFWriter.StringWriter(buffer).writeProperty(this)
-        return buffer.toString()
+    override fun toString() = buildString {
+        SGFWriter.StringWriter(this).writeProperty(this@SGFProperty)
     }
 
     @Throws(IOException::class)

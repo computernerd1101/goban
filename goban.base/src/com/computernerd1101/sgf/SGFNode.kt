@@ -13,7 +13,6 @@ class SGFNode: RowColumn, Serializable {
 
     private var map: PropertyMap
 
-
     val properties: MutableMap<String, SGFProperty>
         @JvmName("properties") get() = map
 
@@ -39,10 +38,8 @@ class SGFNode: RowColumn, Serializable {
         this.map = PropertyMap(map, SGFCopyLevel.NODE)
     }
 
-    override fun toString(): String {
-        val buffer = StringBuilder()
-        SGFWriter.StringWriter(buffer).writeNode(this)
-        return buffer.toString()
+    override fun toString() = buildString {
+        SGFWriter.StringWriter(this).writeNode(this@SGFNode)
     }
 
     @Throws(IOException::class)

@@ -4,50 +4,26 @@ import com.computernerd1101.goban.internal.*
 import java.io.*
 
 @Suppress("unused")
-open class SGFException: Exception {
+open class SGFException(
+    @JvmField var row: Int,
+    @JvmField var column: Int,
+    message: String?,
+    cause: Throwable?
+): Exception(message, cause) {
 
-    @JvmField var row: Int
-    @JvmField var column: Int
+    constructor(row: Int, column: Int): this(row, column, null, null)
 
-    constructor() {
-        row = 0
-        column = 0
-    }
+    constructor(row: Int, column: Int, message: String?): this(row, column, message, null)
 
-    constructor(message: String?): super(message) {
-        row = 0
-        column = 0
-    }
+    constructor(row: Int, column: Int, cause: Throwable?): this(row, column, cause?.toString(), cause)
 
-    constructor(cause: Throwable?): super(cause) {
-        row = 0
-        column = 0
-    }
+    constructor(): this(0, 0, null, null)
 
-    constructor(message: String?, cause: Throwable?): super(message, cause) {
-        row = 0
-        column = 0
-    }
+    constructor(message: String?): this(0, 0, message, null)
 
-    constructor(row: Int, column: Int) {
-        this.row = row
-        this.column = column
-    }
+    constructor(cause: Throwable?): this(0, 0, cause)
 
-    constructor(row: Int, column: Int, message: String?): super(message) {
-        this.row = row
-        this.column = column
-    }
-
-    constructor(row: Int, column: Int, cause: Throwable?): super(cause) {
-        this.row = row
-        this.column = column
-    }
-
-    constructor(row: Int, column: Int, message: String?, cause: Throwable?): super(message, cause) {
-        this.row = row
-        this.column = column
-    }
+    constructor(message: String?, cause: Throwable?): this(0, 0, message, cause)
 
     override fun toString(): String {
         return buildString {
@@ -116,50 +92,26 @@ open class SGFException: Exception {
 }
 
 @Suppress("unused")
-open class SGFWarning: Throwable {
+open class SGFWarning(
+    @JvmField var row: Int,
+    @JvmField var column: Int,
+    message: String?,
+    cause: Throwable?
+): Throwable(message, cause) {
 
-    @JvmField var row: Int
-    @JvmField var column: Int
+    constructor(row: Int, column: Int, message: String?): this(row, column, message, null)
 
-    constructor() {
-        row = 0
-        column = 0
-    }
+    constructor(row: Int, column: Int, cause: Throwable?): this(row, column, cause?.toString(), cause)
 
-    constructor(message: String?): super(message) {
-        row = 0
-        column = 0
-    }
+    constructor(row: Int, column: Int) : this(row, column, null, null)
 
-    constructor(cause: Throwable?): super(cause) {
-        row = 0
-        column = 0
-    }
+    constructor(): this(0, 0, null, null)
 
-    constructor(message: String?, cause: Throwable?): super(message, cause) {
-        row = 0
-        column = 0
-    }
+    constructor(message: String?): this(0, 0, message, null)
 
-    constructor(row: Int, column: Int) {
-        this.row = row
-        this.column = column
-    }
+    constructor(cause: Throwable?): this(0, 0, cause)
 
-    constructor(row: Int, column: Int, message: String?): super(message) {
-        this.row = row
-        this.column = column
-    }
-
-    constructor(row: Int, column: Int, cause: Throwable?): super(cause) {
-        this.row = row
-        this.column = column
-    }
-
-    constructor(row: Int, column: Int, message: String?, cause: Throwable?): super(message, cause) {
-        this.row = row
-        this.column = column
-    }
+    constructor(message: String?, cause: Throwable?): this(0, 0, message, cause)
 
     override fun toString(): String {
         return buildString {
@@ -195,7 +147,8 @@ open class SGFWarningList: Serializable {
         @JvmName("count")
         get() = warningList?.size ?: 0
 
-    @Suppress("UNCHECKED_CAST")
+    operator fun get(index: Int): SGFWarning = (warningList ?: EMPTY_LIST)[index]
+
     fun addWarnings(other: SGFWarningList) {
         other.warningList?.let { list2 ->
             val list1 = warningList ?: updateWarnings.getOrDefault(this, arrayListOf())
@@ -220,7 +173,7 @@ open class SGFWarningList: Serializable {
 
     @Suppress("unused")
     val warnings: Array<out SGFWarning>
-        get() = warningList?.toArray(EMPTY) ?: EMPTY
+        get() = warningList?.toArray(EMPTY_ARRAY) ?: EMPTY_ARRAY
 
     fun sortWarnings() {
         warningList?.sortWith(COMPARE_ROW_COLUMN)
@@ -230,7 +183,9 @@ open class SGFWarningList: Serializable {
 
         private val updateWarnings = atomicUpdater<SGFWarningList, ArrayList<SGFWarning>?>("warningList")
 
-        private val EMPTY = arrayOf<SGFWarning>()
+        private val EMPTY_ARRAY = arrayOf<SGFWarning>()
+
+        private val EMPTY_LIST = arrayListOf<SGFWarning>()
 
         private val COMPARE_ROW_COLUMN = Comparator<SGFWarning> { lhs, rhs ->
             val a = lhs.row

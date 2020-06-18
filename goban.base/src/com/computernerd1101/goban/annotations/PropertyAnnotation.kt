@@ -1,5 +1,6 @@
 package com.computernerd1101.goban.annotations
 
+import com.computernerd1101.goban.internal.SecretKeeper
 import java.util.*
 import kotlin.reflect.*
 import kotlin.reflect.full.*
@@ -14,7 +15,7 @@ interface PropertyManagerCompanion<in A: Annotation, T : Comparable<T>> {
 
 }
 
-interface PropertyManager<T> where T : Comparable<T> {
+interface PropertyManager<T : Comparable<T>> {
 
     fun toString(value: T): String
 
@@ -144,7 +145,7 @@ class PropertyFactory<T: Any> private constructor(
         companion object {
             init {
                 newEntry = object: EntryConstructor {
-                    override fun <T: Any, P: Comparable<P>> init(
+                    override fun <T: Any, P: Comparable<P>> invoke(
                         name: String,
                         manager: PropertyManager<P>,
                         property: KMutableProperty1<T, P>
@@ -157,7 +158,7 @@ class PropertyFactory<T: Any> private constructor(
 
     private interface EntryConstructor {
 
-        fun <T: Any, P: Comparable<P>> init(
+        operator fun <T: Any, P: Comparable<P>> invoke(
             name: String,
             manager: PropertyManager<P>,
             property: KMutableProperty1<T, P>
@@ -208,17 +209,15 @@ class PropertyFactory<T: Any> private constructor(
 
         var propCount = 0
 
-        fun build(): Entry<T>? = if (propCount == 1) {
-            Entry
-            newEntry.init(name, pmm.propertyManager.makePropertyManager(pmm.annotation), prop)
-        }
+        fun build(): Entry<T>? = if (propCount == 1)
+            newEntry(name, pmm.propertyManager.makePropertyManager(pmm.annotation), prop)
         else null
 
     }
 
     companion object {
 
-        private lateinit var newEntry: EntryConstructor
+        private var newEntry: EntryConstructor by SecretKeeper { Entry }
 
         private val FACTORY_MAP =
             WeakHashMap<KClass<*>, PropertyFactory<*>>()

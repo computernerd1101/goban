@@ -50,7 +50,7 @@ interface GoRectangleSecrets {
 
 var goRectangleSecrets: GoRectangleSecrets by SecretKeeper { GoRectangle }
 
-private const val deBruijn64 = 0x03f79d71b4ca8b09
+private const val deBruijn64: Long = 0x03f79d71b4ca8b09
 
 private val deBruijn64tab = byteArrayOf(
     0, 1, 56, 2, 57, 49, 28, 3, 61, 58, 42, 50, 38, 29, 17, 4,
@@ -67,9 +67,13 @@ private val deBruijn64tab = byteArrayOf(
 // find by how many bits it was shifted by looking at which six bit
 // substring ended up at the top of the word.
 // (Knuth, volume 4, section 7.3.1)
+// Normally, bit would be (x and -x), where x would be the input variable.
+// However, this function is module-internal, and every caller in this module
+// inputs a value that is already a power of 2, since that value is
+// useful outside of each call to this function.
 fun trailingZerosPow2(bit: Long) = deBruijn64tab[(bit*deBruijn64).ushr(64 - 6).toInt()].toInt()
 
-private const val deBruijn32 = 0x077CB531
+private const val deBruijn32: Int = 0x077CB531
 
 private val deBruijn32tab = byteArrayOf(
     0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
@@ -106,11 +110,11 @@ fun highestBitLength(bits: Long): Int {
 fun highestBitLength(bits: Int): Int {
     var x = bits
     var n = 0
-    if (x >= 1L shl 16) {
+    if (x >= 1 shl 16) {
         x = x ushr 16
         n += 16
     }
-    if (x >= 1L shl 8) {
+    if (x >= 1 shl 8) {
         x = x ushr 8
         n += 8
     }

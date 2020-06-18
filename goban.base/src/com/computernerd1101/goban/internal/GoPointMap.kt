@@ -3,7 +3,6 @@ package com.computernerd1101.goban.internal
 import com.computernerd1101.goban.*
 import java.lang.ref.ReferenceQueue
 import java.lang.ref.WeakReference
-import java.util.AbstractMap.SimpleEntry
 import java.util.AbstractMap.SimpleImmutableEntry
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater
 
@@ -73,8 +72,8 @@ fun GoPointMap<*>.valueToString(e: Map.Entry<*, *>): String {
     return when {
         value === this -> "(this Map)"
         value === e -> "(this Map.Entry)"
-        value === entries -> "(this Map.entries)"
-        value === keys -> "(this Map.keys)"
+        value === entries -> "(this Map.entrySet)"
+        value === keys -> "(this Map.keySet)"
         value === values -> "(this Map.values)"
         else -> value.toString()
     }

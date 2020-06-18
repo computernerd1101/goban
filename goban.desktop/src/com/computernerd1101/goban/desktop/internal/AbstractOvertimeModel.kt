@@ -15,7 +15,8 @@ abstract class AbstractOvertimeModel(
 
     init {
         val types = Overtime.loadTypes()
-        items = Array(1 + types.size) { index ->
+        @Suppress("RemoveExplicitTypeArguments")
+        items = Array<Any>(1 + types.size) { index ->
             when(index) {
                 0 -> "Overtime..."
                 else -> {

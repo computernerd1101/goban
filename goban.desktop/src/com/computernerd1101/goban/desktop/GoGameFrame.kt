@@ -14,7 +14,7 @@ fun main() {
     }
 }
 
-class GoGameFrame(setup: GoGameSetup = GoGameSetup()): JFrame() {
+class GoGameFrame(@Suppress("UNUSED_PARAMETER") setup: GoGameSetup = GoGameSetup()): JFrame() {
 
     init {
         title = "CN13 Goban"

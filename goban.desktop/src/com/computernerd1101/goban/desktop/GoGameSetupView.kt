@@ -8,7 +8,6 @@ import com.computernerd1101.goban.time.Overtime
 import java.awt.*
 import java.awt.event.*
 import java.text.NumberFormat
-import java.util.*
 import javax.swing.*
 import javax.swing.event.ListDataListener
 
@@ -188,10 +187,10 @@ class GoGameSetupView: JComponent() {
         override fun setSelectedItem(anItem: Any?) {
             if (anItem !is RulesPreset || anItem == RulesPreset.CUSTOM) return
             val rules = anItem.rules
-            comboScore.updateUI()
-            checkSuicide.isSelected = rules.allowSuicide
-            comboSuperko.updateUI()
             gameSetup.gameInfo.rules = rules
+            checkSuicide.isSelected = rules.allowSuicide
+            comboScore.updateUI()
+            comboSuperko.updateUI()
         }
 
         override fun getSize(): Int {
@@ -226,9 +225,9 @@ class GoGameSetupView: JComponent() {
                 TERRITORY_SCORE -> true
                 else -> return
             }
-            comboRules.updateUI()
             val gameInfo = gameSetup.gameInfo
             gameInfo.rules = gameInfo.rules.copy(territoryScore = territory)
+            comboRules.updateUI()
         }
 
         override fun getSize() = 2
