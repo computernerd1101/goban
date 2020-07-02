@@ -26,7 +26,7 @@ object InternalGoPointSet {
             is GoPoint -> {
                 val y = element.y
                 // rows has just been created and is not yet visible to any other threads
-                rows[y] = rows[y] or 1L.shl(element.x)
+                rows[y] = rows[y] or (1L shl element.x)
             }
             is GoRectangle -> {
                 val (x1, y1) = element.start
@@ -64,7 +64,7 @@ object InternalGoPointSet {
             val bit = unseen and -unseen
             unseen -= bit
             // add x + 52*y to hash and add 1 to size, broken up as follows:
-            //       add x to hash                                     add 52*y 5o hash and add 1 to size
+            //       add x to hash                                     add 52*y to hash and add 1 to size
             words += trailingZerosPow2(bit).toLong().shl(32) + inc
         }
         return words

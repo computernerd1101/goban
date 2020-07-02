@@ -83,7 +83,10 @@ class GameResult private constructor(
                     color = WHITE_WINS
                 }
                 // even though noWinnerTable[0] == DRAW,
-                // only accept the character value '0' == '\u0030' for DRAW
+                // only accept the following characters for DRAW:
+                // '0' == '\u0030'
+                // 'D' == '\u0044'
+                // 'd' == '\u0064'
                 '\u0000' -> return null
                 else -> {
                     prefix = ""

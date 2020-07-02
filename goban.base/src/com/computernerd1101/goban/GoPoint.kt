@@ -33,14 +33,13 @@ class GoPoint private constructor(
         buffer4[1] = cx
         buffer4[2] = cy
         string = String(buffer2).intern()
-        selfRect = goRectangleSecrets.selfRect(this, buffer4)
+        selfRect = internalSelfRect(this, buffer4)
     }
 
     companion object {
 
         @JvmStatic
-        @JvmName("pointAt")
-        operator fun invoke(x: Int, y: Int): GoPoint {
+        fun pointAt(x: Int, y: Int): GoPoint {
             if (x !in 0..51) throw IndexOutOfBoundsException("x=$x is not in the range [0,52)")
             if (y !in 0..51) throw IndexOutOfBoundsException("y=$y is not in the range [0,52)")
             return CACHE[x + y*52]

@@ -1,10 +1,17 @@
-@file:Suppress("NOTHING_TO_INLINE")
+@file:Suppress("FunctionName", "NOTHING_TO_INLINE")
 @file:JvmMultifileClass
 @file:JvmName("GobanKt")
 
 package com.computernerd1101.goban
 
 fun Boolean.goBlackOrWhite() = if (this) GoColor.BLACK else GoColor.WHITE
+
+inline fun GoPoint(x: Int, y: Int) = GoPoint.pointAt(x, y)
+inline fun GoRectangle(x1: Int, y1: Int, x2: Int, y2: Int) = GoRectangle.rect(x1, x2, y1, y2)
+
+inline fun FixedGoban(width: Int, height: Int) = FixedGoban.empty(width, height)
+inline fun FixedGoban(size: Int) = FixedGoban.empty(size)
+inline fun FixedGoban() = FixedGoban.EMPTY
 
 @Suppress("unused")
 inline fun String.toGoPoint() = toGoPointOrNull() ?: throw IllegalArgumentException(this)

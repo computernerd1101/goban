@@ -19,7 +19,7 @@ enum class PositionState(
     fun toExtent(extent: Int): PositionState {
         val x = if (extent <= 1) 1 else 2
         return if (x == this.extent) this
-        else positionStateMap[code]!![x - 1]
+        else positionStateMap.getValue(code)[x - 1]
     }
 
     companion object {

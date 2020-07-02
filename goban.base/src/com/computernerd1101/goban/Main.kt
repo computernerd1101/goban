@@ -8,9 +8,13 @@ import kotlin.jvm.functions.FunctionN
 import kotlin.reflect.KProperty
 
 fun main() {
-    val goban = Goban()
-    val points = goban.toPointSet(null)
-    println(points.toString())
+    val array = arrayOf<String>()
+    println(isStringArray(array))
+    println(array.isArrayOf<String>())
+}
+
+fun isStringArray(array: Array<*>): Boolean {
+    return array.isArrayOf<String>()
 }
 
 suspend fun foo() {

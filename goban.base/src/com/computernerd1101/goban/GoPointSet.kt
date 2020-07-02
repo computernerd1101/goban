@@ -1,3 +1,4 @@
+@file:Suppress("FunctionName", "NOTHING_TO_INLINE")
 @file:JvmMultifileClass
 @file:JvmName("GobanKt")
 
@@ -8,6 +9,8 @@ import com.computernerd1101.sgf.*
 import java.util.concurrent.atomic.*
 
 inline val emptyGoPointSet get() = GoPointSet.EMPTY
+
+inline fun GoPointSet(vararg points: Iterable<GoPoint>) = GoPointSet.readOnly(*points)
 
 open class GoPointSet protected constructor(
     private val rows: AtomicLongArray,
@@ -37,8 +40,7 @@ open class GoPointSet protected constructor(
         private val compressBuffer by threadLocal { LongArray(53) }
 
         @JvmStatic
-        @JvmName("readOnly")
-        operator fun invoke(vararg points: Iterable<GoPoint>): GoPointSet {
+        fun readOnly(vararg points: Iterable<GoPoint>): GoPointSet {
             val rows = InternalGoPointSet.toLongArray(points)
             val words = InternalGoPointSet.sizeAndHash(rows)
             return if (words == 0L) EMPTY

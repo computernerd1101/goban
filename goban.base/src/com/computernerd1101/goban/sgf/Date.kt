@@ -11,7 +11,7 @@ import java.util.*
 import java.util.concurrent.atomic.AtomicReferenceArray
 import kotlin.contracts.*
 
-class Date private constructor(private val value: Int): Comparable<Date> {
+class Date private constructor(private val value: Int): Comparable<Date>, Serializable {
 
     constructor(year: Int, month: Int, day: Int): this(
         when {
@@ -28,6 +28,7 @@ class Date private constructor(private val value: Int): Comparable<Date> {
             }
         }
     )
+
     constructor(cal: GregorianCalendar): this(
         cal.get(Calendar.YEAR) * when(cal.get(Calendar.ERA)) {
             GregorianCalendar.BC -> -1
@@ -44,8 +45,8 @@ class Date private constructor(private val value: Int): Comparable<Date> {
     companion object {
 
         init {
-            InternalDate.secrets = object: InternalDate.Secrets {
-                override fun date(value: Int) = Date(value)
+            InternalDate.init = object: InternalDate.Constructor {
+                override fun invoke(value: Int) = Date(value)
             }
         }
 
@@ -72,6 +73,8 @@ class Date private constructor(private val value: Int): Comparable<Date> {
         fun daysInMonth(month: Int): Int = if (month in 1..12) daysInMonth[month] else 0
 
         fun parse(s: String): Date? = InternalDate.parse(null, s)
+
+        private const val serialVersionUID = 1L
 
     }
 
@@ -131,6 +134,17 @@ class Date private constructor(private val value: Int): Comparable<Date> {
     @Suppress("unused")
     fun parseNext(s: String): Date {
         return InternalDate.parse(this, s) ?: this
+    }
+
+    private fun readResolve(): Any {
+        val month = this.month
+        val day = this.day
+        return when {
+            month == 0 && day == 0 -> this
+            month <= 0 || month > 12 -> Date(year, 0, 0)
+            day < 0 || day > daysInMonth[month] -> Date(year, month, 0)
+            else -> this
+        }
     }
 
 }
@@ -584,8 +598,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                         monthCount = -1
                         updateCount.incrementAndGet(this@DateSet)
                     } else {
-                        val secrets = InternalDate.secrets
-                        year = secrets.date(date.hashCode() and -0x20000)
+                        year = InternalDate.init(date.hashCode() and -0x20000)
                     }
                 }
 
@@ -691,7 +704,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
 
                 override fun iterator(): MutableIterator<Date> {
                     val count = monthCount
-                    return if (monthCount > 0) MetaItr(months)
+                    return if (count > 0) MetaItr(months)
                     else object : MutableIterator<Date> {
 
                         var stage = if (count == -1) 0 else 2
@@ -733,8 +746,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                     constructor(date: Date) {
                         month = if (date.day == 0) date
                         else {
-                            val secrets = InternalDate.secrets
-                            secrets.date(date.hashCode() and -0x20)
+                            InternalDate.init(date.hashCode() and -0x20)
                         }
                         days = AtomicReferenceArray(Date.daysInMonth(date.month) + 1)
                     }
@@ -921,7 +933,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                 table2d[i2d] = this
                 weak2d[i2d] = Weak(this, weak2d, i2d)
             }
-            val i1d = y.shr(8) and 0xFF
+            val i1d = (y shr 8) and 0xFF
             val t1d = t2d.table1d[i1d] ?: t2d.Table1d(i1d).apply {
                 t2d.table1d[i1d] = this
                 t2d.weak1d[i1d] = Weak(this, t2d.weak1d, i1d)

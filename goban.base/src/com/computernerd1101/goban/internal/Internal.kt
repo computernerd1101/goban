@@ -42,13 +42,7 @@ class SecretKeeper<T: Any>(
 
 }
 
-interface GoRectangleSecrets {
-
-    fun selfRect(p: GoPoint, buffer: CharArray): GoRectangle
-
-}
-
-var goRectangleSecrets: GoRectangleSecrets by SecretKeeper { GoRectangle }
+var internalSelfRect: (GoPoint, CharArray) -> GoRectangle by SecretKeeper { GoRectangle }
 
 private const val deBruijn64: Long = 0x03f79d71b4ca8b09
 

@@ -1,3 +1,4 @@
+@file:Suppress("FunctionName", "NOTHING_TO_INLINE")
 @file:JvmMultifileClass
 @file:JvmName("GobanKt")
 
@@ -7,8 +8,11 @@ import com.computernerd1101.goban.internal.*
 import java.lang.ref.*
 import java.util.AbstractMap.SimpleImmutableEntry
 
-@Suppress("unused")
-inline val emptyGoPointMap: GoPointMap<*> get() = GoPointMap.EMPTY
+inline fun <V> GoPointMap() = GoPointMap.empty<V>()
+
+inline fun <V> GoPointMap(vararg entries: Map.Entry<GoPoint, V>) = GoPointMap.readOnly(*entries)
+
+inline fun <V> GoPointMap(vararg entries: Pair<GoPoint, V>) = GoPointMap.readOnly(*entries)
 
 @Suppress("LeakingThis")
 open class GoPointMap<out V> protected constructor(entries: Array<out Any>?):
@@ -31,20 +35,17 @@ open class GoPointMap<out V> protected constructor(entries: Array<out Any>?):
         val EMPTY: GoPointMap<*> = GoPointMap<Any>(null)
 
         @JvmStatic
-        @JvmName("of")
-        @Suppress("unused", "UNCHECKED_CAST")
-        operator fun <V> invoke(): GoPointMap<V> = EMPTY as GoPointMap<V>
+        @Suppress("UNCHECKED_CAST")
+        fun <V> empty(): GoPointMap<V> = EMPTY as GoPointMap<V>
 
         @JvmStatic
-        @JvmName("of")
-        @Suppress("unused")
-        operator fun <V> invoke(vararg entries: Map.Entry<GoPoint, V>): GoPointMap<V> {
-            return if (entries.isEmpty()) GoPointMap()
+        fun <V> readOnly(vararg entries: Map.Entry<GoPoint, V>): GoPointMap<V> {
+            return if (entries.isEmpty()) empty()
             else GoPointMap(entries)
         }
 
-        operator fun <V> invoke(vararg entries: Pair<GoPoint, V>): GoPointMap<V> {
-            return if (entries.isEmpty()) GoPointMap()
+        fun <V> readOnly(vararg entries: Pair<GoPoint, V>): GoPointMap<V> {
+            return if (entries.isEmpty()) empty()
             else GoPointMap(entries)
         }
 
@@ -198,8 +199,10 @@ open class MutableGoPointMap<V> private constructor(entries: Array<out Any>?): G
             // now safe to leak this
             for(y in 0..51) {
                 val row = rows[y]
-                if (row != null) for(entry in row)
+                if (row != null) for(x in 0..51) {
+                    val entry = row[x]
                     if (entry != null) filterValue(entry.value)
+                }
             }
         }
     }
@@ -322,8 +325,11 @@ open class MutableGoPointMap<V> private constructor(entries: Array<out Any>?): G
                     }
                 }
             }
-        } else
-            for(e in from.entries) fastPut(e.key, e.value)
+        } else for(e in from) {
+            val (key, value) = e
+            filterValue(value)
+            fastPut(key, value)
+        }
     }
 
     final override fun clear() {

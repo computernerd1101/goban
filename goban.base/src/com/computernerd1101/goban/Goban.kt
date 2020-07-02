@@ -223,8 +223,7 @@ class FixedGoban: AbstractGoban {
         }
 
         @JvmStatic
-        @JvmName("empty")
-        operator fun invoke(width: Int, height: Int): FixedGoban {
+        fun empty(width: Int, height: Int): FixedGoban {
             return when {
                 width !in 1..52 -> throw InternalGoban.illegalSizeException(width)
                 width == height -> emptySquareCache[width - 1]
@@ -234,13 +233,10 @@ class FixedGoban: AbstractGoban {
         }
 
         @JvmStatic
-        @JvmName("empty")
-        operator fun invoke(size: Int = 19): FixedGoban {
+        fun empty(size: Int = 19): FixedGoban {
             if (size !in 1..52) throw InternalGoban.illegalSizeException(size)
             return emptySquareCache[size - 1]
         }
-
-        inline operator fun invoke() = EMPTY
 
         @JvmField
         val EMPTY = emptySquareCache[18] // size=19

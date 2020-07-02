@@ -4,10 +4,10 @@ import com.computernerd1101.goban.sgf.Date
 
 object InternalDate {
 
-    interface Secrets {
-        fun date(value: Int): Date
+    interface Constructor {
+        operator fun invoke(value: Int): Date
     }
-    lateinit var secrets: Secrets
+    lateinit var init: Constructor
 
     fun parse(prev: Date?, s: String): Date? {
         if (s.isEmpty()) return null

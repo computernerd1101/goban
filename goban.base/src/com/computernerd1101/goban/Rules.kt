@@ -1,4 +1,4 @@
-@file:Suppress("FunctionName", "NOTHING_TO_INLINE")
+@file:Suppress("unused", "FunctionName", "NOTHING_TO_INLINE")
 @file:JvmMultifileClass
 @file:JvmName("GobanKt")
 
@@ -11,6 +11,21 @@ enum class Superko {
     POSITIONAL
 
 }
+
+inline fun GoRules(string: String) = GoRules.parse(string)
+
+inline fun GoRules(superko: Superko) = GoRules.valueOf(superko)
+
+inline fun GoRules(
+    superko: Superko,
+    territoryScore: Boolean
+) = GoRules.valueOf(superko, territoryScore)
+
+inline fun GoRules(
+    superko: Superko,
+    territoryScore: Boolean,
+    allowSuicide: Boolean
+) = GoRules.valueOf(superko, territoryScore, allowSuicide)
 
 enum class GoRules(
     @get:JvmName("superko")
@@ -85,23 +100,31 @@ enum class GoRules(
             }
             "SUICIDE" -> suicide = true
         }
-        return GoRules(ko, territory, suicide)
+        return valueOf(ko, territory, suicide)
     }
 
     companion object {
 
         @JvmStatic
-        @JvmName("parse")
-        operator fun invoke(string: String): GoRules {
+        fun parse(string: String): GoRules {
             return DEFAULT.copy(string = string)
         }
 
         @JvmStatic
-        @JvmName("valueOf")
-        operator fun invoke(
+        fun valueOf(superko: Superko): GoRules {
+            return VALUES[superko.ordinal*4]
+        }
+
+        @JvmStatic
+        fun valueOf(superko: Superko, territoryScore: Boolean): GoRules {
+            return VALUES[superko.ordinal*4 + (if (territoryScore) 2 else 0)]
+        }
+
+        @JvmStatic
+        fun valueOf(
             superko: Superko,
-            territoryScore: Boolean = false,
-            allowSuicide: Boolean = false
+            territoryScore: Boolean,
+            allowSuicide: Boolean
         ): GoRules {
             return VALUES[superko.ordinal*4 + (if (territoryScore) 2 else 0) + (if (allowSuicide) 1 else 0)]
         }

@@ -12,8 +12,8 @@ class GoRectangle private constructor(
     companion object {
 
         init {
-            goRectangleSecrets = object: GoRectangleSecrets {
-                override fun selfRect(p: GoPoint, buffer: CharArray) = GoRectangle(p, p, String(buffer).intern())
+            internalSelfRect = { p, buffer ->
+                GoRectangle(p, p, String(buffer).intern())
             }
         }
 
@@ -46,8 +46,7 @@ class GoRectangle private constructor(
         }
 
         @JvmStatic
-        @JvmName("rect")
-        operator fun invoke(x1: Int, y1: Int, x2: Int, y2: Int): GoRectangle {
+        fun rect(x1: Int, y1: Int, x2: Int, y2: Int): GoRectangle {
             if (x1 == x2 && y1 == y2) return GoPoint(x1, y1).selfRect
             val startX: Int
             val startY: Int
