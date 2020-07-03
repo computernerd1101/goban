@@ -123,23 +123,23 @@ sealed class AbstractGoban(
 
     private fun toPointSetBits(color: GoColor?): AtomicLongArray {
         val rows = AtomicLongArray(52)
-        val emptyBits: Long = (1L shl width) - 1L
         var i = 0
         for(y in 0 until height) {
             var row = this.rows[i++]
-            // mask.lo = row.lo
-            var mask = row.and(-1L ushr 32)
-            // stones.lo = row.hi
-            var stones = row ushr 32
+            var setRow: Long = when(color) {
+                GoColor.BLACK -> row and (-1L ushr 32) // setRow.lo = row.lo
+                GoColor.WHITE -> row ushr 32 // setRow.lo = row.hi
+                else -> (row or (row ushr 32)).inv() and (-1L ushr 32)
+            }
             if (width > 32) {
                 row = this.rows[i++]
-                // mask.hi = row.lo
-                mask = mask or row.shl(32)
-                // stones.hi = row.hi
-                stones = stones or row.and(-1L shl 32)
+                setRow = setRow or when(color) {
+                    GoColor.BLACK -> row shl 32
+                    GoColor.WHITE -> row and (-1L shl 32)
+                    else -> (row or (row shl 32)).inv() and (-1L shl 32)
+                }
             }
-            if (color == GoColor.WHITE) stones = stones.inv()
-            rows[y] = if (color == null) (mask xor emptyBits) else (mask and stones)
+            rows[y] = setRow
         }
         return rows
     }
@@ -170,6 +170,10 @@ inline infix fun AbstractGoban?.contentEquals(other: AbstractGoban?) = AbstractG
 
 class FixedGoban: AbstractGoban {
 
+    private object PrivateMarker
+
+    private val hash: Int
+
     @Suppress("UNUSED_PARAMETER")
     private constructor(width: Int, height: Int, marker: PrivateMarker): super(width, height) {
         hash = 0
@@ -183,26 +187,22 @@ class FixedGoban: AbstractGoban {
         var i = 0
         repeat(height) {
             var row = rows[i++]
-            // mask.lo = row.lo
-            var mask = row.and(-1L ushr 32)
-            // stones.lo = row.hi
-            var stones = row ushr 32
+            // black.lo = row.lo
+            var black = row and (-1L ushr 32)
+            // white.lo = row.hi
+            var white = row ushr 32
             if (width > 32) {
                 row = rows[i++]
-                // mask.hi = row.lo
-                mask = mask or row.shl(32)
-                // stones.hi = row.hi
-                stones = stones or row.and(-1L shl 32)
+                // black.hi = row.lo
+                black = black or (row shl 32)
+                // white.hi = row.hi
+                white = white or row.and(-1L shl 32)
             }
-            row = mask.shl(-width) + stones
+            row = black + (white shl -width)
             hash = 31*hash + row.xor(row ushr 32).toInt()
         }
         this.hash = hash
     }
-
-    private val hash: Int
-
-    private object PrivateMarker
 
     companion object {
 
@@ -285,8 +285,8 @@ class FixedGoban: AbstractGoban {
         var factory: InternalGoban.Factory<AbstractMutableGoban> = InternalGoban.playableFactory
         rows@ for(i in 0 until rows.length()) {
             val row = rows[i]
-            val black = (row ushr 32).toInt()
-            var unseen = row.toInt()
+            val black = row.toInt()
+            var unseen = black or (row ushr 32).toInt()
             while(unseen != 0) {
                 val bit = unseen and -unseen
                 unseen -= bit
@@ -512,8 +512,6 @@ class Goban: AbstractMutableGoban {
             GobanSetAllOp.setAll(this, cluster, null)
         return true
     }
-
-
 
 }
 

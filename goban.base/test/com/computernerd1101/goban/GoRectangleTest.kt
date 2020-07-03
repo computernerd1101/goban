@@ -1,18 +1,16 @@
 package com.computernerd1101.goban
 
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.*
 
-import org.junit.jupiter.api.Assertions.*
+import org.junit.Assert.*
 
 internal class GoRectangleTest {
 
-    @BeforeEach
+    @Before
     fun setUp() {
     }
 
-    @AfterEach
+    @After
     fun tearDown() {
     }
 

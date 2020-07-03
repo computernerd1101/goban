@@ -4,9 +4,9 @@ import com.computernerd1101.goban.GoColor
 import com.computernerd1101.goban.Goban
 import com.computernerd1101.goban.GoPoint
 import com.computernerd1101.goban.sgf.*
-import org.junit.jupiter.api.*
+import org.junit.*
 
-import org.junit.jupiter.api.Assertions.*
+import org.junit.Assert.*
 
 class SGFTreeModelTest {
 
@@ -23,13 +23,13 @@ class SGFTreeModelTest {
     private val node21 = node2.createNextMoveNode(GoPoint(16, 16), GoColor.WHITE)
     private lateinit var treeModel: SGFTreeModel
 
-    @BeforeEach
+    @Before
     fun setUp() {
         treeModel = SGFTreeModel()
         treeModel.root = sgf
     }
 
-    @AfterEach
+    @After
     fun tearDown() {
     }
 

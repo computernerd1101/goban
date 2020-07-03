@@ -8,6 +8,6 @@ module computernerd1101.goban.desktop {
     requires kotlin.stdlib;
     requires kotlin.reflect;
 
-    requires org.junit.jupiter.api;
+    requires junit;
 
 }

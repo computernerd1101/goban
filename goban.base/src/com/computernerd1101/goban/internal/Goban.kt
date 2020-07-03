@@ -24,17 +24,13 @@ object InternalGoban: LongBinaryOperator {
         for(i in 0 until src.length()) {
             val row = src[i]
             dst[i] = row
-//            val blackStones = row.ushr(32).toInt()
-//            val whiteStones = row.toInt() and blackStones.inv()
-//            count += blackStones.countOneBits().toLong() +
-//                    whiteStones.countOneBits().toLong().shl(32)
             count += countStonesInRow(row)
         }
         return count
     }
 
     fun countStonesInRow(row: Long): Long {
-        var i = (row ushr 32) or ((row shl 32) and row.inv())
+        var i = row
         i -= (i ushr 1) and 0x5555_5555_5555_5555L
         i = (i and 0x3333_3333_3333_3333L) + ((i ushr 2) and 0x3333_3333_3333_3333L)
         i = (i + (i ushr 4)) and 0x0f0f_0f0f_0f0f_0f0fL
@@ -71,43 +67,31 @@ object InternalGoban: LongBinaryOperator {
                 GoColor.BLACK -> EXPECT_BLACK
                 GoColor.WHITE -> EXPECT_WHITE
             }, this)
-        val bit = 1L shl x2
-        val recount: Long
-        val wasEmpty = row and bit == 0L
-        val wasBlack = row and (bit shl 32) != 0L
-        val actual: GoColor?
-        if (newColor == null) {
-            if (wasEmpty) return null
-            actual = wasBlack.goBlackOrWhite()
-            if (expected != null && expected != actual)
-                return actual
-            recount = if (wasBlack) -1L
-            else -1L shl 32
-        } else {
-            if (wasEmpty) {
-                if (expected != newColor && expected != null)
-                    return null
-                actual = null
-            } else {
-                actual = wasBlack.goBlackOrWhite()
-                if (actual == newColor || (expected != newColor && expected != actual))
-                    return actual
+        var recount = 0L
+        val actual: GoColor? = when((row ushr x2) and MASK) {
+            BLACK -> {
+                recount = -1L
+                GoColor.BLACK
             }
-            recount = when {
-                newColor == GoColor.BLACK ->
-                    if (wasEmpty) 1L
-                    else 1L - (1L shl 32)
-                wasEmpty -> 1L shl 32
-                else -> (1L shl 32) - 1L
+            WHITE -> {
+                recount = -1L shl 32
+                GoColor.WHITE
             }
+            else -> null
         }
-        count.addAndGet(goban, recount)
+        if (actual != newColor && (expected == newColor || expected == actual)) {
+            if (newColor == GoColor.BLACK)
+                recount++
+            else if (newColor == GoColor.WHITE)
+                recount += 1L shl 32
+            count.addAndGet(goban, recount)
+        }
         return actual
     }
 
     override fun applyAsLong(row: Long, flags: Long): Long {
         val x = flags.toInt()
-        val expected = flags and EXPECT_BLACK
+        val expected = flags and EXPECT_EMPTY
         if (expected != 0L) {
             val mask = BLACK shl x
             val rowFlags: Long = when(expected) {
@@ -118,16 +102,16 @@ object InternalGoban: LongBinaryOperator {
             if (row and mask != rowFlags) return row
         }
         var o = 0L
-        val a: Long = when(flags and NEW_BLACK) {
+        val a: Long = when(flags and NEW_MASK) {
             NEW_BLACK -> {
                 o = BLACK shl x
-                -1L
+                (WHITE shl x).inv()
             }
             NEW_WHITE -> {
                 o = WHITE shl x
-                ((BLACK - WHITE) shl x).inv()
+                (BLACK shl x).inv()
             }
-            else -> (BLACK shl x).inv()
+            else -> (MASK shl x).inv()
         }
         return (row or o) and a
     }
@@ -138,9 +122,11 @@ object InternalGoban: LongBinaryOperator {
             x < 32 -> 2*y
             else -> 2*y + 1
         }]
-        val bit = 1L shl (x and 31)
-        return if (row and bit == 0L) null
-        else (row and bit.shl(32) != 0L).goBlackOrWhite()
+        return when((row ushr (x and 31)) and MASK) {
+            BLACK -> GoColor.BLACK
+            WHITE -> GoColor.WHITE
+            else -> null
+        }
     }
 
     @JvmField
@@ -175,15 +161,17 @@ object InternalGoban: LongBinaryOperator {
         return false
     }
 
-    const val NEW_BLACK = 3L shl 32
-    const val NEW_WHITE = 1L shl 32
+    const val NEW_BLACK = 1L shl 32
+    const val NEW_WHITE = 2L shl 32
+    const val NEW_MASK = NEW_BLACK or NEW_WHITE
 
-    const val EXPECT_EMPTY = 2L shl 34
-    const val EXPECT_BLACK = 3L shl 34
-    const val EXPECT_WHITE = 1L shl 34
+    const val EXPECT_BLACK = 1L shl 34
+    const val EXPECT_WHITE = 2L shl 34
+    const val EXPECT_EMPTY = 3L shl 34
 
-    const val BLACK = 1L + (1L shl 32)
-    const val WHITE = 1L
+    const val BLACK = 1L
+    const val WHITE = 1L shl 32
+    const val MASK = BLACK or WHITE
 
     private object MutableSetSupplier: Supplier<MutableGoPointSet> {
 
@@ -235,25 +223,22 @@ object GobanSetAllOp: LongBinaryOperator {
                 GoColor.BLACK -> InternalGoban.NEW_BLACK
                 GoColor.WHITE -> InternalGoban.NEW_WHITE
             }, this)
-        val blackStones = row.ushr(32).toInt()
-        val whiteStones = row.toInt() and blackStones.inv()
+        val rowMask = setMask.toLong() and (-1L ushr 32)
         val recount: Long
-        when(color) {
-            null -> {
-                if (row.toInt() and setMask == 0) return false
-                recount = -blackStones.and(setMask).countOneBits().toLong() -
-                        whiteStones.and(setMask).countOneBits().toLong().shl(32)
+        recount = if (color == null)
+            -InternalGoban.countStonesInRow(row and (rowMask * InternalGoban.MASK))
+        else {
+            val addMask: Long
+            val removeMask: Long
+            if (color == GoColor.BLACK) {
+                addMask = rowMask
+                removeMask = rowMask shl 32
+            } else {
+                addMask = rowMask shl 32
+                removeMask = rowMask
             }
-            GoColor.BLACK -> {
-                if (blackStones or setMask == blackStones) return false
-                recount = blackStones.inv().and(setMask).countOneBits().toLong() -
-                        whiteStones.and(setMask).countOneBits().toLong().shl(32)
-            }
-            GoColor.WHITE -> {
-                if (whiteStones or setMask == whiteStones) return false
-                recount = whiteStones.inv().and(setMask).countOneBits().toLong().shl(32) -
-                        blackStones.and(setMask).countOneBits().toLong()
-            }
+            InternalGoban.countStonesInRow(row.inv() and addMask) -
+                    InternalGoban.countStonesInRow(row and removeMask)
         }
         InternalGoban.count.addAndGet(goban, recount)
         return true
@@ -261,13 +246,23 @@ object GobanSetAllOp: LongBinaryOperator {
 
     override fun applyAsLong(row: Long, flags: Long): Long {
         val setMask = flags and (-1L ushr 32)
-        return when {
-            flags and (1L shl 32) == 0L -> // empty
-                row and (setMask or (setMask shl 32)).inv()
-            flags and (1L shl 33) != 0L -> // black
-                row or (setMask or (setMask shl 32))
-            else -> (row or setMask) and (setMask shl 32).inv() // white
+        val o: Long
+        val a: Long
+        when(flags and InternalGoban.NEW_MASK) {
+            InternalGoban.NEW_BLACK -> {
+                o = setMask
+                a = (setMask shl 32).inv()
+            }
+            InternalGoban.NEW_WHITE -> {
+                o = setMask shl 32
+                a = setMask.inv()
+            }
+            else -> {
+                o = 0L
+                a = (setMask * InternalGoban.MASK).inv()
+            }
         }
+        return (row or o) and a
     }
 
 }
