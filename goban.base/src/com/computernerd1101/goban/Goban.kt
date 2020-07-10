@@ -167,6 +167,12 @@ inline fun AbstractGoban?.isNullOrEmpty(): Boolean {
 
 @Suppress("unused")
 inline infix fun AbstractGoban?.contentEquals(other: AbstractGoban?) = AbstractGoban.contentEquals(this, other)
+@Suppress("FunctionName")
+inline fun FixedGoban(width: Int, height: Int) = FixedGoban.empty(width, height)
+@Suppress("FunctionName")
+inline fun FixedGoban(size: Int) = FixedGoban.empty(size)
+@Suppress("FunctionName")
+inline fun FixedGoban() = FixedGoban.EMPTY
 
 class FixedGoban: AbstractGoban {
 
@@ -186,20 +192,10 @@ class FixedGoban: AbstractGoban {
         var hash = 0
         var i = 0
         repeat(height) {
-            var row = rows[i++]
-            // black.lo = row.lo
-            var black = row and (-1L ushr 32)
-            // white.lo = row.hi
-            var white = row ushr 32
-            if (width > 32) {
-                row = rows[i++]
-                // black.hi = row.lo
-                black = black or (row shl 32)
-                // white.hi = row.hi
-                white = white or row.and(-1L shl 32)
-            }
-            row = black + (white shl -width)
-            hash = 31*hash + row.xor(row ushr 32).toInt()
+            val row = rows[i++]
+            val black = row.toInt()
+            val white = (row ushr 32).toInt()
+            hash = 31*hash + (black + (white shl -width))
         }
         this.hash = hash
     }

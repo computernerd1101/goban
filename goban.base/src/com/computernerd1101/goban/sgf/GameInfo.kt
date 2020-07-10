@@ -1,8 +1,7 @@
 package com.computernerd1101.goban.sgf
 
-import com.computernerd1101.goban.GoColor
-import com.computernerd1101.goban.GoRules
-import com.computernerd1101.goban.sgf.internal.InternalGoSGF
+import com.computernerd1101.goban.*
+import com.computernerd1101.goban.sgf.internal.*
 import com.computernerd1101.goban.time.*
 import com.computernerd1101.sgf.*
 import java.io.*
@@ -22,6 +21,10 @@ class GameInfo: Serializable {
         }
 
         fun isNotEmpty() = !isEmpty()
+
+        companion object {
+            private const val serialVersionUID = 1L
+        }
 
     }
 
@@ -483,14 +486,6 @@ class GameInfo: Serializable {
             ObjectStreamField("annotationProvider", String::class.java),
             ObjectStreamField("openingType", String::class.java)
         )
-
-        private fun ObjectInputStream.GetField.getString(name: String): String {
-            return try {
-                this[name, null]?.toString()
-            } catch(e: Exception) {
-                null
-            } ?: ""
-        }
 
     }
     

@@ -14,15 +14,14 @@ import kotlin.contracts.*
 class Date private constructor(private val value: Int): Comparable<Date>, Serializable {
 
     constructor(year: Int, month: Int, day: Int): this(
-        when {
+        (when {
+            year < MIN_YEAR -> MIN_YEAR
+            year > MAX_YEAR -> MAX_YEAR
+            else -> year
+        } shl 9) or when {
             month < 0 || month > 12 -> 0
             else -> month
-        }.let { m ->
-            (when {
-                year < MIN_YEAR -> MIN_YEAR
-                year > MAX_YEAR -> MAX_YEAR
-                else -> year
-            } shl 9) or (m shl 5) or when {
+        }.let { m -> (m shl 5) or when {
                 day < 0 || day > daysInMonth[m] -> 0
                 else -> day
             }

@@ -250,16 +250,20 @@ open class GoPointSet protected constructor(
     override fun toString(): String {
         var s = if (this is MutableGoPointSet) null else string
         if (s == null) {
-            val buffer = StringBuilder()
-            s = compressed().joinTo(buffer, ", ", "[", "]") {
-                val start = it.start.toString()
-                val size = it.size
-                if (size == 1) start
-                else {
-                    buffer.append(start).append(if (size == 2) ", " else ", ..., ")
-                    it.end.toString()
-                }
-            }.toString()
+            val compressed = compressed()
+            s = if (compressed.size == 1) compressed[0].toString()
+            else {
+                val buffer = StringBuilder()
+                compressed.joinTo(buffer, ", ", "[", "]") {
+                    val start = it.start.toString()
+                    val size = it.size
+                    if (size == 1) start
+                    else {
+                        buffer.append(start).append(if (size == 2) ", " else ", ..., ")
+                        it.end.toString()
+                    }
+                }.toString()
+            }
             if (this !is MutableGoPointSet)
                 string = s
         }
@@ -554,10 +558,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                 @Suppress("USELESS_CAST")
                 for(element in (elements as Collection<*>)) if (element is GoPoint) {
                     val (x, y) = element
-                    val row = rows2[y]
-                    val flag = 1L shl x
-                    rows2[y] = if (elements is Set<*>) row or flag
-                    else row xor flag
+                    rows2[y] = rows2[y] xor (1L shl x)
                 }
                 for(y in 0..51)
                     if (invertRow(rows, y, rows2[y])) modified = true

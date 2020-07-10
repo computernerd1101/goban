@@ -16,16 +16,13 @@ fun GameResult(s: String): GameResult {
     return nullableGameResult(s) ?: GameResult.UNKNOWN
 }
 
-@Suppress("NOTHING_TO_INLINE")
 inline fun nullableGameResult(s: String) = GameResult.parse(s)
 
 @Suppress("unused")
 inline fun nullableMoveAnnotation(code: String, extent: Int) = MoveAnnotation.valueOf(code, extent)
 
 @Suppress("unused")
-fun nullablePositionState(code: String, extent: Int): PositionState? {
-    return PositionState.valueOf(code, extent)
-}
+inline fun nullablePositionState(code: String, extent: Int) = PositionState.valueOf(code, extent)
 
 @Suppress("unused")
 @OptIn(ExperimentalContracts::class)

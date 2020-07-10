@@ -6,6 +6,7 @@ enum class GoColor {
     BLACK, WHITE;
 
     val opponent : GoColor
+        @JvmName("opponent")
         get() = if (this == BLACK) WHITE else BLACK
 
     inline val isBlack : Boolean

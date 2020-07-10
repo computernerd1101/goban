@@ -86,7 +86,7 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
         type.value = this
     }
 
-    internal constructor(label: String) {
+    private constructor(label: String) {
         enumType = null
         this.label = label
     }
@@ -123,15 +123,16 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
 
     private fun readObject(input: ObjectInputStream) {
         enumType = when(val type = input.readUTF()) {
-            "LB" -> null
+            "LB" -> {
+                label = input.readUTF()
+                null
+            }
             else -> try {
                 enumValueOf<MarkupEnum>(type)
             } catch(e: RuntimeException) {
                 throw InvalidObjectException("Invalid markup type: $type")
             }
         }
-        if (enumType == null)
-            label = input.readUTF()
     }
 
     private fun readResolve(): Any {

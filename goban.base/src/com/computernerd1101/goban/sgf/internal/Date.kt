@@ -2,11 +2,14 @@ package com.computernerd1101.goban.sgf.internal
 
 import com.computernerd1101.goban.sgf.Date
 
-object InternalDate {
+internal object InternalDate {
 
     interface Constructor {
         operator fun invoke(value: Int): Date
     }
+    // Does not need a SecretKeeper, since it is only called by constructors
+    // that take a non-nullable Date as a parameter. Assuming the parameter has
+    // already been initialized, so has Date.Companion
     lateinit var init: Constructor
 
     fun parse(prev: Date?, s: String): Date? {

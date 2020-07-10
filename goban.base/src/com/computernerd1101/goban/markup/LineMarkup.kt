@@ -101,7 +101,7 @@ fun LineMarkupSet?.isNullOrEmpty(): Boolean {
     contract {
         returns(false) implies (this@isNullOrEmpty != null)
     }
-    return this?.isEmpty() ?: true
+    return this?.isEmpty() != false
 }
 
 class LineMarkupSet: MutableIterable<LineMarkup> {

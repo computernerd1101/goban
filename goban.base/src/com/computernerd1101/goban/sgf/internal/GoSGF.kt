@@ -7,7 +7,7 @@ import com.computernerd1101.goban.time.*
 import com.computernerd1101.sgf.*
 import java.nio.charset.Charset
 
-object InternalGoSGF {
+internal object InternalGoSGF {
 
     interface NodeSecrets {
         fun writeSGFTree(node: GoSGFNode, tree: SGFTree)
@@ -93,7 +93,7 @@ object InternalGoSGF {
 
 }
 
-fun GoSGFMoveNode.PlayerTime.parseTimeRemaining(time: SGFProperty?, overtime: SGFProperty?) {
+internal fun GoSGFMoveNode.PlayerTime.parseTimeRemaining(time: SGFProperty?, overtime: SGFProperty?) {
     val warnings = node.tree.warnings
     var bytes: SGFBytes
     var s: String
@@ -104,9 +104,9 @@ fun GoSGFMoveNode.PlayerTime.parseTimeRemaining(time: SGFProperty?, overtime: SG
             this.time = s.secondsToMillis()
         } catch(e: NumberFormatException) {
             warnings += SGFWarning(
-                bytes.row, bytes.column, "${if (color == GoColor.BLACK)
-                    "Unable to parse remaining time BL[" else "Unable to parse remaining time WL["
-                }$s]: $e", e
+                bytes.row, bytes.column, "Unable to parse remaining time ${
+                if (color == GoColor.BLACK) 'B' else 'W'
+                }L[$s]: $e", e
             )
         }
     }
@@ -117,15 +117,15 @@ fun GoSGFMoveNode.PlayerTime.parseTimeRemaining(time: SGFProperty?, overtime: SG
             this.overtime = s.toInt()
         } catch(e: NumberFormatException) {
             warnings += SGFWarning(
-                bytes.row, bytes.column, "${if (color == GoColor.BLACK)
-                    "Unable to parse overtime OB[" else "Unable to parse overtime OW["
-                }$s]: $e", e
+                bytes.row, bytes.column, "Unable to parse overtime O${
+                if (color == GoColor.BLACK) 'B' else 'W'
+                }[$s]: $e", e
             )
         }
     }
 }
 
-fun GoSGFMoveNode.PlayerTime.writeSGFTime(
+internal fun GoSGFMoveNode.PlayerTime.writeSGFTime(
     map: MutableMap<String, SGFProperty>,
     timeProp: String,
     overtimeProp: String) {

@@ -3,7 +3,7 @@ package com.computernerd1101.goban.internal
 import com.computernerd1101.goban.*
 import java.util.concurrent.atomic.*
 
-object InternalGoPointSet {
+internal object InternalGoPointSet {
 
     interface Secrets {
         fun init(rows: AtomicLongArray): GoPointSet
@@ -70,10 +70,9 @@ object InternalGoPointSet {
         return words
     }
 
-
 }
 
-open class GoPointItr(val rows: AtomicLongArray) : Iterator<GoPoint> {
+internal open class GoPointItr(val rows: AtomicLongArray) : Iterator<GoPoint> {
 
     private var unseenX = rows[0]
     private var unseenY = 0

@@ -6,7 +6,7 @@ import java.lang.ref.WeakReference
 import java.util.AbstractMap.SimpleImmutableEntry
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater
 
-object InternalGoPointMap {
+internal object InternalGoPointMap {
 
     interface Secrets {
         fun <V> rows(map: GoPointMap<V>): Array<Array<Map.Entry<GoPoint, V>?>?>
@@ -67,7 +67,7 @@ object InternalGoPointMap {
 
 }
 
-fun GoPointMap<*>.valueToString(e: Map.Entry<*, *>): String {
+internal fun GoPointMap<*>.valueToString(e: Map.Entry<*, *>): String {
     val value = e.value
     return when {
         value === this -> "(this Map)"
@@ -79,7 +79,7 @@ fun GoPointMap<*>.valueToString(e: Map.Entry<*, *>): String {
     }
 }
 
-class WeakRow<V>(map: MutableGoPointMap<V>, val y: Int):
+internal class WeakRow<V>(map: MutableGoPointMap<V>, val y: Int):
     WeakReference<Array<Map.Entry<GoPoint, V>?>?>(
         InternalGoPointMap.secrets.rows(map)[y],
         InternalGoPointMap.mutableSecrets.rowQueue(map)
@@ -91,7 +91,7 @@ class WeakRow<V>(map: MutableGoPointMap<V>, val y: Int):
 
 }
 
-abstract class GoPointMapCollection<out V, out E>(open val map: GoPointMap<V>):
+internal abstract class GoPointMapCollection<out V, out E>(open val map: GoPointMap<V>):
     AbstractCollection<E>() {
 
     abstract fun elementFrom(entry: Map.Entry<GoPoint, @UnsafeVariance V>): E
@@ -121,7 +121,7 @@ abstract class GoPointMapCollection<out V, out E>(open val map: GoPointMap<V>):
 
 }
 
-open class GoPointMapItr<out V, out E>(val collection: GoPointMapCollection<V, E>): Iterator<E> {
+internal open class GoPointMapItr<out V, out E>(val collection: GoPointMapCollection<V, E>): Iterator<E> {
 
     protected var nextX = 0
     protected var nextY = 0
@@ -180,7 +180,7 @@ open class GoPointMapItr<out V, out E>(val collection: GoPointMapCollection<V, E
 
 }
 
-open class MutableGoPointMapItr<V, E>(collection: GoPointMapCollection<V, E>):
+internal open class MutableGoPointMapItr<V, E>(collection: GoPointMapCollection<V, E>):
     GoPointMapItr<V, E>(collection), MutableIterator<E> {
 
     override fun remove() {
@@ -215,7 +215,7 @@ open class MutableGoPointMapItr<V, E>(collection: GoPointMapCollection<V, E>):
 
 }
 
-class ExpungeGoPointMapItr<V, E>(collection: GoPointMapCollection<V, E>):
+internal class ExpungeGoPointMapItr<V, E>(collection: GoPointMapCollection<V, E>):
     MutableGoPointMapItr<V, E>(collection) {
 
     override fun expungeStaleRows() {
@@ -232,7 +232,7 @@ class ExpungeGoPointMapItr<V, E>(collection: GoPointMapCollection<V, E>):
 
 }
 
-open class GoPointEntries<out V, out E>(
+internal open class GoPointEntries<out V, out E>(
     map: GoPointMap<V>
 ): GoPointMapCollection<V, E>(map), Set<E>
         where E: Map.Entry<GoPoint, V> {
@@ -335,7 +335,7 @@ open class GoPointEntries<out V, out E>(
 
 }
 
-class MutableGoPointEntry<V>(
+internal class MutableGoPointEntry<V>(
     var map: MutableGoPointMap<V>?,
     override val key: GoPoint,
     value: V
@@ -366,7 +366,7 @@ class MutableGoPointEntry<V>(
 
 }
 
-class MutableGoPointEntries<V>(
+internal class MutableGoPointEntries<V>(
     map: MutableGoPointMap<V>,
     override val immutable: GoPointEntries<V, Map.Entry<GoPoint, V>>
 ): GoPointEntries<V, MutableMap.MutableEntry<GoPoint, V>>(map),
@@ -571,7 +571,7 @@ class MutableGoPointEntries<V>(
 
 }
 
-open class GoPointKeys<out V>(map: GoPointMap<V>):
+internal open class GoPointKeys<out V>(map: GoPointMap<V>):
     GoPointMapCollection<V, GoPoint>(map), Set<GoPoint> {
 
     override val immutable: GoPointKeys<V>
@@ -701,7 +701,7 @@ open class GoPointKeys<out V>(map: GoPointMap<V>):
 
 }
 
-class MutableGoPointKeys<V>(
+internal class MutableGoPointKeys<V>(
     map: MutableGoPointMap<V>,
     override val immutable: GoPointKeys<V>
 ): GoPointKeys<V>(map), MutableSet<GoPoint> {
@@ -1038,7 +1038,7 @@ class MutableGoPointKeys<V>(
 
 }
 
-open class GoPointValues<out V>(
+internal open class GoPointValues<out V>(
     map: GoPointMap<V>,
     val entries: GoPointEntries<V, Map.Entry<GoPoint, @UnsafeVariance V>>
 ): GoPointMapCollection<V, @UnsafeVariance V>(map) {
@@ -1055,7 +1055,7 @@ open class GoPointValues<out V>(
 
 }
 
-class MutableGoPointValues<V>(
+internal class MutableGoPointValues<V>(
     map: MutableGoPointMap<V>,
     override val immutable: GoPointValues<V>
 ): GoPointValues<V>(map, immutable.entries), MutableCollection<V> {
@@ -1165,7 +1165,7 @@ class MutableGoPointValues<V>(
 
 }
 
-fun <V> MutableGoPointMap<V>.expungeStaleRows() {
+internal fun <V> MutableGoPointMap<V>.expungeStaleRows() {
     try {
         val mutableSecrets = InternalGoPointMap.mutableSecrets
         val weak = mutableSecrets.weakRows(this)

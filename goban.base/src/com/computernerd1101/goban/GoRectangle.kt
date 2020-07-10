@@ -24,14 +24,12 @@ class GoRectangle private constructor(
             val end: GoPoint
             when {
                 x1 == x2 && y1 == y2 -> return from.selfRect
-                y1 <= y2 -> {
-                    if (x1 <= x2) {
-                        start = from
-                        end = to
-                    } else {
-                        start = GoPoint(x2, y1)
-                        end   = GoPoint(x1, y2)
-                    }
+                y1 <= y2 -> if (x1 <= x2) {
+                    start = from
+                    end = to
+                } else {
+                    start = GoPoint(x2, y1)
+                    end   = GoPoint(x1, y2)
                 }
                 x1 < x2 -> {
                     start = GoPoint(x1, y2)
@@ -39,6 +37,32 @@ class GoRectangle private constructor(
                 }
                 else -> {
                     start = to
+                    end = from
+                }
+            }
+            return GoRectangle(start, end, toString(start, end))
+        }
+
+        @JvmStatic
+        fun rect(from: GoPoint, x2: Int, y2: Int): GoRectangle {
+            val (x1, y1) = from
+            val start: GoPoint
+            val end: GoPoint
+            when {
+                x1 == x2 && y1 == y2 -> return from.selfRect
+                y1 <= y2 -> if (x1 <= x2) {
+                    start = from
+                    end = GoPoint(x2, y2)
+                } else {
+                    start = GoPoint(x2, y1)
+                    end = GoPoint(x1, y2)
+                }
+                x1 < x2 -> {
+                    start = GoPoint(x1, y2)
+                    end = GoPoint(x2, y1)
+                }
+                else -> {
+                    start = GoPoint(x2, y2)
                     end = from
                 }
             }

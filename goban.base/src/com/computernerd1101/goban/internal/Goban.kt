@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.*
 import java.util.function.LongBinaryOperator
 import java.util.function.Supplier
 
-object InternalGoban: LongBinaryOperator {
+internal object InternalGoban: LongBinaryOperator {
 
     lateinit var rows: (AbstractGoban) -> AtomicLongArray
     lateinit var count: AtomicLongFieldUpdater<AbstractGoban>
@@ -101,19 +101,23 @@ object InternalGoban: LongBinaryOperator {
             }
             if (row and mask != rowFlags) return row
         }
-        var o = 0L
-        val a: Long = when(flags and NEW_MASK) {
+        val add: Long
+        val remove: Long
+        when(flags and NEW_MASK) {
             NEW_BLACK -> {
-                o = BLACK shl x
-                (WHITE shl x).inv()
+                add = BLACK shl x
+                remove = WHITE shl x
             }
             NEW_WHITE -> {
-                o = WHITE shl x
-                (BLACK shl x).inv()
+                add = WHITE shl x
+                remove = BLACK shl x
             }
-            else -> (MASK shl x).inv()
+            else -> {
+                add = 0L
+                remove = MASK shl x
+            }
         }
-        return (row or o) and a
+        return (row or add) and remove.inv()
     }
 
     fun get(width: Int, rows: AtomicLongArray, x: Int, y: Int): GoColor? {
@@ -190,7 +194,7 @@ object InternalGoban: LongBinaryOperator {
 
 }
 
-object GobanSetAllOp: LongBinaryOperator {
+internal object GobanSetAllOp: LongBinaryOperator {
 
     fun setAll(goban: AbstractMutableGoban, points: GoPointSet, color: GoColor?): Boolean {
         val width = goban.width
@@ -201,7 +205,7 @@ object GobanSetAllOp: LongBinaryOperator {
         if (width >= 32) {
             // 1 shl (width - 32) == 1 shl width; assuming 32 bits
             mask2 = mask1 // 1.shl(width - 32) - 1
-            mask1 = -1
+            mask1 = -1 // even if width == exactly 32
         }
         var modified = false
         var i = 0
@@ -209,6 +213,8 @@ object GobanSetAllOp: LongBinaryOperator {
             val row = rows[y]
             if (setRow(goban, i++, row.toInt() and mask1, color))
                 modified = true
+            // If width == exactly 32, then we don't need the following code,
+            // but we still need mask1 to be -1 instead of 0.
             if (width > 32)
                 if (setRow(goban, i++, (row ushr 32).toInt() and mask2, color))
                     modified = true
@@ -233,7 +239,7 @@ object GobanSetAllOp: LongBinaryOperator {
             if (color == GoColor.BLACK) {
                 addMask = rowMask
                 removeMask = rowMask shl 32
-            } else {
+            } else { // color == GoColor.WHITE
                 addMask = rowMask shl 32
                 removeMask = rowMask
             }
@@ -246,23 +252,23 @@ object GobanSetAllOp: LongBinaryOperator {
 
     override fun applyAsLong(row: Long, flags: Long): Long {
         val setMask = flags and (-1L ushr 32)
-        val o: Long
-        val a: Long
+        val add: Long
+        val remove: Long
         when(flags and InternalGoban.NEW_MASK) {
             InternalGoban.NEW_BLACK -> {
-                o = setMask
-                a = (setMask shl 32).inv()
+                add = setMask
+                remove = setMask shl 32
             }
             InternalGoban.NEW_WHITE -> {
-                o = setMask shl 32
-                a = setMask.inv()
+                add = setMask shl 32
+                remove = setMask
             }
             else -> {
-                o = 0L
-                a = (setMask * InternalGoban.MASK).inv()
+                add = 0L
+                remove = setMask * InternalGoban.MASK
             }
         }
-        return (row or o) and a
+        return (row or add) and remove.inv()
     }
 
 }
