@@ -1,22 +1,16 @@
 package com.computernerd1101.goban.internal
 
-import com.computernerd1101.goban.*
 import java.util.concurrent.atomic.*
-import java.util.function.Supplier
+import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.*
 
-@Suppress("NOTHING_TO_INLINE")
-inline fun <T> threadLocal(supplier: Supplier<out T>): ThreadLocal<T> {
-    return ThreadLocal.withInitial(supplier)
+inline fun <T> threadLocal(crossinline supplier: () -> T) = object: ThreadLocal<T>() {
+    override fun initialValue() = supplier()
 }
 
-inline fun <T> threadLocal(crossinline supplier: () -> T): ThreadLocal<T> {
-    return ThreadLocal.withInitial { supplier() }
-}
+operator fun <T> ThreadLocal<out T>.getValue(thisRef: Any?, property: KProperty<*>): T = get()
 
-operator fun <T> ThreadLocal<out T>.getValue(thisRef: Any?, prop: KProperty<*>): T = get()
-
-operator fun <T> ThreadLocal<in T>.setValue(thisRef: Any?, prop: KProperty<*>, value: T) {
+operator fun <T> ThreadLocal<in T>.setValue(thisRef: Any?, property: KProperty<*>, value: T) {
     set(value)
 }
 
@@ -27,22 +21,20 @@ class SecretKeeper<T: Any>(
     // in turn, is expected to call [setValue] on
     // this SecretKeeper.
     val companion: () -> Any
-) {
+): ReadWriteProperty<Any?, T> {
 
     private lateinit var value: T
 
-    operator fun getValue(thisRef: Any?, prop: KProperty<*>): T {
+    override fun getValue(thisRef: Any?, property: KProperty<*>): T {
         companion()
         return value
     }
 
-    operator fun setValue(thisRef: Any?, prop: KProperty<*>, value: T) {
+    override fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
         this.value = value
     }
 
 }
-
-internal var internalSelfRect: (GoPoint, CharArray) -> GoRectangle by SecretKeeper { GoRectangle }
 
 private const val deBruijn64: Long = 0x03f79d71b4ca8b09
 

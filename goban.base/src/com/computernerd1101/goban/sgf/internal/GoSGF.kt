@@ -128,7 +128,8 @@ internal fun GoSGFMoveNode.PlayerTime.parseTimeRemaining(time: SGFProperty?, ove
 internal fun GoSGFMoveNode.PlayerTime.writeSGFTime(
     map: MutableMap<String, SGFProperty>,
     timeProp: String,
-    overtimeProp: String) {
+    overtimeProp: String
+) {
     if (hasTime)
         map[timeProp] = SGFProperty(SGFValue(SGFBytes(time.millisToStringSeconds())))
     if (hasOvertime)

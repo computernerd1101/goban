@@ -109,8 +109,7 @@ class TimeLimit(mainTime: Long, val overtime: Overtime?) {
     }
 
     var isTicking: Boolean
-        // timeEvent getter is already synchronized,
-        // and TimeEvent.isTicking doesn't need to be.
+        @Synchronized
         get() = timeEvent.isTicking
         @Synchronized
         set(ticking) {
@@ -146,8 +145,7 @@ class TimeLimit(mainTime: Long, val overtime: Overtime?) {
                     update = true
                 }
             }
-            if (update)
-                timeEvent = e
+            if (update) timeEvent = e
         }
 
     @Synchronized

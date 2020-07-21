@@ -113,7 +113,7 @@ class GameInfo: Serializable {
                     break
                 }
             }
-            if (fKomi?.get(0) != '0') lKomi++
+            if (fKomi != null && fKomi[0] != '0') lKomi++
             if (negative) lKomi = -lKomi
             val komi2 = when {
                 lKomi < Int.MIN_VALUE -> Int.MIN_VALUE

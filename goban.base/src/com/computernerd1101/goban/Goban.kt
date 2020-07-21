@@ -20,8 +20,8 @@ sealed class AbstractGoban(
     companion object {
 
         init {
-            InternalGoban.count = atomicLongUpdater("count")
             InternalGoban.rows = AbstractGoban::rows
+            InternalGoban.count = atomicLongUpdater("count")
         }
 
         @JvmStatic
@@ -190,9 +190,8 @@ class FixedGoban: AbstractGoban {
     private constructor(width: Int, height: Int, rows: AtomicLongArray, count: Long):
             super(width, height, rows, count) {
         var hash = 0
-        var i = 0
-        repeat(height) {
-            val row = rows[i++]
+        for(i in 0 until rows.length()) {
+            val row = rows[i]
             val black = row.toInt()
             val white = (row ushr 32).toInt()
             hash = 31*hash + (black + (white shl -width))
@@ -275,31 +274,34 @@ class FixedGoban: AbstractGoban {
         val oldRows = InternalGoban.rows(this)
         val rows = AtomicLongArray(oldRows.length())
         val count = InternalGoban.copyRows(oldRows, rows)
-        val metaCluster: MutableGoPointSet = InternalGoban.threadMetaCluster
-        metaCluster.clear()
-        val cluster: MutableGoPointSet = InternalGoban.threadCluster
+        GobanBulk.threadLocalGoban(width, height, rows)
+        val arrays: Array<LongArray> = GobanBulk.threadLocalRows
+        val metaCluster = arrays[GobanBulk.THREAD_META_CLUSTER]
+        GobanBulk.clear(metaCluster)
+        val blackRows = arrays[GobanBulk.THREAD_BLACK]
+        val whiteRows = arrays[GobanBulk.THREAD_WHITE]
         var factory: InternalGoban.Factory<AbstractMutableGoban> = InternalGoban.playableFactory
-        rows@ for(i in 0 until rows.length()) {
-            val row = rows[i]
-            val black = row.toInt()
-            var unseen = black or (row ushr 32).toInt()
-            while(unseen != 0) {
-                val bit = unseen and -unseen
-                unseen -= bit
-                var x = trailingZerosPow2(bit)
-                val y: Int = if (width <= 32) i
-                else {
-                    if (i and 1 != 0) x += 32
-                    i shr 1
+        rows@ for(y in 0 until height) {
+            val black = blackRows[y]
+            var unseen = black or whiteRows[y]
+            while(unseen != 0L) {
+                val xBit = unseen and -unseen
+                unseen -= xBit
+                if (metaCluster[y] and xBit != 0L) continue
+                val player: Int
+                val opponent: Int
+                if (black and xBit != 0L) {
+                    player = GobanBulk.THREAD_BLACK
+                    opponent = GobanBulk.THREAD_WHITE
+                } else {
+                    player = GobanBulk.THREAD_WHITE
+                    opponent = GobanBulk.THREAD_BLACK
                 }
-                val p = GoPoint(x, y)
-                if (p in metaCluster) continue
-                val color = (black and bit != 0).goBlackOrWhite()
-                if (!InternalGoban.isAlive(width, height, rows, p, color)) { // updates cluster
+                if (!GobanBulk.isAlive(width, height, xBit, y, player, opponent)) { // updates cluster
                     factory = InternalGoban.mutableFactory
                     break@rows
                 }
-                metaCluster.addAll(cluster)
+                GobanBulk.updateMetaCluster(height)
             }
         }
         return factory(width, height, rows, count)
@@ -342,7 +344,7 @@ sealed class AbstractMutableGoban: AbstractGoban {
 
     fun setAll(points: Set<GoPoint>, color: GoColor?): Boolean {
         if (points is GoPointSet)
-            return GobanSetAllOp.setAll(this, points, color)
+            return GobanBulk.setAll(this, InternalGoPointSet.secrets.rows(points), color)
         var changed = false
         for(p in points)
             if (InternalGoban.set(this, p.x, p.y, color, color) != color)
@@ -471,42 +473,54 @@ class Goban: AbstractMutableGoban {
         val (x, y) = p
         if (x >= width || y >= height || InternalGoban.set(this, x, y, stone, null) != null)
             return false
-        var isAlive = false
-        var multiStone = false
-        val metaCluster: MutableGoPointSet = InternalGoban.threadMetaCluster
-        metaCluster.clear()
-        val cluster: MutableGoPointSet = InternalGoban.threadCluster
+        val xBit = 1L shl x
+        val arrays: Array<LongArray> = GobanBulk.threadLocalRows
+        val metaCluster = arrays[GobanBulk.THREAD_META_CLUSTER]
+        GobanBulk.clear(metaCluster)
+        val cluster = arrays[GobanBulk.THREAD_CLUSTER]
         val rows = InternalGoban.rows(this)
-        for(i in 0..6 step 2) {
-            val nx = x + InternalGoban.NEIGHBOR_OFFSETS[i]
-            val ny = y + InternalGoban.NEIGHBOR_OFFSETS[i + 1]
-            if (nx in 0 until width && ny in 0 until height) {
-                val neighborColor = this[nx, ny]
-                if (neighborColor == null) {
-                    isAlive = true
-                    continue
-                }
-                if (neighborColor == stone) {
-                    multiStone = true
-                    continue
-                }
-                if (p in metaCluster) continue
-                if (InternalGoban.isAlive(width, height, rows, GoPoint(nx, ny), neighborColor)) // updates cluster
-                    metaCluster.addAll(cluster)
-                else {
-                    GobanSetAllOp.setAll(this, cluster, null)
-                    isAlive = true
-                }
-            }
+        GobanBulk.threadLocalGoban(width, height, rows)
+        val player: Int
+        val opponent: Int
+        if (stone == GoColor.BLACK) {
+            player = GobanBulk.THREAD_BLACK
+            opponent = GobanBulk.THREAD_WHITE
+        } else {
+            player = GobanBulk.THREAD_WHITE
+            opponent = GobanBulk.THREAD_BLACK
         }
-        if (isAlive) return true
-        if (!multiStone) {
+        var flags = if (y > 0) checkNeighbor(xBit, y - 1, player, opponent)
+        else 0
+        if (x < width - 1) flags = flags or checkNeighbor(xBit shl 1, y, player, opponent)
+        if (y < height - 1) flags = flags or checkNeighbor(xBit, y + 1, player, opponent)
+        if (x > 0) flags = flags or checkNeighbor(xBit shr 1, y, player, opponent)
+        if (flags and 1 != 0) return true // alive
+        if (flags and 2 == 0) { // not multi-stone
             InternalGoban.set(this, x, y, null, null)
             return false
         }
-        if (!InternalGoban.isAlive(width, height, rows, p, stone)) // updates cluster
-            GobanSetAllOp.setAll(this, cluster, null)
+        if (!GobanBulk.isAlive(width, height, xBit, y, player, opponent))
+            GobanBulk.setAll(this, cluster, null)
         return true
+    }
+
+    private fun checkNeighbor(xBit: Long, y: Int, player: Int, opponent: Int): Int {
+        val arrays: Array<LongArray> = GobanBulk.threadLocalRows
+        val metaCluster = arrays[GobanBulk.THREAD_META_CLUSTER]
+        val cluster = arrays[GobanBulk.THREAD_CLUSTER]
+        val playerRows = arrays[player]
+        val opponentRows = arrays[opponent]
+        if (playerRows[y] and xBit != 0L) return 2 // multi-stone
+        if (opponentRows[y] and xBit == 0L) return 1 // alive
+        if (metaCluster[y] and xBit != 0L) return 0
+        if (GobanBulk.isAlive(width, height, xBit, y, opponent, player)) {
+            GobanBulk.updateMetaCluster(height)
+            return 0
+        }
+        GobanBulk.setAll(this, cluster, null)
+        for(i in 0 until height)
+            opponentRows[i] = opponentRows[i] and cluster[i].inv()
+        return 1 // alive
     }
 
 }

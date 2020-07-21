@@ -19,11 +19,34 @@ class GoPoint private constructor(
     @get:JvmName("selfRect")
     val selfRect: GoRectangle
 
-    @Suppress("NOTHING_TO_INLINE")
-    inline infix fun rect(other: GoPoint) = GoRectangle.rect(this, other)
+    infix fun rect(other: GoPoint) = rect(other, other.x, other.y)
 
-    @Suppress("unused", "NOTHING_TO_INLINE")
-    inline fun rect(x2: Int, y2: Int) = GoRectangle.rect(this, x2, y2)
+    fun rect(x: Int, y: Int) = rect(null, x, y)
+
+    private fun rect(other: GoPoint?, x2: Int, y2: Int): GoRectangle {
+        val (x1, y1) = this
+        val start: GoPoint
+        val end: GoPoint
+        when {
+            x1 == x2 && y1 == y2 -> return selfRect
+            y1 <= y2 -> if (x1 <= x2) {
+                start = this
+                end   = other ?: pointAt(x2, y2)
+            } else {
+                start = pointAt(x2, y1)
+                end   = pointAt(x1, y2)
+            }
+            x1 < x2 -> {
+                start = pointAt(x1, y2)
+                end   = pointAt(x2, y1)
+            }
+            else -> {
+                start = other ?: pointAt(x2, y2)
+                end   = this
+            }
+        }
+        return InternalGoRectangle.init(start, end, InternalGoRectangle.toString(start, end))
+    }
 
     init {
         val cx = toChar(x)
@@ -33,7 +56,7 @@ class GoPoint private constructor(
         buffer4[1] = cx
         buffer4[2] = cy
         string = String(buffer2).intern()
-        selfRect = internalSelfRect(this, buffer4)
+        selfRect = InternalGoRectangle.init(this, this, String(buffer4).intern())
     }
 
     companion object {
@@ -53,6 +76,7 @@ class GoPoint private constructor(
         private val CACHE: Array<GoPoint>
 
         init {
+            GoRectangle // initialize companion
             val buffer2 = CharArray(2)
             val buffer4 = CharArray(4)
             buffer4[0] = '['

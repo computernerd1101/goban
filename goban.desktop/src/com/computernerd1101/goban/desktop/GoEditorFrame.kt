@@ -64,7 +64,7 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
             val width = sgf.width
             val height = sgf.height
             if (old.width != width || old.height != height) {
-                allPoints = GoPoint(0, 0) rect GoPoint(width - 1, height - 1)
+                allPoints = GoPoint(0, 0).rect(width - 1, height - 1)
                 labelSize.text = "Size: ${width}x$height"
             }
             val variationFlags = sgf.variationView
@@ -79,7 +79,7 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
             this.node = node
             selectSGFNode(node)
         }
-    private var allPoints: GoRectangle = GoPoint(0, 0) rect GoPoint(sgf.width - 1, sgf.height - 1)
+    private var allPoints: GoRectangle = GoPoint(0, 0).rect(sgf.width - 1, sgf.height - 1)
     private var blackScore: Int = 0
     private var whiteScore: Int = 0
 
@@ -870,8 +870,9 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         tabs.addTab("Node", JScrollPane(panel))
     }
 
-    private val gameInfoTransferHandler =
-        GameInfoTransferHandler(tabs, 3, sgf.charset)
+    private val gameInfoTransferHandler = GameInfoTransferHandler(tabs, sgf.charset) {
+        (it as? JTabbedPane)?.selectedIndex == 3
+    }
     private val buttonCopyGameInfo = JButton("Copy")
     private val buttonPasteGameInfo = JButton("Paste")
     private val buttonDeleteGameInfo = JButton("Delete")

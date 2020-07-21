@@ -12,61 +12,7 @@ class GoRectangle private constructor(
     companion object {
 
         init {
-            internalSelfRect = { p, buffer ->
-                GoRectangle(p, p, String(buffer).intern())
-            }
-        }
-
-        @JvmStatic fun rect(from: GoPoint, to: GoPoint): GoRectangle {
-            val (x1, y1) = from
-            val (x2, y2) = to
-            val start: GoPoint
-            val end: GoPoint
-            when {
-                x1 == x2 && y1 == y2 -> return from.selfRect
-                y1 <= y2 -> if (x1 <= x2) {
-                    start = from
-                    end = to
-                } else {
-                    start = GoPoint(x2, y1)
-                    end   = GoPoint(x1, y2)
-                }
-                x1 < x2 -> {
-                    start = GoPoint(x1, y2)
-                    end   = GoPoint(x2, y1)
-                }
-                else -> {
-                    start = to
-                    end = from
-                }
-            }
-            return GoRectangle(start, end, toString(start, end))
-        }
-
-        @JvmStatic
-        fun rect(from: GoPoint, x2: Int, y2: Int): GoRectangle {
-            val (x1, y1) = from
-            val start: GoPoint
-            val end: GoPoint
-            when {
-                x1 == x2 && y1 == y2 -> return from.selfRect
-                y1 <= y2 -> if (x1 <= x2) {
-                    start = from
-                    end = GoPoint(x2, y2)
-                } else {
-                    start = GoPoint(x2, y1)
-                    end = GoPoint(x1, y2)
-                }
-                x1 < x2 -> {
-                    start = GoPoint(x1, y2)
-                    end = GoPoint(x2, y1)
-                }
-                else -> {
-                    start = GoPoint(x2, y2)
-                    end = from
-                }
-            }
-            return GoRectangle(start, end, toString(start, end))
+            InternalGoRectangle.init = ::GoRectangle
         }
 
         @JvmStatic
@@ -92,59 +38,7 @@ class GoRectangle private constructor(
             }
             val start = GoPoint(startX, startY)
             val end = GoPoint(endX, endY)
-            return GoRectangle(start, end, toString(start, end))
-        }
-
-        private fun toString(start: GoPoint, end: GoPoint): String {
-            val buffer: CharArray
-            val offset: Int
-            val (x1, y1) = start
-            val (x2, y2) = end
-            if ((x1 == x2 && y1 + 1 == y2) ||
-                (x1 + 1 == x2 && y1 == y2)) {
-                buffer = buffer2
-                offset = 5
-            } else {
-                buffer = bufferTruncate
-                offset = 10
-            }
-            buffer[1] = x1.toGoPointChar()
-            buffer[2] = y1.toGoPointChar()
-            buffer[offset] = x2.toGoPointChar()
-            buffer[offset + 1] = y2.toGoPointChar()
-            return String(buffer)
-        }
-
-        private val buffer2: CharArray by threadLocal {
-            val buffer = CharArray(8)
-            buffer[0] = '['
-            // buffer[1] = x1
-            // buffer[2] = y1
-            buffer[3] = ','
-            buffer[4] = ' '
-            // buffer[5] = x2
-            // buffer[6] = y2
-            buffer[7] = ']'
-            buffer
-        }
-
-        private val bufferTruncate: CharArray by threadLocal {
-            val buffer = CharArray(13)
-            buffer[0] = '['
-            // buffer[1] = x1
-            // buffer[2] = y1
-            // ", ..., "
-            buffer[3] = ','
-            buffer[4] = ' '
-            buffer[5] = '.'
-            buffer[6] = '.'
-            buffer[7] = '.'
-            buffer[8] = ','
-            buffer[9] = ' '
-            // buffer[10] = x2
-            // buffer[11] = y2
-            buffer[12] = ']'
-            buffer
+            return GoRectangle(start, end, InternalGoRectangle.toString(start, end))
         }
 
         private const val serialVersionUID = 1L
@@ -309,7 +203,7 @@ class GoRectangle private constructor(
         return when {
             start == end -> start.selfRect
             start == this.start && end == this.end -> this
-            else -> GoRectangle(start, end, toString(start, end))
+            else -> GoRectangle(start, end, InternalGoRectangle.toString(start, end))
         }
     }
 
@@ -322,7 +216,7 @@ class GoRectangle private constructor(
         when {
             y1 <= y2 -> {
                 if (x1 <= x2) {
-                    string = toString(this.start, this.end)
+                    string = InternalGoRectangle.toString(this.start, this.end)
                     return this
                 }
                 start = GoPoint(x2, y1)
@@ -337,7 +231,7 @@ class GoRectangle private constructor(
                 end = this.start
             }
         }
-        return GoRectangle(start, end, toString(start, end))
+        return GoRectangle(start, end, InternalGoRectangle.toString(start, end))
     }
 
 }

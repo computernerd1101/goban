@@ -1,19 +1,30 @@
 package com.computernerd1101.goban.sgf
 
+import com.computernerd1101.goban.resources.GobanResources
+import java.util.*
+
 enum class MoveAnnotation(
     @get:JvmName("code") val code: String,
-    @get:JvmName("extent") val extent: Int,
-    private val string: String
+    @get:JvmName("extent") val extent: Int
 ) {
 
-    INTERESTING("IT", 0, "Interesting"),
-    GOOD("TE", 1, "Good move (Tesuji)"),
-    VERY_GOOD("TE", 2, "Very good move (Tesuji)"),
-    DOUBTFUL("DO", 0, "Doubtful"),
-    BAD("BM", 1, "Bad move"),
-    VERY_BAD("BM", 2, "Very bad move");
+    INTERESTING("IT", 0),
+    GOOD("TE", 1),
+    VERY_GOOD("TE", 2),
+    DOUBTFUL("DO", 0),
+    BAD("BM", 1),
+    VERY_BAD("BM", 2);
 
-    override fun toString() = string
+    override fun toString() = toString(Locale.getDefault())
+
+    fun toString(locale: Locale): String {
+        val resources = GobanResources.getBundle(locale)
+        val key = "sgf.MoveAnnotation.$code"
+        return when(val extent = this.extent) {
+            0 -> resources.getString(key)
+            else -> resources.getStringArray(key)[extent - 1]
+        }
+    }
 
     fun toExtent(extent: Int): MoveAnnotation {
         if (this.extent == 0) return this

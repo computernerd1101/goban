@@ -129,7 +129,7 @@ open class GoPointSet protected constructor(
                         else // y limit reached
                             expandY = false
                     }
-                    list.add(GoPoint(x, y) rect GoPoint(x2, y2))
+                    list.add(GoRectangle(x, y, x2, y2))
                     while (y2 >= y) {
                         rows[y2] = rows[y2] and rowMask.inv()
                         y2--

@@ -1,6 +1,7 @@
 package com.computernerd1101.goban.time
 
 import com.computernerd1101.goban.annotations.*
+import com.computernerd1101.goban.resources.GobanResources
 import java.util.*
 import java.util.regex.Pattern
 
@@ -54,11 +55,8 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime() {
     override fun getTypeString(): String? = "Canadian"
 
     override fun getDisplayName(locale: Locale): String? {
-        val resources: ResourceBundle = ResourceBundle.getBundle(
-            "com.computernerd1101.goban.resources.OvertimeData",
-            locale
-        )
-        return resources.getString("overtime.Canadian")
+        val resources = GobanResources.getBundle(locale)
+        return resources.getString("time.Overtime.Canadian")
     }
 
     override fun parseThis(s: String): Boolean = parse(s, this) != null

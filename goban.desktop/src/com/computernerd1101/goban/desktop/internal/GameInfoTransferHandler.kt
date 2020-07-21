@@ -11,17 +11,17 @@ import java.nio.charset.*
 import javax.swing.*
 
 class GameInfoTransferHandler(
-    val tabs: JTabbedPane,
-    val index: Int,
-    var charset: Charset? = null
+    val component: JComponent,
+    var charset: Charset? = null,
+    val isSelected: (GameInfoTransferHandler.(JComponent) -> Boolean)? = null
 ): TransferHandler(), MouseListener {
 
     var gameInfo: GameInfo? = null
 
     override fun mousePressed(e: MouseEvent) {
-        if (gameInfo != null && tabs.selectedIndex == index) {
+        if (gameInfo != null && isSelected?.invoke(this, component) != false) {
             isDragging = true
-            exportAsDrag(tabs, e, COPY)
+            exportAsDrag(component, e, COPY)
         }
     }
 
@@ -61,15 +61,15 @@ class GameInfoTransferHandler(
                 else -> return null
             }
             return try {
-                contents.getTransferData(flavor) as? GameInfo
+                contents.getTransferData(flavor)
             } catch(e: UnsupportedFlavorException) {
                 null
-            }
+            } as? GameInfo
         }
         set(info) {
             if (info != null) {
                 val clipboard: Clipboard = Toolkit.getDefaultToolkit().systemClipboard
-                exportToClipboard(tabs, clipboard, COPY)
+                exportToClipboard(component, clipboard, COPY)
             }
         }
 
@@ -241,7 +241,7 @@ class GameInfoTransferHandler(
         override fun getTransferDataFlavors() = Array(flavors.size) { index ->
             when(val flavor = flavors[index]) {
                 is DataFlavor -> flavor
-                else -> dataFlavor(
+                else -> DataFlavor(
                     "$flavor;charset=${charset?.name() ?: "UTF-8"}"
                 )
             }

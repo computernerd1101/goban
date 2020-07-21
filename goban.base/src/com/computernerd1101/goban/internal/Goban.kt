@@ -5,7 +5,6 @@ package com.computernerd1101.goban.internal
 import com.computernerd1101.goban.*
 import java.util.concurrent.atomic.*
 import java.util.function.LongBinaryOperator
-import java.util.function.Supplier
 
 internal object InternalGoban: LongBinaryOperator {
 
@@ -70,20 +69,20 @@ internal object InternalGoban: LongBinaryOperator {
         var recount = 0L
         val actual: GoColor? = when((row ushr x2) and MASK) {
             BLACK -> {
-                recount = -1L
+                recount = -BLACK
                 GoColor.BLACK
             }
             WHITE -> {
-                recount = -1L shl 32
+                recount = -WHITE
                 GoColor.WHITE
             }
             else -> null
         }
         if (actual != newColor && (expected == newColor || expected == actual)) {
-            if (newColor == GoColor.BLACK)
-                recount++
-            else if (newColor == GoColor.WHITE)
-                recount += 1L shl 32
+            when(newColor) {
+                GoColor.BLACK -> recount += BLACK
+                GoColor.WHITE -> recount += WHITE
+            }
             count.addAndGet(goban, recount)
         }
         return actual
@@ -93,10 +92,10 @@ internal object InternalGoban: LongBinaryOperator {
         val x = flags.toInt()
         val expected = flags and EXPECT_EMPTY
         if (expected != 0L) {
-            val mask = BLACK shl x
+            val mask = MASK shl x
             val rowFlags: Long = when(expected) {
                 EXPECT_WHITE -> WHITE shl x
-                EXPECT_BLACK -> mask
+                EXPECT_BLACK -> BLACK shl x
                 else -> 0L
             }
             if (row and mask != rowFlags) return row
@@ -133,41 +132,9 @@ internal object InternalGoban: LongBinaryOperator {
         }
     }
 
-    @JvmField
-    val NEIGHBOR_OFFSETS = intArrayOf(
-        0, -1,
-        1,  0,
-        0,  1,
-        -1, 0
-    )
-
-    fun isAlive(width: Int, height: Int, rows: AtomicLongArray, p: GoPoint, color: GoColor): Boolean {
-        val cluster: MutableGoPointSet = threadCluster
-        cluster.clear()
-        val stack: MutableList<GoPoint> = libertyStack
-        stack.clear()
-        stack.add(p)
-        cluster.add(p)
-        do {
-            val point = stack.removeAt(stack.size - 1)
-            for(i in 0..6 step 2) {
-                val x = point.x + NEIGHBOR_OFFSETS[i]
-                val y = point.y + NEIGHBOR_OFFSETS[i + 1]
-                if (x in 0 until width && y in 0 until height) {
-                    val stone = get(width, rows, x, y) ?: return true
-                    if (stone == color) {
-                        val neighbor = GoPoint(x, y)
-                        if (cluster.add(neighbor)) stack.add(neighbor)
-                    }
-                }
-            }
-        } while(stack.isNotEmpty())
-        return false
-    }
-
     const val NEW_BLACK = 1L shl 32
     const val NEW_WHITE = 2L shl 32
-    const val NEW_MASK = NEW_BLACK or NEW_WHITE
+    const val NEW_MASK  = 3L shl 32
 
     const val EXPECT_BLACK = 1L shl 34
     const val EXPECT_WHITE = 2L shl 34
@@ -177,16 +144,6 @@ internal object InternalGoban: LongBinaryOperator {
     const val WHITE = 1L shl 32
     const val MASK = BLACK or WHITE
 
-    private object MutableSetSupplier: Supplier<MutableGoPointSet> {
-
-        override fun get() = MutableGoPointSet()
-
-    }
-
-    val threadMetaCluster by threadLocal(MutableSetSupplier)
-    val threadCluster by threadLocal(MutableSetSupplier)
-    val libertyStack by threadLocal { mutableListOf<GoPoint>() }
-
     fun indexOutOfBoundsException(index: Int, size: Int) =
         IndexOutOfBoundsException("$index is not in the range [0-$size)")
 
@@ -194,26 +151,28 @@ internal object InternalGoban: LongBinaryOperator {
 
 }
 
-internal object GobanSetAllOp: LongBinaryOperator {
+internal object GobanBulk: LongBinaryOperator {
 
-    fun setAll(goban: AbstractMutableGoban, points: GoPointSet, color: GoColor?): Boolean {
+    fun setAll(goban: AbstractMutableGoban, rows: Any, color: GoColor?): Boolean {
         val width = goban.width
         val height = goban.height
-        val rows = InternalGoPointSet.secrets.rows(points)
         var mask1 = 1.shl(width) - 1
         var mask2 = 0
         if (width >= 32) {
             // 1 shl (width - 32) == 1 shl width; assuming 32 bits
             mask2 = mask1 // 1.shl(width - 32) - 1
-            mask1 = -1 // even if width == exactly 32
+            mask1 = -1 // even if width == 32 exactly
         }
         var modified = false
         var i = 0
         for(y in 0 until height) {
-            val row = rows[y]
+            val row = when(rows) {
+                is AtomicLongArray -> rows[y]
+                else -> (rows as LongArray)[y]
+            }
             if (setRow(goban, i++, row.toInt() and mask1, color))
                 modified = true
-            // If width == exactly 32, then we don't need the following code,
+            // If width == 32 exactly, then we don't need the following code,
             // but we still need mask1 to be -1 instead of 0.
             if (width > 32)
                 if (setRow(goban, i++, (row ushr 32).toInt() and mask2, color))
@@ -230,8 +189,7 @@ internal object GobanSetAllOp: LongBinaryOperator {
                 GoColor.WHITE -> InternalGoban.NEW_WHITE
             }, this)
         val rowMask = setMask.toLong() and (-1L ushr 32)
-        val recount: Long
-        recount = if (color == null)
+        val recount: Long = if (color == null)
             -InternalGoban.countStonesInRow(row and (rowMask * InternalGoban.MASK))
         else {
             val addMask: Long
@@ -246,8 +204,10 @@ internal object GobanSetAllOp: LongBinaryOperator {
             InternalGoban.countStonesInRow(row.inv() and addMask) -
                     InternalGoban.countStonesInRow(row and removeMask)
         }
-        InternalGoban.count.addAndGet(goban, recount)
-        return true
+        return if (recount != 0L) {
+            InternalGoban.count.addAndGet(goban, recount)
+            true
+        } else false
     }
 
     override fun applyAsLong(row: Long, flags: Long): Long {
@@ -269,6 +229,131 @@ internal object GobanSetAllOp: LongBinaryOperator {
             }
         }
         return (row or add) and remove.inv()
+    }
+
+    fun isAlive(width: Int, height: Int, xBit: Long, y: Int, player: Int, opponent: Int): Boolean {
+        val arrays: Array<LongArray> = threadLocalRows
+        val cluster = arrays[THREAD_CLUSTER]
+        clear(cluster)
+        cluster[y] = xBit
+        val playerRows = arrays[player]
+        val opponentRows = arrays[opponent]
+        // I tried making this a recursive function, but sometimes got a StackOverflowError.
+        // Fortunately, an array of 52 Longs occupies 52*8 = 416 bytes, plus the obligatory
+        // heap allocation data, which still consumes way less memory than every local variable
+        // in this function times a large number of recursive steps in the worse-case scenario.
+        val pending = arrays[THREAD_PENDING]
+        clear(pending)
+        val maxBit = 1L shl (width - 1)
+        var bit = xBit
+        var y1 = y
+        var pendingY = y
+        pop@ while(true) {
+            // check the points above, below, and to the left and right of the current point
+            var y2 = y1 - 1 // above
+            if (y2 >= 0 && opponentRows[y2] and bit == 0L) {
+                if (playerRows[y2] and bit != 0L) return true
+                val clusterRow = cluster[y2]
+                if (clusterRow and bit == 0L) {
+                    cluster[y2] = clusterRow or bit
+                    // pendingY is the first non-zero row in pending.
+                    // If the row below it gained a bit, then that
+                    // must be the new pendingY.
+                    pendingY = y2
+                    pending[y2] = pending[y2] or bit
+                }
+            }
+            var bits = 0L
+            // Ironically, use binary right-shift to move to the left on the goban.
+            // This is because x progresses to the right, but significant bits
+            // in an integer progress to the left. The computer may or may not
+            // see it that way (big endian vs little endian), but enough human mathematicians
+            // have agreed to name the operations "left shift" and "right shift" accordingly.
+            var bit2 = bit shr 1 // left
+            if (bit2 > 0 && opponentRows[y1] and bit2 == 0L) {
+                if (playerRows[y1] and bit2 == 0L) return true
+                val clusterRow = cluster[y1]
+                if (clusterRow and bit2 == 0L) {
+                    cluster[y1] = clusterRow or bit2
+                    bits = bit2
+                }
+            }
+            bit2 = bit shl 1 // right
+            if (bit2 <= maxBit && opponentRows[y1] and bit2 == 0L) {
+                if (playerRows[y1] and bit2 == 0L) return true
+                val clusterRow = cluster[y1]
+                if (clusterRow and bit2 == 0L) {
+                    cluster[y1] = clusterRow or bit2
+                    bits = bits or bit2
+                }
+            }
+            if (bits != 0L) pending[y1] = pending[y1] or bits
+            y2 = y1 + 1 // down
+            if (y2 < height && opponentRows[y2] and bit == 0L) {
+                if (playerRows[y2] and bit == 0L) return true
+                val clusterRow = cluster[y2]
+                if (clusterRow and bit == 0L) {
+                    cluster[y2] = clusterRow or bit
+                    pending[y2] = pending[y2] or bit
+                }
+            }
+            // pop next point
+            while(pendingY < height) {
+                val row = pending[pendingY]
+                if (row != 0L) {
+                    bit = row and -row
+                    pending[pendingY] = row - bit
+                    y1 = pendingY
+                    // found next point
+                    continue@pop
+                }
+                pendingY++
+            }
+            // no more points
+            return false
+        }
+    }
+
+    val threadLocalRows by threadLocal {
+        Array(5) { LongArray(52) }
+    }
+
+    const val THREAD_META_CLUSTER = 0
+    const val THREAD_CLUSTER = 1
+    const val THREAD_BLACK = 2
+    const val THREAD_WHITE = 3
+    const val THREAD_PENDING = 4
+
+    fun threadLocalGoban(width: Int, height: Int, rows: AtomicLongArray) {
+        val arrays: Array<LongArray> = threadLocalRows
+        val blackRows = arrays[THREAD_BLACK]
+        val whiteRows = arrays[THREAD_WHITE]
+        var i = 0
+        for(y in 0 until height) {
+            var row = rows[i++]
+            var blackRow = row and (-1 ushr 32)
+            var whiteRow = row ushr 32
+            if (width > 32) {
+                row = rows[i++]
+                blackRow = blackRow or (row shl 32)
+                whiteRow = whiteRow or row.and(-1 shl 32)
+            }
+            blackRows[y] = blackRow
+            whiteRows[y] = whiteRow
+        }
+    }
+
+    fun clear(array: LongArray) {
+        for(i in array.indices) array[i] = 0L
+    }
+
+    fun updateMetaCluster(height: Int) {
+        val arrays: Array<LongArray> = threadLocalRows
+        val metaCluster = arrays[THREAD_META_CLUSTER]
+        val cluster = arrays[THREAD_CLUSTER]
+        for(y in 0 until height) {
+            metaCluster[y] = metaCluster[y] or cluster[y]
+        }
     }
 
 }

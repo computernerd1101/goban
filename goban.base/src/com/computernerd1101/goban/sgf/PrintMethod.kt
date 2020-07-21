@@ -1,12 +1,20 @@
 package com.computernerd1101.goban.sgf
 
-enum class PrintMethod(private val string: String) {
+import com.computernerd1101.goban.resources.GobanResources
+import java.util.*
 
-    DONT_PRINT("Don't print move numbers"),
-    PRINT_ALL("Print move numbers"),
-    PRINT_MOD100("Print move numbers modulo 100");
+enum class PrintMethod {
 
-    override fun toString() = string
+    DONT_PRINT,
+    PRINT_ALL,
+    PRINT_MOD100;
+
+    override fun toString() = toString(Locale.getDefault())
+
+    fun toString(locale: Locale): String {
+        val resources = GobanResources.getBundle(locale)
+        return resources.getStringArray("sgf.PrintMethod")[ordinal]
+    }
 
     companion object {
 

@@ -18,7 +18,7 @@ abstract class Overtime: Cloneable {
     @JvmOverloads
     @Suppress("unused")
     fun displayName(locale: Locale = Locale.getDefault()): String = getDisplayName(locale) ?: typeString
-
+    
     protected open fun getDisplayName(locale: Locale): String? = null
 
     companion object {
