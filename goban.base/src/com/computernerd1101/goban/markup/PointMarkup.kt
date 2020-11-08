@@ -124,7 +124,10 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
     private fun readObject(input: ObjectInputStream) {
         enumType = when(val type = input.readUTF()) {
             "LB" -> {
-                label = input.readUTF()
+                val trim = input.readUTF().trim()
+                val lineEnd = label.indexOf('\n')
+                label = if (lineEnd <= 0) trim
+                else trim.substring(0, lineEnd).trim()
                 null
             }
             else -> try {

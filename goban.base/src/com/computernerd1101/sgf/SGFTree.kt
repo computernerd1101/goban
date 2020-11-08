@@ -2,7 +2,6 @@ package com.computernerd1101.sgf
 
 import com.computernerd1101.sgf.internal.*
 import java.io.*
-import kotlin.reflect.jvm.jvmName
 
 class SGFTree: RowColumn, Serializable {
 
@@ -11,7 +10,7 @@ class SGFTree: RowColumn, Serializable {
 
     val nodes: MutableList<SGFNode>
         @JvmName("nodes") get() = nodeList
-    val subTrees: MutableList<out SGFTree>
+    val subTrees: MutableList<SGFTree>
         @JvmName("subTrees") get() = subTreeList
 
     inline fun subTree(node1: SGFNode, vararg nodes: SGFNode, subTrees: SGFTree.() -> Unit): SGFTree {
@@ -82,12 +81,12 @@ class SGFTree: RowColumn, Serializable {
     @JvmOverloads
     @Suppress("unused")
     constructor(toParse: String, warnings: SGFWarningList = SGFWarningList()):
-            this(startReading(SGFReader.StringReader(toParse, warnings)))
+            this(SGFReader.StringReader(toParse, warnings).startReading())
 
     @Throws(IOException::class, SGFException::class)
     @JvmOverloads
     constructor(input: InputStream, warnings: SGFWarningList = SGFWarningList()):
-            this(startReading(SGFReader.IOReader(input, warnings)))
+            this(SGFReader.IOReader(input, warnings).startReading())
 
     private constructor(reader: SGFReader) {
         row = reader.row
@@ -153,13 +152,6 @@ class SGFTree: RowColumn, Serializable {
 
     companion object {
 
-        @Suppress("unused")
-        inline operator fun invoke(node1: SGFNode, vararg nodes: SGFNode, subTrees: SGFTree.() -> Unit): SGFTree {
-            val tree = SGFTree(node1, *nodes)
-            tree.subTrees()
-            return tree
-        }
-
         private const val serialVersionUID = 1L
         private val serialPersistentFields = arrayOf(
             ObjectStreamField("row", Int::class.java),
@@ -168,30 +160,7 @@ class SGFTree: RowColumn, Serializable {
             ObjectStreamField("subTrees", Int::class.java)
         )
 
-        private fun startReading(reader: SGFReader): SGFReader {
-            var ch: Int = reader.skipSpaces()
-            if (ch < 0) throw reader.newException("'('")
-            if (ch != '('.toInt()) {
-                val bytes = SGFBytes()
-                bytes.row = reader.row
-                bytes.column = reader.column
-                bytes.append(ch.toByte())
-                var n = 1
-                while (true) {
-                    ch = reader.read()
-                    if (ch < 0 || ch == '('.toInt()) break
-                    bytes.append(ch.toByte())
-                    if (ch > ' '.toInt()) n = bytes.size
-                }
-                bytes.delete(n, bytes.size)
-                reader.warnings += SGFWarning(
-                    bytes.row, bytes.column - 1,
-                    "Junk text '${bytes.toString(Charsets.UTF_8)}'"
-                )
-                if (ch != '('.toInt()) throw reader.newException("'('")
-            }
-            return reader
-        }
+
 
     }
 

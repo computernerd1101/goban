@@ -1,35 +1,12 @@
 package com.computernerd1101.goban.sgf.internal
 
 import com.computernerd1101.goban.*
-import com.computernerd1101.goban.internal.SecretKeeper
 import com.computernerd1101.goban.sgf.*
 import com.computernerd1101.goban.time.*
 import com.computernerd1101.sgf.*
 import java.nio.charset.Charset
 
 internal object InternalGoSGF {
-
-    interface NodeSecrets {
-        fun writeSGFTree(node: GoSGFNode, tree: SGFTree)
-        fun parseSGFNodes(node: GoSGFNode, fileFormat: Int, tree: SGFTree, hadGameInfo: Boolean, wasRoot: Boolean)
-    }
-    lateinit var nodeSecrets: NodeSecrets
-
-    interface MoveSecrets {
-        fun moveNode(parent: GoSGFNode, playStoneAt: GoPoint?, turnPlayer: GoColor): GoSGFMoveNode
-    }
-    var moveSecrets: MoveSecrets by SecretKeeper { GoSGFMoveNode }
-
-    interface TimeSecrets {
-        fun playerTime(node: GoSGFMoveNode, turnPlayer: GoColor): GoSGFMoveNode.PlayerTime
-    }
-    var timeSecrets: TimeSecrets by SecretKeeper { GoSGFMoveNode.PlayerTime }
-
-    interface SetupSecrets {
-        fun setupNode(parent: GoSGFNode, goban: AbstractGoban): GoSGFSetupNode
-        fun rootNode(tree: GoSGF): GoSGFSetupNode
-    }
-    var setupSecrets: SetupSecrets by SecretKeeper { GoSGFSetupNode }
 
     fun playStoneAt(parent: GoSGFNode, point: GoPoint?, stone: GoColor): AbstractGoban {
         if (point == null) return parent.goban

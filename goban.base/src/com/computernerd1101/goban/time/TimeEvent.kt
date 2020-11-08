@@ -1,22 +1,17 @@
 package com.computernerd1101.goban.time
 
+import java.io.*
 import java.util.*
 
 @FunctionalInterface
-interface TimeListener: EventListener {
+fun interface TimeListener: EventListener {
     fun timeElapsed(e: TimeEvent)
-}
-
-@Suppress("FunctionName")
-@JvmName("timeListener")
-inline fun TimeListener(crossinline block: (TimeEvent) -> Unit): TimeListener = object: TimeListener {
-    override fun timeElapsed(e: TimeEvent) = block(e)
 }
 
 class TimeEvent(
     timeLimit: TimeLimit,
     val timeRemaining: Long,
-    val overtimeCode: Int,
+    overtimeCode: Int,
     flags: Int
 ): EventObject(timeLimit) {
 
@@ -31,6 +26,8 @@ class TimeEvent(
 
     inline val timeLimit: TimeLimit get() = getSource()
 
+    val overtimeCode: Int = if (flags and FLAG_OVERTIME == 0) 0 else overtimeCode
+
     val flags: Int = flags and (
             if (flags and FLAGS_EXPIRED_TICKING == FLAGS_EXPIRED_TICKING)
                 FLAG_MASK xor FLAG_TICKING
@@ -43,6 +40,8 @@ class TimeEvent(
         const val FLAG_MASK = 7
 
         const val FLAGS_EXPIRED_TICKING = FLAG_EXPIRED or FLAG_TICKING
+
+        private const val serialVersionUID = 1L
     }
 
     val isExpired: Boolean get() = flags and FLAG_EXPIRED != 0
@@ -66,7 +65,7 @@ class TimeEvent(
         val hash = timeLimit.hashCode()
         val time = timeRemaining
         return ((hash*31 +
-                (time.toInt() xor (time shl 32).toInt()))*31 +
+                (time.xor(time shr 32).toInt()))*31 +
                 overtimeCode)*31 + flags
     }
 
@@ -85,6 +84,11 @@ class TimeEvent(
             if (flags and FLAG_TICKING != 0) append(",isTicking=true")
             append("]")
         }
+    }
+
+    @Suppress("UNUSED_PARAMETER")
+    private fun readObject(ois: ObjectInputStream) {
+        throw InvalidObjectException("cannot deserialize source of type TimeLimit")
     }
 
 }

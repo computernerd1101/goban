@@ -8,28 +8,34 @@ import java.io.*
 import java.nio.charset.Charset
 import java.util.regex.Pattern
 
-class GameInfo: Serializable {
+@Suppress("NOTHING_TO_INLINE", "EXPERIMENTAL_FEATURE_WARNING")
+inline class InlineGameInfoPlayer(val info: GameInfo) {
 
-    data class Player(
-        var name: String = "",
-        var team: String = "",
-        var rank: String = ""
-    ): Serializable {
-
-        fun isEmpty(): Boolean {
-            return name.isEmpty() && team.isEmpty() && rank.isEmpty()
-        }
-
-        fun isNotEmpty() = !isEmpty()
-
-        companion object {
-            private const val serialVersionUID = 1L
-        }
-
+    inline operator fun get(color: GoColor): GameInfo.Player {
+        // return info.player[color]
+        return info.getPlayer(color)
     }
 
-    private var black: Player = Player()
-    private var white: Player = Player()
+    inline operator fun set(color: GoColor, player: GameInfo.Player) {
+        // info.player[color] = player
+        info.setPlayer(color, player)
+    }
+
+}
+
+class GameInfo: Serializable {
+
+    inline val player: InlineGameInfoPlayer
+        get() = InlineGameInfoPlayer(this)
+
+    fun getPlayer(color: GoColor): Player {
+        return if (color == GoColor.BLACK) blackPlayer else whitePlayer
+    }
+
+    fun setPlayer(color: GoColor, player: Player) {
+        if (color == GoColor.BLACK) blackPlayer = player
+        else whitePlayer = player
+    }
 
     var blackPlayer: Player
         get() = black
@@ -45,18 +51,23 @@ class GameInfo: Serializable {
             white = player
         }
 
-    @Transient
-    var player = PlayerIndex(); private set
+    private var black: Player = Player()
+    private var white: Player = Player()
 
-    inner class PlayerIndex internal constructor() {
+    data class Player(
+        var name: String = "",
+        var team: String = "",
+        var rank: String = ""
+    ): Serializable {
 
-        operator fun get(color: GoColor): Player {
-            return if (color == GoColor.BLACK) blackPlayer else whitePlayer
+        fun isEmpty(): Boolean {
+            return name.isEmpty() && team.isEmpty() && rank.isEmpty()
         }
 
-        operator fun set(color: GoColor, player: Player) {
-            if (color == GoColor.BLACK) blackPlayer = player
-            else whitePlayer = player
+        fun isNotEmpty() = !isEmpty()
+
+        companion object {
+            private const val serialVersionUID = 1L
         }
 
     }
@@ -90,7 +101,7 @@ class GameInfo: Serializable {
                     val komi1 = komi.toInt()
                     komi1*2 + when {
                         komi1.toDouble() == komi -> 0
-                        komi > 0 -> 1
+                        komi > 0.0 -> 1
                         else -> -1
                     }
                 }
@@ -187,10 +198,10 @@ class GameInfo: Serializable {
             0L
         }
         if (!isMalformed && time < 0L) {
-            warnings?.apply {
+            if (warnings != null) {
                 val match = TimeLimit.PATTERN.matcher(s)
                 val str = if (match.find()) match.group() else s
-                addWarning(SGFWarning(bytes.row, bytes.column,
+                warnings.addWarning(SGFWarning(bytes.row, bytes.column,
                     "Unable to parse time limit TM[$str]"))
             }
             isMalformed = true
@@ -225,7 +236,7 @@ class GameInfo: Serializable {
         var isMalformed = false
         val o: Overtime? = try {
             Overtime.parse(s)
-        } catch(e: RuntimeException) {
+        } catch(e: Exception) {
             warnings?.addWarning(SGFWarning(value.row, value.column,
                 "OT[$s] is not a valid overtime setting: $e", e))
             isMalformed = true
@@ -434,7 +445,7 @@ class GameInfo: Serializable {
     override fun hashCode(): Int {
         return ((((((((((((((((((((
                 black.hashCode() * (31 * 31 * 31) + white.hashCode()) * 31 +
-                handicap.hashCode()) * 31 +
+                handicap) * 31 +
                 komi2) * 31 +
                 malformedKomi?.list.hashCode()) * 31 +
                 result.hashCode()) * 31 +
@@ -522,7 +533,6 @@ class GameInfo: Serializable {
         val fields: ObjectInputStream.GetField = ois.readFields()
         black = fields["black", null] as? Player ?: Player()
         white = fields["white", null] as? Player ?: Player()
-        player = PlayerIndex()
         handicap = fields["handicap", 0]
         malformedHandicap = fields["malformedHandicap", null] as? SGFProperty
         komi = fields["komi", 0.0]

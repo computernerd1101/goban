@@ -229,7 +229,7 @@ class GameInfoTransferHandler(
         private fun writeRoot(node: SGFNode, charset: Charset?) {
             val props = node.properties
             val bytes = SGFBytes(1)
-            bytes[0] = '1'.toByte()
+            bytes.append('1'.toByte())
             props["GM"] = SGFProperty(SGFValue(bytes.clone()))
             bytes[0] = '4'.toByte()
             props["FF"] = SGFProperty(SGFValue(bytes))

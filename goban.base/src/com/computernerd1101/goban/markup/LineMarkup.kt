@@ -126,24 +126,23 @@ class LineMarkupSet: MutableIterable<LineMarkup> {
     private val queue = ReferenceQueue<GoPointMap<LineMarkup>>()
 
     private fun getOrCreateStartMap(): MutableGoPointMap<WeakMap> {
-        var weakMap = weakStartMap
-        while(true) {
-            var map = startMap
-            if (map != null) return map
-            if (weakMap != null) {
-                map = weakMap.get()
-                if (map != null) {
-                    startMap = map
-                    return map
-                }
-                weakMap = null
-            }
-            map = MutableGoPointMap()
-            if (startMapUpdater.compareAndSet(this, null, map)) {
-                weakStartMap = WeakReference(map)
+        var map = startMap
+        if (map != null) return map
+        val weakMap = weakStartMap
+        if (weakMap != null) {
+            map = weakMap.get()
+            if (map != null) {
+                startMap = map
                 return map
             }
         }
+        map = MutableGoPointMap()
+        while(!startMapUpdater.compareAndSet(this, null, map)) {
+            val m = startMap
+            if (m != null) return m
+        }
+        weakStartMap = WeakReference(map)
+        return map
     }
 
     private fun expungeStaleSlots() {
@@ -230,7 +229,13 @@ class LineMarkupSet: MutableIterable<LineMarkup> {
         expungeStaleSlots()
         val (a, b, isArrow) = markup
         val startMap = getOrCreateStartMap()
-        var endMap = startMap[a]?.endMap
+        var weakMap = startMap[a]
+        var endMap: MutableGoPointMap<LineMarkup>? = null
+        if (weakMap != null) {
+            endMap = weakMap.endMap
+            if (endMap == null)
+                endMap = weakMap.get()
+        }
         if (endMap == null)
             endMap = MutableGoPointMap<LineMarkup>().apply {
                 startMap[a] = WeakMap(a, this, queue)
@@ -241,7 +246,7 @@ class LineMarkupSet: MutableIterable<LineMarkup> {
         if (isArrow) {
             if (oldValue != null && oldValue.isArrow) return false
             if (a > b) {
-                val weakMap = startMap[b]
+                weakMap = startMap[b]
                 if (weakMap != null) {
                     endMap = weakMap.endMap
                     if (endMap != null) {
@@ -256,7 +261,7 @@ class LineMarkupSet: MutableIterable<LineMarkup> {
             }
         } else {
             if (oldValue != null && !oldValue.isArrow) return false
-            val weakMap = startMap[b]
+            weakMap = startMap[b]
             if (weakMap != null) {
                 endMap = weakMap.endMap
                 if (endMap != null) {

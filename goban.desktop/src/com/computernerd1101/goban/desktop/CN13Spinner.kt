@@ -1,6 +1,6 @@
 package com.computernerd1101.goban.desktop
 
-import com.computernerd1101.goban.desktop.internal.InternalSpinner
+import com.computernerd1101.goban.desktop.internal.InternalMarker
 import java.awt.event.KeyEvent
 import java.awt.event.KeyListener
 import java.text.NumberFormat
@@ -30,7 +30,7 @@ class CN13Spinner: JSpinner() {
         super.updateUI()
         val model = this.model
         if (model is Formatter)
-            InternalSpinner.formatterSecrets.fireChangeEvent(model)
+            model.fireChangeEvent(InternalMarker)
     }
 
     private val formatterFactory = FormatterFactory(this)
@@ -72,15 +72,7 @@ class CN13Spinner: JSpinner() {
 
     abstract class Formatter: NumberFormatter, SpinnerModel {
 
-        companion object {
-            init {
-                InternalSpinner.formatterSecrets = object: InternalSpinner.FormatterSecrets {
-                    override fun fireChangeEvent(formatter: Formatter) {
-                        formatter.fireChangeEvent()
-                    }
-                }
-            }
-        }
+        companion object;
 
         protected constructor()
 
@@ -92,6 +84,11 @@ class CN13Spinner: JSpinner() {
         protected fun fireChangeEvent() {
             for(i in (listeners.size - 1) downTo 0)
                 listeners[i].stateChanged(event)
+        }
+
+        internal fun fireChangeEvent(marker: InternalMarker) {
+            marker.ignore()
+            fireChangeEvent()
         }
 
         inline fun addChangeListener(crossinline l: (ChangeEvent) -> Unit): ChangeListener {

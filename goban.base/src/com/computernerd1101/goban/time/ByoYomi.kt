@@ -1,7 +1,7 @@
 package com.computernerd1101.goban.time
 
 import com.computernerd1101.goban.annotations.*
-import com.computernerd1101.goban.resources.GobanResources
+import com.computernerd1101.goban.resources.gobanResources
 import java.util.*
 import java.util.regex.Pattern
 
@@ -51,7 +51,7 @@ class ByoYomi(periods: Int, millis: Long): Overtime() {
     override fun getTypeString(): String? = "Byo-Yomi"
 
     override fun getDisplayName(locale: Locale): String? {
-        val resources = GobanResources.getBundle(locale)
+        val resources = gobanResources(locale)
         return resources.getString("time.Overtime.ByoYomi")
     }
 
@@ -65,13 +65,13 @@ class ByoYomi(periods: Int, millis: Long): Overtime() {
         fun parse(s: String): ByoYomi? = parse(s, null)
 
         private fun parse(s: String, value: ByoYomi?): ByoYomi? {
-            val m = PATTERN.matcher(s)
+            val m = Regex.PATTERN.matcher(s)
             if (!m.find()) return null
             val periods: Int
             val time: Long
             try {
-                periods = m.group(GROUP_PERIODS).toInt()
-                time = m.group(GROUP_TIME).secondsToMillis()
+                periods = m.group(Regex.GROUP_PERIODS).toInt()
+                time = m.group(Regex.GROUP_TIME).secondsToMillis()
             } catch (e: NumberFormatException) {
                 return null
             }
@@ -81,9 +81,17 @@ class ByoYomi(periods: Int, millis: Long): Overtime() {
             } ?: ByoYomi(periods, time)
         }
 
-        private const val GROUP_PERIODS = 1
-        private const val GROUP_TIME = 2
-        private val PATTERN = Pattern.compile(
+
+
+    }
+
+    private object Regex {
+
+        const val GROUP_PERIODS = 1
+        const val GROUP_TIME = 2
+
+        @JvmField
+        val PATTERN: Pattern = Pattern.compile(
             "^\\s*(0*[1-9]\\d*)\\s*[*x]\\s*(0*\\.0*[1-9]\\d*|0*[1-9]\\d*\\.?\\d*)\\s*byo\\s*[\\-_]?\\s*yomi\\s*$",
             Pattern.CASE_INSENSITIVE
         )

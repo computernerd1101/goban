@@ -1,6 +1,6 @@
 package com.computernerd1101.goban.annotations
 
-import com.computernerd1101.goban.internal.SecretKeeper
+import com.computernerd1101.goban.internal.InternalMarker
 import java.util.*
 import kotlin.reflect.*
 import kotlin.reflect.full.*
@@ -76,10 +76,34 @@ annotation class IntProperty(
 @Suppress("FunctionName", "NOTHING_TO_INLINE")
 inline fun <T: Any> PropertyFactory(type: KClass<out T>) = PropertyFactory.propertyFactory(type)
 
+@Suppress("FunctionName", "unused")
+inline fun <reified T: Any> PropertyFactory() = PropertyFactory.propertyFactory(T::class)
+
 class PropertyFactory<T: Any> private constructor(
     @Suppress("CanBeParameter") val type: KClass<out T>,
-    @Suppress("UNUSED_PARAMETER") unit: Unit
+    marker: InternalMarker
 ): Iterable<PropertyFactory.Entry<T>> {
+
+
+    companion object {
+
+        @JvmStatic
+        @Suppress("unused")
+        fun <T: Any> propertyFactory(type: Class<out T>): PropertyFactory<T> {
+            return propertyFactory(type.kotlin)
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        fun <T: Any> propertyFactory(type: KClass<out T>): PropertyFactory<T> {
+            var factory = Private.FACTORY_MAP[type] as PropertyFactory<T>?
+            if (factory == null) {
+                factory = PropertyFactory(type, InternalMarker)
+                Private.FACTORY_MAP[type] = factory
+            }
+            return factory
+        }
+
+    }
 
     sealed class Entry<T: Any>(
         @get:JvmName("name") val name: String
@@ -87,7 +111,7 @@ class PropertyFactory<T: Any> private constructor(
 
         abstract operator fun get(t: T): Any?
 
-        abstract operator fun set(t: T, value: Any?)
+        abstract operator fun set(t: T, value: Any)
 
         abstract fun getString(t: T): String
 
@@ -104,78 +128,80 @@ class PropertyFactory<T: Any> private constructor(
         private class Generic<T, P>(
             name: String,
             private val manager: PropertyManager<P>,
-            private val property: KMutableProperty1<T, P>
+            property: KMutableProperty1<T, P>
         ): Entry<T>(name) where T: Any, P: Comparable<P> {
 
+            // If the property is annotated with @JvmField,
+            // or was written in Java as a public field,
+            // then the JVM has no way of guaranteeing
+            // that its value is not null (unless it is primitive).
+            private val getter: (T) -> P? = property.getter
+            // The setter at least can count on the promise that
+            // it won't receive null input from this object,
+            // even if it's writing directly into a JVM field.
+            private val setter: (T, P) -> Unit = property.setter
+
             override fun get(t: T): Any? {
-                return property.get(t)
+                return getter(t)
             }
 
             @Suppress("UNCHECKED_CAST")
-            override fun set(t: T, value: Any?) {
-                property.set(t, value as P)
+            override fun set(t: T, value: Any) {
+                setter(t, value as P)
             }
 
             override fun getString(t: T): String {
-                return manager.toString(property.get(t))
+                return getter(t)?.let { manager.toString(it) } ?: ""
             }
 
             override fun setString(t: T, string: String) {
-                manager.parse(string)?.let { property.set(t, it) }
+                manager.parse(string)?.let { setter(t, it) }
             }
 
             override fun canIncrement(t: T): Boolean {
-                return manager.increment(property.get(t)) != null
+                return getter(t)?.let { manager.increment(it) } != null
             }
 
             override fun increment(t: T) {
-                manager.increment(property.get(t))?.let { property.set(t, it) }
+                getter(t)?.let { manager.increment(it) }?.let { setter(t, it) }
             }
 
             override fun canDecrement(t: T): Boolean {
-                return manager.decrement(property.get(t)) != null
+                return getter(t)?.let { manager.decrement(it) } != null
             }
 
             override fun decrement(t: T) {
-                manager.decrement(property.get(t))?.let { property.set(t, it) }
+                getter(t)?.let { manager.increment(it) }?.let { setter(t, it) }
             }
 
         }
 
         companion object {
-            init {
-                newEntry = object: EntryConstructor {
-                    override fun <T: Any, P: Comparable<P>> invoke(
-                        name: String,
-                        manager: PropertyManager<P>,
-                        property: KMutableProperty1<T, P>
-                    ): Entry<T> = Generic(name, manager, property)
-                }
+
+            internal fun <T: Any, P: Comparable<P>> newEntry(
+                name: String,
+                manager: PropertyManager<P>,
+                property: KMutableProperty1<T, P>,
+                marker: InternalMarker
+            ): Entry<T> {
+                marker.ignore()
+                return Generic(name, manager, property)
             }
         }
-
-    }
-
-    private interface EntryConstructor {
-
-        operator fun <T: Any, P: Comparable<P>> invoke(
-            name: String,
-            manager: PropertyManager<P>,
-            property: KMutableProperty1<T, P>
-        ): Entry<T>
 
     }
 
     private val entryArray: Array<Entry<T>>
 
     init {
+        marker.ignore()
         val entries = mutableMapOf<String, EntryBuilder<T, *>>()
         for(property in type.memberProperties) {
             @Suppress("UNCHECKED_CAST")
-            (property as? KMutableProperty1<T, Comparable<Any>>)?.let { prop ->
-                if (prop.visibility == KVisibility.PUBLIC)
-                    getEntryAnnotation(entries, prop)
-            }
+            val prop = property as? KMutableProperty1<T, Comparable<Any>>
+            if (prop?.visibility == KVisibility.PUBLIC &&
+                prop.setter.visibility == KVisibility.PUBLIC)
+                Private.getEntryAnnotation(entries, prop)
         }
         val list = mutableListOf<Entry<T>>()
         type.findAnnotation<PropertyOrder>()?.let { order ->
@@ -201,47 +227,13 @@ class PropertyFactory<T: Any> private constructor(
 
     override fun iterator() = entryArray.iterator()
 
-    private class EntryBuilder<T, P>(
-        val name: String,
-        val pmm: PropertyManagerMaker<P>,
-        val prop: KMutableProperty1<T, P>
-    ) where T: Any, P: Comparable<P> {
+    private object Private {
 
-        var propCount = 0
-
-        fun build(): Entry<T>? = if (propCount == 1)
-            newEntry(name, pmm.propertyManager.makePropertyManager(pmm.annotation), prop)
-        else null
-
-    }
-
-    companion object {
-
-        private var newEntry: EntryConstructor by SecretKeeper { Entry }
-
-        private val FACTORY_MAP =
-            WeakHashMap<KClass<*>, PropertyFactory<*>>()
-        private val PROP_MAP =
-            WeakHashMap<KClass<out Annotation>, PropertyManagerMaker<*>?>()
-
-        @JvmStatic
-        @Suppress("unused")
-        fun <T: Any> propertyFactory(type: Class<out T>): PropertyFactory<T> {
-            return propertyFactory(type.kotlin)
-        }
+        @JvmField val FACTORY_MAP = WeakHashMap<KClass<*>, PropertyFactory<*>>()
+        @JvmField val PROP_MAP = WeakHashMap<KClass<out Annotation>, PropertyManagerMaker<*>?>()
 
         @Suppress("UNCHECKED_CAST")
-        fun <T: Any> propertyFactory(type: KClass<out T>): PropertyFactory<T> {
-            var factory = FACTORY_MAP[type] as PropertyFactory<T>?
-            if (factory == null) {
-                factory = PropertyFactory(type, Unit)
-                FACTORY_MAP[type] = factory
-            }
-            return factory
-        }
-
-        @Suppress("UNCHECKED_CAST")
-        private fun <T: Any, P: Comparable<P>> getEntryAnnotation(
+        fun <T: Any, P: Comparable<P>> getEntryAnnotation(
             entries: MutableMap<String, EntryBuilder<T, *>>,
             prop: KMutableProperty1<T, P>
         ): EntryBuilder<T, P>? {
@@ -298,6 +290,20 @@ class PropertyFactory<T: Any> private constructor(
             }
             return pmm
         }
+
+    }
+
+    private class EntryBuilder<T, P>(
+        val name: String,
+        val pmm: PropertyManagerMaker<P>,
+        val prop: KMutableProperty1<T, P>
+    ) where T: Any, P: Comparable<P> {
+
+        var propCount = 0
+
+        fun build(): Entry<T>? = if (propCount == 1)
+            Entry.newEntry(name, pmm.propertyManager.makePropertyManager(pmm.annotation), prop, InternalMarker)
+        else null
 
     }
 

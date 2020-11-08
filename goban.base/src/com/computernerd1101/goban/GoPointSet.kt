@@ -12,44 +12,33 @@ inline val emptyGoPointSet get() = GoPointSet.EMPTY
 
 inline fun GoPointSet(vararg points: Iterable<GoPoint>) = GoPointSet.readOnly(*points)
 
-open class GoPointSet protected constructor(
+open class GoPointSet internal constructor(
     private val rows: AtomicLongArray,
-    @Volatile private var sizeAndHash: Long
+    @Volatile private var sizeAndHash: Long,
+    marker: InternalMarker
 ): Set<GoPoint> {
 
     companion object {
 
         init {
-            InternalGoPointSet.secrets = object: InternalGoPointSet.Secrets {
-
-                override fun init(rows: AtomicLongArray): GoPointSet {
-                    val words = InternalGoPointSet.sizeAndHash(rows)
-                    return if (words == 0L) EMPTY
-                    else GoPointSet(rows, words)
-                }
-
-                override fun rows(set: GoPointSet) = set.rows
-
-            }
             InternalGoPointSet.sizeAndHash = atomicLongUpdater("sizeAndHash")
         }
 
         @JvmField
-        val EMPTY = GoPointSet(AtomicLongArray(52), 0)
-
-        private val compressBuffer by threadLocal { LongArray(53) }
+        val EMPTY = GoPointSet(AtomicLongArray(52), 0, InternalMarker)
 
         @JvmStatic
         fun readOnly(vararg points: Iterable<GoPoint>): GoPointSet {
             val rows = InternalGoPointSet.toLongArray(points)
             val words = InternalGoPointSet.sizeAndHash(rows)
             return if (words == 0L) EMPTY
-            else GoPointSet(rows, words)
+            else GoPointSet(rows, words, InternalMarker)
         }
 
     }
 
     init {
+        marker.ignore()
         @Suppress("SpellCheckingInspection")
         val klass = javaClass
         if (klass != GoPointSet::class.java && klass != MutableGoPointSet::class.java)
@@ -58,6 +47,8 @@ open class GoPointSet protected constructor(
             )
     }
 
+    internal fun getRows(marker: InternalMarker) = marker.access { rows }
+
     override val size: Int
         get() = sizeAndHash.toInt()
 
@@ -65,12 +56,16 @@ open class GoPointSet protected constructor(
 
     override fun iterator(): Iterator<GoPoint> = GoPointItr(rows)
 
+    private object Compressed: ThreadLocal<LongArray>() {
+        override fun initialValue() = LongArray(53)
+    }
+
     private var compressed: Array<GoRectangle>? = null
 
     private fun compressed(): Array<GoRectangle> {
         var compressed = if (this is MutableGoPointSet) null else this.compressed
         if (compressed == null) {
-            val rows = compressBuffer
+            val rows: LongArray = Compressed.get()
             for (i in 0..51)
                 rows[i] = this.rows[i]
             var bit = 1L shl 51
@@ -176,7 +171,7 @@ open class GoPointSet protected constructor(
     fun copy(): MutableGoPointSet {
         val rows = AtomicLongArray(52)
         for(i in 0..51) rows[i] = this.rows[i]
-        return InternalGoPointSet.mutableSecrets.init(rows)
+        return MutableGoPointSet(rows, InternalMarker)
     }
 
     open fun readOnly() = this
@@ -274,24 +269,26 @@ open class GoPointSet protected constructor(
 
 class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
 
-    private constructor(rows: AtomicLongArray): super(rows, InternalGoPointSet.sizeAndHash(rows))
+    internal constructor(rows: AtomicLongArray, marker: InternalMarker):
+            super(rows, InternalGoPointSet.sizeAndHash(rows), marker)
 
-    constructor() : super(AtomicLongArray(52), 0L)
+    constructor() : super(AtomicLongArray(52), 0L, InternalMarker)
 
     @Suppress("unused")
-    constructor(vararg points: Iterable<GoPoint>) : this(InternalGoPointSet.toLongArray(points))
+    constructor(vararg points: Iterable<GoPoint>) : this(InternalGoPointSet.toLongArray(points), InternalMarker)
 
     override fun readOnly(): GoPointSet {
         if (isEmpty()) return emptyGoPointSet
-        val secrets = InternalGoPointSet.secrets
-        val rows = secrets.rows(this)
+        val rows = this.getRows(InternalMarker)
         val newRows = AtomicLongArray(52)
         for(i in 0..51) newRows[i] = rows[i]
-        return secrets.init(newRows)
+        val words = InternalGoPointSet.sizeAndHash(newRows)
+        return if (words == 0L) EMPTY
+        else GoPointSet(newRows, words, InternalMarker)
     }
 
     override fun iterator(): MutableIterator<GoPoint> = object :
-        GoPointItr(InternalGoPointSet.secrets.rows(this)), MutableIterator<GoPoint> {
+        GoPointItr(this.getRows(InternalMarker)), MutableIterator<GoPoint> {
         override fun remove() {
             val (x, y) = lastReturned ?: throw IllegalStateException()
             val mask = (1L shl x).inv()
@@ -307,8 +304,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
     override fun add(element: GoPoint): Boolean {
         val (x, y) = element
         val bit = 1L shl x
-        val secrets = InternalGoPointSet.secrets
-        val oldBits = secrets.rows(this).getAndAccumulate(y, bit, LongBinOp.OR)
+        val oldBits = this.getRows(InternalMarker).getAndAccumulate(y, bit, LongBinOp.OR)
         return if (oldBits and bit == 0L) {
             InternalGoPointSet.sizeAndHash.addAndGet(this,
                 (x + y*52L).shl(32) + 1L)
@@ -319,8 +315,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
     override fun remove(element: GoPoint): Boolean {
         val (x, y) = element
         val bit = 1L shl x
-        val secrets = InternalGoPointSet.secrets
-        val oldBits = secrets.rows(this).getAndAccumulate(y, bit.inv(), LongBinOp.AND)
+        val oldBits = getRows(InternalMarker).getAndAccumulate(y, bit.inv(), LongBinOp.AND)
         return if (oldBits and bit != 0L) {
             InternalGoPointSet.sizeAndHash.addAndGet(this,
                 -((x + y*52L) shl 32) - 1L)
@@ -329,12 +324,11 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
     }
 
     override fun addAll(elements: Collection<GoPoint>): Boolean {
-        val secrets = InternalGoPointSet.secrets
-        val rows = secrets.rows(this)
+        val rows = getRows(InternalMarker)
         var modified = false
         when(elements) {
             is GoPointSet -> {
-                val rows2 = secrets.rows(elements)
+                val rows2 = elements.getRows(InternalMarker)
                 for(y in 0..51) {
                     var newBits = rows2[y]
                     val oldBits = rows.getAndAccumulate(y, newBits, LongBinOp.OR)
@@ -388,12 +382,11 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
     }
 
     override fun removeAll(elements: Collection<GoPoint>): Boolean {
-        val secrets = InternalGoPointSet.secrets
-        val rows = secrets.rows(this)
+        val rows = getRows(InternalMarker)
         var modified = false
         when {
             elements is GoPointSet -> {
-                val rows2 = secrets.rows(elements)
+                val rows2 = elements.getRows(InternalMarker)
                 for(y in 0..51) {
                     var modBits = rows2[y]
                     val oldBits = rows.getAndAccumulate(y, modBits.inv(), LongBinOp.AND)
@@ -459,12 +452,11 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
     }
 
     override fun retainAll(elements: Collection<GoPoint>): Boolean {
-        val secrets = InternalGoPointSet.secrets
-        val rows = secrets.rows(this)
+        val rows = getRows(InternalMarker)
         var modified = false
         when(elements) {
             is GoPointSet -> {
-                val rows2 = secrets.rows(elements)
+                val rows2 = elements.getRows(InternalMarker)
                 for(y in 0..51) {
                     var modBits = rows2[y]
                     val oldBits = rows.getAndAccumulate(y, modBits, LongBinOp.AND)
@@ -528,8 +520,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
     }
 
     fun invertAll(elements: Collection<GoPoint>): Boolean {
-        val secrets = InternalGoPointSet.secrets
-        val rows = secrets.rows(this)
+        val rows = getRows(InternalMarker)
         var modified = false
         when(elements) {
             is GoPointKeys<*> -> {
@@ -549,7 +540,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                     if (invertRow(rows, y, mask)) modified = true
             }
             is GoPointSet -> {
-                val rows2 = secrets.rows(elements)
+                val rows2 = elements.getRows(InternalMarker)
                 for(y in 0..51)
                     if (invertRow(rows, y, rows2[y])) modified = true
             }
@@ -587,35 +578,34 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
     }
 
     override fun clear() {
-        val rows = InternalGoPointSet.secrets.rows(this)
+        val rows = getRows(InternalMarker)
         var words = 0L
         for(y in 0..51)
-            words -= InternalGoPointSet.sizeAndHash(rows.getAndSet(y, 0), y)
+            words -= InternalGoPointSet.sizeAndHash(rows.getAndSet(y, 0L), y)
         if (words != 0L)
             InternalGoPointSet.sizeAndHash.addAndGet(this, words)
     }
 
-    companion object {
+    private object ClashingPoints: ThreadLocal<Array<MutableGoPointSet>>() {
 
-        init {
-            InternalGoPointSet.mutableSecrets = object: InternalGoPointSet.MutableSecrets {
-                override fun init(rows: AtomicLongArray) = MutableGoPointSet(rows)
-            }
-        }
+        override fun initialValue() = Array(3) { MutableGoPointSet() }
+
+    }
+
+    companion object {
 
         @JvmStatic
         fun removeClashingPoints(vararg sets: MutableGoPointSet?): MutableGoPointSet? {
             if (sets.isEmpty()) return null
-            val sets3: Array<MutableGoPointSet> = clashingPoints
+            val sets3: Array<MutableGoPointSet> = ClashingPoints.get()
             val all = sets3[0]
             all.clear()
             val tmp = sets3[1]
             val clashes = sets3[2]
             clashes.clear()
-            val secrets = InternalGoPointSet.secrets
-            val tmpRows = secrets.rows(tmp)
+            val tmpRows = tmp.getRows(InternalMarker)
             for(set in sets) if (set != null) {
-                val setRows = secrets.rows(set)
+                val setRows = set.getRows(InternalMarker)
                 for(i in 0..51)
                     tmpRows[i] = setRows[i]
                 InternalGoPointSet.sizeAndHash[tmp] = InternalGoPointSet.sizeAndHash(tmpRows)
@@ -629,8 +619,6 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                 set?.removeAll(clashes)
             return clashes
         }
-
-        private val clashingPoints by threadLocal { Array(3) { MutableGoPointSet() } }
 
     }
 

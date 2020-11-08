@@ -5,6 +5,13 @@ package com.computernerd1101.sgf
 import java.nio.charset.Charset
 import java.util.*
 
+@Suppress("FunctionName", "unused")
+inline fun SGFTree(node1: SGFNode, vararg nodes: SGFNode, subTrees: SGFTree.() -> Unit): SGFTree {
+    val tree = SGFTree(node1, *nodes)
+    tree.subTrees()
+    return tree
+}
+
 @Suppress("SpellCheckingInspection")
 private const val sgfChars = "\n\r ()-.0123456789:;ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]abcdefghijklmnopqrstuvwxyz"
 private val sgfBytes = sgfChars.toByteArray()

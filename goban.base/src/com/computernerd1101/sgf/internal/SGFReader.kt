@@ -66,11 +66,10 @@ sealed class SGFReader(val warnings: SGFWarningList) {
                 } else {
                     sb.append(cp.toChar())
                 }
-                sb.append('\'')
                 true
             } else false
             if (cp !in ' '.toInt() until 0x7F) {
-                if (showChar) sb.append(" (")
+                if (showChar) sb.append("' (")
                 sb.append("U+").append(Integer.toHexString(cp))
                 if (showChar) sb.append(')')
             }
@@ -219,6 +218,31 @@ sealed class SGFReader(val warnings: SGFWarningList) {
             return codePoint
         }
 
+    }
+
+    fun startReading(): SGFReader {
+        var ch: Int = skipSpaces()
+        if (ch < 0) throw newException("'('")
+        if (ch != '('.toInt()) {
+            val bytes = SGFBytes()
+            bytes.row = row
+            bytes.column = column
+            bytes.append(ch.toByte())
+            var n = 1
+            while (true) {
+                ch = read()
+                if (ch < 0 || ch == '('.toInt()) break
+                bytes.append(ch.toByte())
+                if (ch > ' '.toInt()) n = bytes.size
+            }
+            bytes.delete(n, bytes.size)
+            warnings += SGFWarning(
+                bytes.row, bytes.column - 1,
+                "Junk text '${bytes.toString(Charsets.UTF_8)}'"
+            )
+            if (ch != '('.toInt()) throw newException("'('")
+        }
+        return this
     }
 
     fun readNode(): SGFNode {

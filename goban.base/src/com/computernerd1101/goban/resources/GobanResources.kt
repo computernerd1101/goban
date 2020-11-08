@@ -4,19 +4,14 @@ package com.computernerd1101.goban.resources
 
 import java.util.*
 
+fun gobanResources(locale: Locale): ResourceBundle {
+    return ResourceBundle.getBundle(
+        "com.computernerd1101.goban.resources.GobanResources",
+        locale
+    )
+}
+
 class GobanResources: ListResourceBundle() {
-
-    companion object {
-
-        @JvmStatic
-        fun getBundle(locale: Locale): ResourceBundle {
-            return ResourceBundle.getBundle(
-                "com.computernerd1101.goban.resources.GobanResources",
-                locale
-            )
-        }
-
-    }
 
     override fun getContents(): Array<out Array<out Any>> {
         return arrayOf(

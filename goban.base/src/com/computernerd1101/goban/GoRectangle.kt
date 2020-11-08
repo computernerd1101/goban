@@ -3,17 +3,18 @@ package com.computernerd1101.goban
 import com.computernerd1101.goban.internal.*
 import java.io.Serializable
 
-class GoRectangle private constructor(
+class GoRectangle internal constructor(
     @JvmField val start: GoPoint,
     @JvmField val end: GoPoint,
-    @Transient private var string: String
+    @Transient private var string: String,
+    marker: InternalMarker
 ): Set<GoPoint>, Comparable<GoRectangle>, Serializable {
 
-    companion object {
+    init {
+        marker.ignore()
+    }
 
-        init {
-            InternalGoRectangle.init = ::GoRectangle
-        }
+    companion object {
 
         @JvmStatic
         fun rect(x1: Int, y1: Int, x2: Int, y2: Int): GoRectangle {
@@ -38,7 +39,7 @@ class GoRectangle private constructor(
             }
             val start = GoPoint(startX, startY)
             val end = GoPoint(endX, endY)
-            return GoRectangle(start, end, InternalGoRectangle.toString(start, end))
+            return GoRectangle(start, end, InternalGoRectangle.toString(start, end), InternalMarker)
         }
 
         private const val serialVersionUID = 1L
@@ -56,7 +57,7 @@ class GoRectangle private constructor(
         when(elements) {
             is GoRectangle -> return contains(elements.start) && contains(elements.end)
             is GoPointSet -> {
-                val rows = InternalGoPointSet.secrets.rows(elements)
+                val rows = elements.getRows(InternalMarker)
                 val mask: Long = ((1L shl (end.x + 1)) - (1L shl start.x)).inv()
                 for(y in 0..51) {
                     var row = rows[y]
@@ -66,7 +67,7 @@ class GoRectangle private constructor(
             }
             is GoPointKeys<*> -> {
                 elements.expungeStaleRows()
-                val rows = InternalGoPointMap.secrets.rows(elements.map)
+                val rows = elements.map.secrets.rows
                 for (y in 0..51) {
                     val row = rows[y] ?: continue
                     if (y !in start.y..end.y)
@@ -121,7 +122,7 @@ class GoRectangle private constructor(
     }
 
     override fun compareTo(other: GoRectangle): Int {
-        return start.compareTo(other.start)*52*52 + end.compareTo(other.end)
+        return start.compareTo(other.start)*(52*52) + end.compareTo(other.end)
     }
 
     override fun equals(other: Any?): Boolean {
@@ -154,7 +155,7 @@ class GoRectangle private constructor(
         // = (y+1)*(x+1)*(x/2 + y*26 + start.hashCode())          QED
         // = (y+1)*(x*(x+1)/2 + (x+1)*(y*26 + start.hashCode()))  to avoid rounding errors
         return (y+1)*((x*(x+1)).shr(1) + (x+1)*(y*26 + start.hashCode()))
-        // x might be odd, but x*(x+1) is guaranteed to be even.
+        // x could be even or odd, but x*(x+1) is guaranteed to be even.
     }
 
     override fun toString() = string
@@ -203,7 +204,7 @@ class GoRectangle private constructor(
         return when {
             start == end -> start.selfRect
             start == this.start && end == this.end -> this
-            else -> GoRectangle(start, end, InternalGoRectangle.toString(start, end))
+            else -> GoRectangle(start, end, InternalGoRectangle.toString(start, end), InternalMarker)
         }
     }
 
@@ -231,7 +232,7 @@ class GoRectangle private constructor(
                 end = this.start
             }
         }
-        return GoRectangle(start, end, InternalGoRectangle.toString(start, end))
+        return GoRectangle(start, end, InternalGoRectangle.toString(start, end), InternalMarker)
     }
 
 }

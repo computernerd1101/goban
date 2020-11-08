@@ -5,23 +5,11 @@ import java.util.concurrent.atomic.*
 
 internal object InternalGoPointSet {
 
-    interface Secrets {
-        fun init(rows: AtomicLongArray): GoPointSet
-        fun rows(set: GoPointSet): AtomicLongArray
-    }
-    var secrets: Secrets by SecretKeeper { GoPointSet }
-
-    interface MutableSecrets {
-        fun init(rows: AtomicLongArray): MutableGoPointSet
-    }
-    var mutableSecrets: MutableSecrets by SecretKeeper { MutableGoPointSet }
-
     /** Updates [GoPointSet.sizeAndHash] */
     lateinit var sizeAndHash: AtomicLongFieldUpdater<GoPointSet>
 
     fun toLongArray(elements: Array<out Iterable<GoPoint>>): AtomicLongArray {
         val rows = AtomicLongArray(52)
-        var secrets: Secrets? = null
         for(element in elements) when(element) {
             is GoPoint -> {
                 val y = element.y
@@ -36,8 +24,7 @@ internal object InternalGoPointSet {
                     rows[y] = rows[y] or mask
             }
             is GoPointSet -> {
-                if (secrets == null) secrets = this.secrets
-                val rows2 = secrets.rows(element)
+                val rows2 = element.getRows(InternalMarker)
                 for(y in 0..51)
                     rows[y] = rows[y] or rows2[y]
             }

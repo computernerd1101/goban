@@ -13,6 +13,10 @@ import kotlin.contracts.*
 
 class Date private constructor(private val value: Int): Comparable<Date>, Serializable {
 
+    internal constructor(value: Int, marker: InternalMarker): this(value) {
+        marker.ignore()
+    }
+
     constructor(year: Int, month: Int, day: Int): this(
         (when {
             year < MIN_YEAR -> MIN_YEAR
@@ -42,12 +46,6 @@ class Date private constructor(private val value: Int): Comparable<Date>, Serial
     constructor(date: java.util.Date): this(GregorianCalendar().apply { time = date })
 
     companion object {
-
-        init {
-            InternalDate.init = object: InternalDate.Constructor {
-                override fun invoke(value: Int) = Date(value)
-            }
-        }
 
         const val MIN_YEAR = -1 shl 22
         const val MAX_YEAR = (1 shl 22) - 1
@@ -597,7 +595,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                         monthCount = -1
                         updateCount.incrementAndGet(this@DateSet)
                     } else {
-                        year = InternalDate.init(date.hashCode() and -0x20000)
+                        year = Date(date.hashCode() and -0x20000, InternalMarker)
                     }
                 }
 
@@ -745,7 +743,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                     constructor(date: Date) {
                         month = if (date.day == 0) date
                         else {
-                            InternalDate.init(date.hashCode() and -0x20)
+                            Date(date.hashCode() and -0x20, InternalMarker)
                         }
                         days = AtomicReferenceArray(Date.daysInMonth(date.month) + 1)
                     }

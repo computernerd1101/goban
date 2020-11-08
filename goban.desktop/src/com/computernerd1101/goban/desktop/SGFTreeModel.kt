@@ -60,9 +60,8 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
                 node = value
                 val point = value.playStoneAt
                 val index = value.index
-                txt = index.toString() + (point?.let {
-                    ": ${xToChar(point.x)}${sgf.height - point.y}"
-                } ?: ": Pass")
+                txt = index.toString() + if (point == null) ": Pass"
+                else ": ${xToChar(point.x)}${sgf.height - point.y}"
                 icon = if (value.turnPlayer == GoColor.BLACK) iconPlayBlack
                 else iconPlayWhite
             }

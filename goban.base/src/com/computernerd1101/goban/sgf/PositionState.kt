@@ -1,6 +1,6 @@
 package com.computernerd1101.goban.sgf
 
-import com.computernerd1101.goban.resources.GobanResources
+import com.computernerd1101.goban.resources.gobanResources
 import java.util.*
 
 enum class PositionState(
@@ -20,7 +20,7 @@ enum class PositionState(
     override fun toString() = toString(Locale.getDefault())
 
     fun toString(locale: Locale): String {
-        val resources = GobanResources.getBundle(locale)
+        val resources = gobanResources(locale)
         return resources.getStringArray("sgf.PositionState.$code")[extent - 1]
     }
 

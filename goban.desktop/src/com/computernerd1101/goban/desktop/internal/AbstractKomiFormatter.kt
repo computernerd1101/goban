@@ -123,8 +123,11 @@ abstract class AbstractKomiFormatter:
 
     override fun removeListDataListener(l: ListDataListener?) = Unit
 
+    private
+
     companion object {
 
+        @Suppress("RemoveExplicitTypeArguments")
         private val PRESETS = arrayOf<Any>(
             0, 0.5, 5.5, 6.5, 7.5
         )

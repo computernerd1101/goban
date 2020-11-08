@@ -702,7 +702,6 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         panelMoveSetup.add(panel, "Move")
     }
 
-
     private val radioSetupDefaultPlayer = JRadioButton("Default")
     private val radioSetupBlackPlayer = JRadioButton("Black")
     private val radioSetupWhitePlayer = JRadioButton("White")
@@ -1294,7 +1293,9 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         comboCharset.renderer = charsetModel
         comboCharset.selectedItem = sgf.charset
         comboCharset.addActionListener {
-            sgf.charset = comboCharset.selectedItem as Charset?
+            val charset = comboCharset.selectedItem as Charset?
+            sgf.charset = charset
+            gameInfoTransferHandler.charset = charset
         }
         val variationFlags = sgf.variationView
         checkAutoMarkup.isSelected = variationFlags and GoSGF.NO_MARKUP_VARIATION == 0

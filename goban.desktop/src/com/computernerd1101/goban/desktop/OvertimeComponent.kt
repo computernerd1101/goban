@@ -169,6 +169,7 @@ class OvertimeComponent(
         }
 
         override fun setValue(value: Any?) {
+            if (value == null) return
             val o = overtime ?: return
             val e = entry ?: return
             when(value) {

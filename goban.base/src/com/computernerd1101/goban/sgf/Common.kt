@@ -32,3 +32,7 @@ inline fun GameInfo.Player?.isNullOrEmpty(): Boolean {
     }
     return this?.isEmpty() != false
 }
+
+fun foobar(info: GameInfo, color: GoColor, player: GameInfo.Player) {
+    info.player[color] = player
+}

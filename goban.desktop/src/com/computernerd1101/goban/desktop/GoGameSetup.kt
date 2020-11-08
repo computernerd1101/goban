@@ -15,13 +15,8 @@ class GoGameSetup {
     companion object {
 
         @JvmStatic
-        fun maxFixedHandicap(size: Int): Int {
-            if (size < 3) return 0
-            var max = 0
-            if (size >= 5) max = 2
-            if (size and 1 != 0) max++
-            return max
-        }
+        fun maxFixedHandicap(size: Int): Int =
+            (if (size < 3) 0 else size and 1) + (if (size < 5) 0 else 2)
 
         private val updateFlags: AtomicIntegerFieldUpdater<GoGameSetup> =
             AtomicIntegerFieldUpdater.newUpdater(GoGameSetup::class.java, "flags")
@@ -64,12 +59,12 @@ class GoGameSetup {
         blackPlayer: GoPlayerController? = null,
         whitePlayer: GoPlayerController? = null,
         isRandomPlayer: Boolean = false,
-        gameInfo: GameInfo = GameInfo(),
+        gameInfo: GameInfo = GameInfo().apply { dates.addDate(Date()) },
         isFreeHandicap: Boolean = false
     ) {
         if (size !in 1..52) throw IllegalArgumentException("$size is not in the range [1,52]")
-        this.width = size
-        this.height = size
+        width = size
+        height = size
         this.blackPlayer = blackPlayer
         this.whitePlayer = whitePlayer
         this.gameInfo = gameInfo

@@ -14,6 +14,7 @@ module computernerd1101.goban {
     requires kotlin.reflect;
 
     requires junit;
+    requires org.jetbrains.annotations;
 
     uses Overtime;
 

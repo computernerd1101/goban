@@ -15,7 +15,7 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
     @JvmOverloads constructor(size: Int = 19): this(size, size)
 
     @get:JvmName("rootNode")
-    val rootNode = InternalGoSGF.setupSecrets.rootNode(this)
+    val rootNode = GoSGFSetupNode(this, InternalMarker)
 
     var charset: Charset? = null
 
@@ -35,7 +35,8 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
         toSGFTree().write(output)
     }
 
-    fun toSGFTree(): SGFTree = synchronized(this) {
+    @Synchronized
+    fun toSGFTree(): SGFTree {
         val node = SGFNode()
         val tree = SGFTree(node)
         node.properties["GM"] = SGFProperty(SGFValue(SGFBytes("1")))
@@ -53,8 +54,8 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
         val st = variationView
         if (st != 0)
             node.properties["ST"] = SGFProperty(SGFValue(SGFBytes(st.toString())))
-        InternalGoSGF.nodeSecrets.writeSGFTree(rootNode, tree)
-        tree
+        rootNode.writeSGFTree(tree, InternalMarker)
+        return tree
     }
 
     @Volatile
@@ -116,7 +117,7 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
                     "Invalid variation view ST[$s]: $e", e)
             }
         }
-        InternalGoSGF.nodeSecrets.parseSGFNodes(rootNode, reader.fileFormat, tree, hadGameInfo=false, wasRoot=true)
+        rootNode.parseSGFNodes(InternalMarker, reader.fileFormat, tree, hadGameInfo=false, wasRoot=true)
     }
 
     private class GoSGFReader(val tree: SGFTree, val warnings: SGFWarningList = SGFWarningList()) {
@@ -231,17 +232,18 @@ sealed class GoSGFNode {
 
     val isAlive: Boolean get() = nullableTree != null
 
-    private inline fun <R> syncTree(block: () -> R): R {
-        val tree = nullableTree ?: return block()
-        return synchronized(tree, block)
+    private inline fun syncTreeOrAsyncNull(block: () -> Unit) {
+        val tree = nullableTree
+        if (tree == null) block()
+        else synchronized(tree, block)
     }
 
-    private inline fun <R> syncTree(default: R, block: () -> R): R {
+    private inline fun <R> syncTreeOrDefault(default: R, block: () -> R): R {
         val tree = nullableTree ?: return default
         return synchronized(tree, block)
     }
 
-    private inline fun syncTreeUnit(block: () -> Unit) {
+    private inline fun syncTreeOrReturn(block: () -> Unit) {
         val tree = nullableTree ?: return
         synchronized(tree) {
             if (isAlive) block()
@@ -262,7 +264,7 @@ sealed class GoSGFNode {
     private var childCount = 0
     val children: Int
         @JvmName("children")
-        get() = syncTree(0) {
+        get() = syncTreeOrDefault(0) {
             if (isAlive) childCount else 0
         }
     @get:JvmName("index")
@@ -305,7 +307,7 @@ sealed class GoSGFNode {
         }
 
     var figureMode: Int
-        get() = _figure
+        get() = _figure and 0xFFFF
         set(mode) {
             lockFigure()
             _figure = when {
@@ -351,19 +353,6 @@ sealed class GoSGFNode {
 
         /** Updates [GoSGFNode._figure] */
         private val updateFigure = atomicIntUpdater<GoSGFNode>("_figure")
-
-        init {
-            InternalGoSGF.nodeSecrets = object: InternalGoSGF.NodeSecrets {
-                override fun writeSGFTree(node: GoSGFNode, tree: SGFTree) = node.writeSGFTree(tree)
-                override fun parseSGFNodes(
-                    node: GoSGFNode,
-                    fileFormat: Int,
-                    tree: SGFTree,
-                    hadGameInfo: Boolean,
-                    wasRoot: Boolean
-                ) = node.parseSGFNodes(fileFormat, tree, hadGameInfo, wasRoot)
-            }
-        }
         
     }
 
@@ -400,18 +389,21 @@ sealed class GoSGFNode {
     private fun setFigureModeFlag(flag: Int, value: Boolean) {
         if (_figureName == null) return
         lockFigure()
-        if (_figureName == null) {
-            _figure = 0
-            return
-        }
         val o: Int
         val a: Int
-        if (value) {
-            o = flag
-            a = 0xFFFF
-        } else {
-            o = 0
-            a = 0xFFFF xor flag
+        when {
+            _figureName == null -> {
+                o = 0
+                a = 0xFFFF
+            }
+            value -> {
+                o = flag
+                a = 0xFFFF
+            }
+            else -> {
+                o = 0
+                a = 0xFFFF xor flag
+            }
         }
         _figure = (_figure or o) and a
     }
@@ -435,11 +427,11 @@ sealed class GoSGFNode {
 
     val territory: MutableGoban
 
-    private inline fun getInheritedNode(prop: GoSGFNode.() -> Any?): GoSGFNode = syncTree(this) {
-        if (!isAlive) return@syncTree this
+    private inline fun getInheritedNode(prop: GoSGFNode.() -> Any?): GoSGFNode = syncTreeOrDefault(this) {
+        if (!isAlive) return@syncTreeOrDefault this
         var current: GoSGFNode? = this
         while(current != null) {
-            if (current.prop() != null) return@syncTree current
+            if (current.prop() != null) return@syncTreeOrDefault current
             current = current.parent
         }
         this
@@ -450,21 +442,21 @@ sealed class GoSGFNode {
         get() = getInheritedNode { newPrintMethod }
     var printMethod: PrintMethod?
         get() = printMethodNode.newPrintMethod
-        set(pm) = syncTree { newPrintMethod = pm }
+        set(pm) = syncTreeOrAsyncNull { newPrintMethod = pm }
 
     var newVisiblePoints: MutableGoPointSet? = null; private set
     val visiblePointsNode: GoSGFNode
         get() = getInheritedNode { newVisiblePoints }
     var visiblePoints: MutableGoPointSet?
         get() = visiblePointsNode.newVisiblePoints
-        set(points) = syncTree { newVisiblePoints = points }
+        set(points) = syncTreeOrAsyncNull { newVisiblePoints = points }
 
     var newDimPoints: MutableGoPointSet? = null; private set
     val dimPointsNode: GoSGFNode
         get() = getInheritedNode { newDimPoints }
     var dimPoints: MutableGoPointSet?
         get() = dimPointsNode.newDimPoints
-        set(points) = syncTree { newDimPoints = points }
+        set(points) = syncTreeOrAsyncNull { newDimPoints = points }
 
     val pointMarkup = PointMarkupMap()
     val lineMarkup = LineMarkupSet()
@@ -472,11 +464,11 @@ sealed class GoSGFNode {
     private var thisGameInfo: GameInfo? = null
     var gameInfoNode: GoSGFNode? = null; private set
     var gameInfo: GameInfo?
-        get() = syncTree(null as GameInfo?) {
+        get() = syncTreeOrDefault(null as GameInfo?) {
             if (isAlive) gameInfoNode?.thisGameInfo
             else null
         }
-        set(info) = syncTreeUnit {
+        set(info) = syncTreeOrReturn {
             var gn = gameInfoNode
             if (info == null) {
                 if (gn == null)
@@ -516,11 +508,11 @@ sealed class GoSGFNode {
         }
     }
 
-    val hasGameInfoChildren: Boolean @JvmName("hasGameInfoChildren") get() = syncTree(false) {
+    val hasGameInfoChildren: Boolean @JvmName("hasGameInfoChildren") get() = syncTreeOrDefault(false) {
         isAlive && hasGameInfoChildrenRecursive(null)
     }
 
-    fun hasGameInfoExcluding(exclude: GameInfo) = syncTree(false) {
+    fun hasGameInfoExcluding(exclude: GameInfo) = syncTreeOrDefault(false) {
         isAlive && hasGameInfoChildrenRecursive(exclude)
     }
 
@@ -537,12 +529,12 @@ sealed class GoSGFNode {
         return false
     }
 
-    val previousGameInfoNode: GoSGFNode get() = syncTree(this) {
+    val previousGameInfoNode: GoSGFNode get() = syncTreeOrDefault(this) {
         if (isAlive) (gameInfoNode ?: this).findGameInfoNode(forward=false)
         else this
     }
 
-    val nextGameInfoNode: GoSGFNode get() = syncTree(this) {
+    val nextGameInfoNode: GoSGFNode get() = syncTreeOrDefault(this) {
         if (isAlive) (gameInfoNode ?: this).findGameInfoNode(forward=true)
         else this
     }
@@ -602,7 +594,7 @@ sealed class GoSGFNode {
             if (node is GoSGFMoveNode && node.playStoneAt == playStoneAt && node.turnPlayer == turnPlayer)
                 return node
         }
-        val node = InternalGoSGF.moveSecrets.moveNode(this, playStoneAt, turnPlayer)
+        val node = GoSGFMoveNode(this, playStoneAt, turnPlayer, InternalMarker)
         initNextNode(node)
         return node
     }
@@ -617,7 +609,7 @@ sealed class GoSGFNode {
             if (node is GoSGFSetupNode && node.goban == goban)
                 return node
         }
-        val node = InternalGoSGF.setupSecrets.setupNode(this, goban)
+        val node = GoSGFSetupNode(this, goban, InternalMarker)
         initNextNode(node)
         return node
     }
@@ -643,11 +635,11 @@ sealed class GoSGFNode {
     }
 
     fun moveVariation(index: Int): Boolean {
-        return index >= 0 && syncTree(false) {
+        return index >= 0 && syncTreeOrDefault(false) {
             val parent = parent
             val variations = parent?.childArray
             if (variations == null || index == childIndex || index >= parent.childCount)
-                return@syncTree false
+                return@syncTreeOrDefault false
             if (index > childIndex) {
                 for(i in childIndex until index) {
                     val node = variations[i + 1]
@@ -655,7 +647,7 @@ sealed class GoSGFNode {
                     variations[i] = node
                 }
             } else {
-                for(i in (index + 1)..childIndex) {
+                for(i in childIndex downTo (index + 1)) {
                     val node = variations[i - 1]
                     node?.childIndex = i
                     variations[i] = node
@@ -669,11 +661,11 @@ sealed class GoSGFNode {
 
     @Suppress("unused")
     fun swapVariation(index: Int): Boolean {
-        return index >= 0 && syncTree(false) {
+        return index >= 0 && syncTreeOrDefault(false) {
             val parent = parent
             val variations = parent?.childArray
             if (variations == null || index == childIndex || index >= parent.childCount)
-                return@syncTree false
+                return@syncTreeOrDefault false
             val other = variations[index]
             other?.childIndex = childIndex
             variations[childIndex] = other
@@ -685,7 +677,7 @@ sealed class GoSGFNode {
 
     fun delete() {
         val parent = this.parent ?: return
-        syncTreeUnit {
+        syncTreeOrReturn {
             val count = parent.childCount - 1
             val next = parent.childArray!!
             for(i in childIndex until count) {
@@ -735,7 +727,7 @@ sealed class GoSGFNode {
         }
     }
 
-    private fun writeSGFTree(tree: SGFTree) {
+    internal fun writeSGFTree(tree: SGFTree, marker: InternalMarker) {
         val charset = this.tree.charset
         val nodeList = tree.nodes
         var node = nodeList[0]
@@ -830,13 +822,14 @@ sealed class GoSGFNode {
             start = false
         }
         for(i in 0 until current.childCount)
-            current.childArray?.get(i)?.writeSGFTree(tree.subTree(SGFNode()))
+            current.childArray?.get(i)?.writeSGFTree(tree.subTree(SGFNode()), marker)
     }
 
     protected abstract fun writeSGFNode(node: SGFNode)
 
     @Throws(SGFException::class)
-    private fun parseSGFNodes(
+    internal fun parseSGFNodes(
+        marker: InternalMarker,
         fileFormat: Int,
         tree: SGFTree,
         hadGameInfo: Boolean,
@@ -1385,7 +1378,7 @@ sealed class GoSGFNode {
                 points.clear()
         }
         for(subTree in tree.subTrees)
-            currentNode.parseSGFNodes(fileFormat, subTree, hasGameInfo, wasRoot=false)
+            currentNode.parseSGFNodes(marker, fileFormat, subTree, hadGameInfo=hasGameInfo, wasRoot=false)
     }
 
     private object Parse {
@@ -1495,25 +1488,16 @@ sealed class GoSGFNode {
 
 }
 
-class GoSGFMoveNode private constructor(
+class GoSGFMoveNode internal constructor(
         parent: GoSGFNode,
         val playStoneAt: GoPoint?,
-        override val turnPlayer: GoColor
+        override val turnPlayer: GoColor,
+        marker: InternalMarker
 ): GoSGFNode(parent, InternalGoSGF.playStoneAt(parent, playStoneAt, turnPlayer)) {
 
     @Volatile private var flags: Int = 0
 
     companion object {
-
-        init {
-            InternalGoSGF.moveSecrets = object: InternalGoSGF.MoveSecrets {
-                override fun moveNode(
-                    parent: GoSGFNode,
-                    playStoneAt: GoPoint?,
-                    turnPlayer: GoColor
-                ) = GoSGFMoveNode(parent, playStoneAt, turnPlayer)
-            }
-        }
 
         /** Updates [GoSGFMoveNode.flags] */
         private val updateFlags = atomicIntUpdater<GoSGFMoveNode>("flags")
@@ -1544,9 +1528,9 @@ class GoSGFMoveNode private constructor(
         }
 
     @get:JvmName("black")
-    val black = InternalGoSGF.timeSecrets.playerTime(this, GoColor.BLACK)
+    val black = PlayerTime(this, GoColor.BLACK, marker)
     @get:JvmName("white")
-    val white = InternalGoSGF.timeSecrets.playerTime(this, GoColor.WHITE)
+    val white = PlayerTime(this, GoColor.WHITE, marker)
 
     fun time(player: GoColor) = if (player == GoColor.BLACK) black else white
 
@@ -1555,18 +1539,15 @@ class GoSGFMoveNode private constructor(
     var moveNumber: Int = 0
         set(n) { field = n.coerceAtLeast(0) }
 
-    class PlayerTime private constructor(
+    class PlayerTime internal constructor(
         val node: GoSGFMoveNode,
-        val color: GoColor
+        val color: GoColor,
+        marker: InternalMarker
     ) {
 
-        companion object {
-            init {
-                InternalGoSGF.timeSecrets = object: InternalGoSGF.TimeSecrets {
-                    override fun playerTime(node: GoSGFMoveNode, turnPlayer: GoColor) = PlayerTime(node, turnPlayer)
-                }
-            }
-        }
+        init { marker.ignore() }
+
+        companion object;
 
         private var _time: Long = 0L
         private var _overtime: Int = 0
@@ -1635,20 +1616,15 @@ class GoSGFMoveNode private constructor(
 
 class GoSGFSetupNode: GoSGFNode {
 
-    companion object {
+    companion object;
 
-        init {
-            InternalGoSGF.setupSecrets = object: InternalGoSGF.SetupSecrets {
-                override fun setupNode(parent: GoSGFNode, goban: AbstractGoban) = GoSGFSetupNode(parent, goban)
-                override fun rootNode(tree: GoSGF) = GoSGFSetupNode(tree)
-            }
-        }
-
+    internal constructor(tree: GoSGF, marker: InternalMarker): super(tree) {
+        marker.ignore()
     }
 
-    private constructor(tree: GoSGF): super(tree)
-
-    private constructor(parent: GoSGFNode, goban: AbstractGoban): super(parent, goban)
+    internal constructor(parent: GoSGFNode, goban: AbstractGoban, marker: InternalMarker): super(parent, goban) {
+        marker.ignore()
+    }
 
     override var turnPlayer: GoColor? = null
 

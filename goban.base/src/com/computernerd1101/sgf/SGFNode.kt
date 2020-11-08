@@ -49,6 +49,7 @@ class SGFNode: RowColumn, Serializable {
 
     companion object {
 
+        @JvmStatic
         fun isPropertyName(name: String) = name.isNotEmpty() && name.all { it in 'A'..'Z' }
 
         private fun checkKey(name: String) {
@@ -118,7 +119,6 @@ class SGFNode: RowColumn, Serializable {
         constructor(ois: ObjectInputStream, size: Int) {
             val cap = capacity(size)
             table = arrayOfNulls(cap)
-            root = PropertyLink(this)
             for(n in 0 until size) {
                 val key = ois.readUTF()
                 if (!isPropertyName(key))
@@ -134,12 +134,12 @@ class SGFNode: RowColumn, Serializable {
             this.size = size
         }
 
-        @Transient var modCount: Int = 0
+        var modCount: Int = 0
 
         override var size: Int
 
-        @Transient var table: Array<PropertyEntry?>
-        @Transient var root = PropertyLink(this)
+        var table: Array<PropertyEntry?>
+        val root = PropertyLink(this)
 
         constructor() {
             size = 0
@@ -317,9 +317,9 @@ class SGFNode: RowColumn, Serializable {
             }
         }
 
-        @Transient private var _entries: Entries? = null
-        @Transient private var _keys: Keys? = null
-        @Transient private var _values: Values? = null
+        private var _entries: Entries? = null
+        private var _keys: Keys? = null
+        private var _values: Values? = null
 
         override val entries: MutableSet<MutableMap.MutableEntry<String, SGFProperty>> get() {
             var entries = _entries
@@ -350,6 +350,38 @@ class SGFNode: RowColumn, Serializable {
 
     }
 
+    private abstract class Itr<E>(val map: PropertyMap): MutableIterator<E> {
+
+        var expectedModCount = map.modCount
+        var next: PropertyLink? = map.root.next
+        var lastReturned: PropertyEntry? = null
+
+        override fun hasNext(): Boolean {
+            val link = next
+            return link != null && link != map.root
+        }
+
+        fun nextEntry(): PropertyEntry {
+            if (map.modCount != expectedModCount)
+                throw ConcurrentModificationException()
+            val link = next
+            if (link == null || link == map.root)
+                throw NoSuchElementException()
+            next = link.next
+            lastReturned = link as PropertyEntry
+            return link
+        }
+
+        override fun remove() {
+            val e = lastReturned ?: throw IllegalStateException()
+            if (map.modCount != expectedModCount)
+                throw ConcurrentModificationException()
+            e.remove()
+            lastReturned = null
+        }
+
+    }
+
     @Suppress("LeakingThis")
     private open class PropertyLink {
 
@@ -376,9 +408,11 @@ class SGFNode: RowColumn, Serializable {
 
     private class PropertyEntry(
         override val key: String,
-        override var value: SGFProperty,
+        value: SGFProperty,
         next: PropertyLink
     ): PropertyLink(next), MutableMap.MutableEntry<String, SGFProperty> {
+
+        override var value: SGFProperty = value; private set
 
         var index: Int = 0
         val hash: Int = key.hashCode()
@@ -433,38 +467,6 @@ class SGFNode: RowColumn, Serializable {
 
     }
 
-    private abstract class Itr<E>(val map: PropertyMap): MutableIterator<E> {
-
-        var expectedModCount = map.modCount
-        var next: PropertyLink? = map.root.next
-        var lastReturned: PropertyEntry? = null
-
-        override fun hasNext(): Boolean {
-            val link = next
-            return link != null && link != map.root
-        }
-
-        fun nextEntry(): PropertyEntry {
-            if (map.modCount != expectedModCount)
-                throw ConcurrentModificationException()
-            val link = next
-            if (link == null || link == map.root)
-                throw NoSuchElementException()
-            next = link.next
-            lastReturned = link as PropertyEntry
-            return link
-        }
-
-        override fun remove() {
-            val e = lastReturned ?: throw IllegalStateException()
-            if (map.modCount != expectedModCount)
-                throw ConcurrentModificationException()
-            e.remove()
-            lastReturned = null
-        }
-
-    }
-
     private class EntryItr(map: PropertyMap): Itr<MutableMap.MutableEntry<String, SGFProperty>>(map) {
         override fun next(): MutableMap.MutableEntry<String, SGFProperty> = nextEntry()
     }
@@ -481,7 +483,9 @@ class SGFNode: RowColumn, Serializable {
 
         override val size: Int get() = map.size
 
-        override fun iterator(): MutableIterator<MutableMap.MutableEntry<String, SGFProperty>> = EntryItr(map)
+        override fun iterator(): MutableIterator<MutableMap.MutableEntry<String, SGFProperty>> {
+            return EntryItr(map)
+        }
 
         override fun contains(element: MutableMap.MutableEntry<String, SGFProperty>): Boolean {
             return map.getProperty(element.key)?.value == element.value

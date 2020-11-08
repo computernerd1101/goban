@@ -27,6 +27,8 @@ inline fun GoRules(
     allowSuicide: Boolean
 ) = GoRules.valueOf(superko, territoryScore, allowSuicide)
 
+inline fun GoRules() = GoRules.DEFAULT
+
 enum class GoRules(
     @get:JvmName("superko")
     val superko: Superko,
@@ -85,7 +87,7 @@ enum class GoRules(
                 suicide = true
                 preset = true
             }
-            "GOE" -> if (!preset) {
+            "GOE", "ING" -> if (!preset) {
                 if (!setKo) ko = Superko.POSITIONAL
                 suicide = true
                 preset = true
@@ -112,12 +114,12 @@ enum class GoRules(
 
         @JvmStatic
         fun valueOf(superko: Superko): GoRules {
-            return VALUES[superko.ordinal*4]
+            return Private.VALUES[superko.ordinal*4]
         }
 
         @JvmStatic
         fun valueOf(superko: Superko, territoryScore: Boolean): GoRules {
-            return VALUES[superko.ordinal*4 + (if (territoryScore) 2 else 0)]
+            return Private.VALUES[superko.ordinal*4 + (if (territoryScore) 2 else 0)]
         }
 
         @JvmStatic
@@ -126,13 +128,14 @@ enum class GoRules(
             territoryScore: Boolean,
             allowSuicide: Boolean
         ): GoRules {
-            return VALUES[superko.ordinal*4 + (if (territoryScore) 2 else 0) + (if (allowSuicide) 1 else 0)]
+            return Private.VALUES[superko.ordinal*4 + (if (territoryScore) 2 else 0) + (if (allowSuicide) 1 else 0)]
         }
 
-        inline operator fun invoke() = DEFAULT
+    }
 
-        private val VALUES = enumValues<GoRules>()
+    private object Private {
 
+        @JvmField val VALUES = enumValues<GoRules>()
 
     }
 

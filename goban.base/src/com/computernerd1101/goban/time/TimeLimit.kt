@@ -1,5 +1,6 @@
 package com.computernerd1101.goban.time
 
+import com.computernerd1101.goban.internal.InternalMarker
 import java.util.*
 import java.util.regex.*
 import kotlin.concurrent.scheduleAtFixedRate
@@ -84,17 +85,19 @@ class TimeLimit(mainTime: Long, val overtime: Overtime?) {
     private val timeListeners = mutableListOf<TimeListener>()
 
     @get:Synchronized
-    var timeEvent = filterEvent(TimeEvent(this, mainTime))
-        private set(e) {
-            // already synchronized in all callers
-            field = e
-            for(i in (timeListeners.size - 1) downTo 0)
-                timeListeners[i].timeElapsed(e)
-        }
+    var timeEvent = filterEvent(TimeEvent(this, mainTime)); private set
+
+    // already synchronized in all callers
+    private fun updateTimeEvent(e: TimeEvent, marker: InternalMarker) {
+        marker.ignore()
+        timeEvent = e
+        for(i in (timeListeners.size - 1) downTo 0)
+            timeListeners[i].timeElapsed(e)
+    }
 
     @Suppress("unused")
     inline fun addTimeListener(crossinline l: (TimeEvent) -> Unit): TimeListener {
-        val listener = TimeListener(l)
+        val listener = TimeListener { e -> l(e) }
         addTimeListener(listener)
         return listener
     }
@@ -113,22 +116,44 @@ class TimeLimit(mainTime: Long, val overtime: Overtime?) {
         get() = timeEvent.isTicking
         @Synchronized
         set(ticking) {
-            var e = timeEvent
-            var update = false
+            val e = timeEvent
             when {
                 ticking -> if (e.flags and TimeEvent.FLAGS_EXPIRED_TICKING == 0) {
                     prevSystemTime = System.currentTimeMillis()
                     var time = e.timeRemaining
-                    e = TimeEvent(
-                        this,
-                        time,
-                        e.overtimeCode,
-                        e.flags or TimeEvent.FLAG_TICKING
+                    updateTimeEvent(
+                        TimeEvent(
+                            this,
+                            time,
+                            e.overtimeCode,
+                            e.flags or TimeEvent.FLAG_TICKING
+                        ), InternalMarker
                     )
-                    update = true
                     time %= 1000L
                     if (time <= 0) time += 1000L
-                    task = timer.scheduleAtFixedRate(time, 1000L, this::tick)
+                    task = timer.scheduleAtFixedRate(time, 1000L) {
+                        synchronized(this@TimeLimit) {
+                            var event = timeEvent
+                            val timeRemaining = event.timeRemaining
+                            var r = timeRemaining % 1000L
+                            if (r <= 0L)
+                                r += 1000L
+                            prevSystemTime = System.currentTimeMillis()
+                            event = filterEvent(
+                                TimeEvent(
+                                    this@TimeLimit,
+                                    timeRemaining - r,
+                                    event.overtimeCode,
+                                    event.flags or TimeEvent.FLAG_TICKING
+                                )
+                            )
+                            updateTimeEvent(event, InternalMarker)
+                            if (event.isExpired) {
+                                cancel()
+                                task = null
+                            }
+                        }
+                    }
                 }
                 e.isTicking -> {
                     task?.cancel()
@@ -136,51 +161,30 @@ class TimeLimit(mainTime: Long, val overtime: Overtime?) {
                     val now = System.currentTimeMillis()
                     val diff = now - prevSystemTime
                     prevSystemTime = now
-                    e = filterEvent(TimeEvent(
-                        this,
-                        e.timeRemaining - diff,
-                        e.overtimeCode,
-                        e.flags and (TimeEvent.FLAG_TICKING xor TimeEvent.FLAG_MASK)
-                    ))
-                    update = true
+                    updateTimeEvent(
+                        filterEvent(
+                            TimeEvent(
+                                this,
+                                e.timeRemaining - diff,
+                                e.overtimeCode,
+                                e.flags and (TimeEvent.FLAG_TICKING xor TimeEvent.FLAG_MASK)
+                            )
+                        ), InternalMarker
+                    )
                 }
             }
-            if (update) timeEvent = e
         }
-
-    @Synchronized
-    private fun tick(task: TimerTask) {
-        var event = timeEvent
-        val timeRemaining = event.timeRemaining
-        var r = timeRemaining % 1000L
-        if (r <= 0L)
-            r += 1000L
-        prevSystemTime = System.currentTimeMillis()
-        event = filterEvent(TimeEvent(
-            this,
-            timeRemaining - r,
-            event.overtimeCode,
-            event.flags or TimeEvent.FLAG_TICKING
-        ))
-        timeEvent = event
-        if (event.isExpired) {
-            task.cancel()
-            this.task = null
-        }
-    }
 
     private fun filterEvent(e: TimeEvent): TimeEvent {
         val e2 = overtime?.filterEvent(e) ?: e
         val timeRemaining = e2.timeRemaining
         val overtimeCode = e2.overtimeCode
         var flags = e2.flags
-        flags = when {
-            flags and (TimeEvent.FLAG_EXPIRED or TimeEvent.FLAG_OVERTIME) == 0 &&
-                    timeRemaining <= 0L ->
-                (flags and (TimeEvent.FLAG_MASK xor TimeEvent.FLAG_TICKING)) or TimeEvent.FLAG_EXPIRED
-            !e.isTicking || (flags and TimeEvent.FLAGS_EXPIRED_TICKING) == TimeEvent.FLAGS_EXPIRED_TICKING ->
-                flags and (TimeEvent.FLAG_MASK xor TimeEvent.FLAG_TICKING)
-            else -> flags or TimeEvent.FLAG_TICKING
+        when {
+            flags and (TimeEvent.FLAG_EXPIRED or TimeEvent.FLAG_OVERTIME) == 0 && timeRemaining <= 0L ->
+                flags = (flags and (TimeEvent.FLAG_MASK xor TimeEvent.FLAG_TICKING)) or TimeEvent.FLAG_EXPIRED
+            !e.isTicking -> flags = flags and (TimeEvent.FLAG_MASK xor TimeEvent.FLAG_TICKING)
+            flags and TimeEvent.FLAG_EXPIRED == 0 -> flags = flags or TimeEvent.FLAG_TICKING
         }
         return when {
             timeRemaining == e.timeRemaining &&

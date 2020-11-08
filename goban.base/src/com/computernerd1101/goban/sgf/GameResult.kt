@@ -10,7 +10,7 @@ class GameResult private constructor(
 
     companion object {
 
-        private const val BLACK_WINS = 1 shl 24
+        private const val BLACK_WINS =  1 shl 24
         private const val WHITE_WINS = -1 shl 24
 
         @JvmField val WHITE_UNKNOWN = GameResult(WHITE_WINS, "W+")
@@ -72,13 +72,13 @@ class GameResult private constructor(
             when(ch) {
                 'B', 'b' -> {
                     prefix = "B+"
-                    table = blackWinsTable
+                    table = Tables.blackWins
                     unknown = BLACK_UNKNOWN
                     color = BLACK_WINS
                 }
                 'W', 'w' -> {
                     prefix = "W+"
-                    table = whiteWinsTable
+                    table = Tables.whiteWins
                     unknown = WHITE_UNKNOWN
                     color = WHITE_WINS
                 }
@@ -90,7 +90,7 @@ class GameResult private constructor(
                 '\u0000' -> return null
                 else -> {
                     prefix = ""
-                    table = noWinnerTable
+                    table = Tables.noWinner
                     unknown = null
                     color = 0
                 }
@@ -134,13 +134,21 @@ class GameResult private constructor(
             return unknown
         }
 
-        private val noWinnerTable = makeTable(DRAW, UNKNOWN, VOID).apply {
+
+
+        private const val serialVersionUID: Long = 1L
+
+    }
+
+    private object Tables {
+
+        @JvmField val noWinner = makeTable(DRAW, UNKNOWN, VOID).apply {
             this['0'.toInt()] = DRAW
             this['D'.toInt()] = DRAW
             this['d'.toInt()] = DRAW
         }
-        private val blackWinsTable = makeTable(BLACK_FORFEIT, BLACK_RESIGN, BLACK_TIME)
-        private val whiteWinsTable = makeTable(WHITE_FORFEIT, WHITE_RESIGN, WHITE_TIME)
+        @JvmField val blackWins = makeTable(BLACK_FORFEIT, BLACK_RESIGN, BLACK_TIME)
+        @JvmField val whiteWins = makeTable(WHITE_FORFEIT, WHITE_RESIGN, WHITE_TIME)
 
         private fun makeTable(vararg results: GameResult): Array<GameResult?> {
             val table = arrayOfNulls<GameResult>(0x100)
@@ -155,15 +163,13 @@ class GameResult private constructor(
             return table
         }
 
-        private const val serialVersionUID: Long = 1L
-
     }
 
     val opposite: GameResult
         @JvmName("opposite")
         get() {
             var code = this.code
-            var color = code and 0xFF000000.toInt()
+            var color = code and WHITE_WINS
             if (color == 0) return this
             color = -color
             code = color or (code and 0xFFFFFF)
@@ -171,11 +177,11 @@ class GameResult private constructor(
             val unknown: GameResult
             val prefix: String
             if (color > 0) {
-                table = blackWinsTable
+                table = Tables.blackWins
                 unknown = BLACK_UNKNOWN
                 prefix = "B+"
             } else {
-                table = whiteWinsTable
+                table = Tables.whiteWins
                 unknown = WHITE_UNKNOWN
                 prefix = "W+"
             }
@@ -210,7 +216,7 @@ class GameResult private constructor(
 
     override fun compareTo(other: GameResult): Int {
         if (this === other) return 0
-        var code1 = code
+        var code1: Int = code
         var code2: Int = other.code
         if (code1 == code2) return 0
         val color1 = code1 shr 24
@@ -252,6 +258,13 @@ class GameResult private constructor(
         var code = ois.readShort().toInt()
         var color = code shr 8
         val ch = code and 0xFF
+        if (color > 1) {
+            code = 0x100 or ch
+            color = 1
+        } else if (color < -1) {
+            code = -0x100 or ch
+            color = -1
+        }
         code = code shl 16
         if (color != 0 && ch == 0) {
             var score = ois.readFloat()
@@ -269,7 +282,7 @@ class GameResult private constructor(
             if (i2 != 0) {
                 code = code or i2
                 string = (if (color > 0) "B+" else "W+") +
-                        (if (i2 and 1 == 0) (i2 shl 1).toString() else (i2 * 0.5f).toString())
+                        (if (i2 and 1 == 0) (i2 shr 1).toString() else (i2 * 0.5f).toString())
             } // else readResolve() will return a pre-instantiated object with a pre-initialized string
         }
         this.code = code
@@ -282,16 +295,16 @@ class GameResult private constructor(
         val unknown: GameResult
         when {
             color == 0 -> {
-                table = noWinnerTable
+                table = Tables.noWinner
                 unknown = UNKNOWN
             }
             ch == 0 && code and 0xFFFF != 0 -> return this
             color > 0 -> {
-                table = blackWinsTable
+                table = Tables.blackWins
                 unknown = BLACK_UNKNOWN
             }
             else -> {
-                table = whiteWinsTable
+                table = Tables.whiteWins
                 unknown = WHITE_UNKNOWN
             }
         }

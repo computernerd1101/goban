@@ -8,15 +8,7 @@ import java.util.function.LongBinaryOperator
 
 internal object InternalGoban: LongBinaryOperator {
 
-    lateinit var rows: (AbstractGoban) -> AtomicLongArray
     lateinit var count: AtomicLongFieldUpdater<AbstractGoban>
-
-    interface Factory<out G: AbstractGoban> {
-        operator fun invoke(width: Int, height: Int, rows: AtomicLongArray, count: Long): G
-    }
-    var fixedFactory: Factory<FixedGoban> by SecretKeeper { FixedGoban }
-    var mutableFactory: Factory<MutableGoban> by SecretKeeper { MutableGoban }
-    var playableFactory: Factory<Goban> by SecretKeeper { Goban }
 
     fun copyRows(src: AtomicLongArray, dst: AtomicLongArray): Long {
         var count = 0L
@@ -28,6 +20,12 @@ internal object InternalGoban: LongBinaryOperator {
         return count
     }
 
+    /**
+     * @param row The lowest 32 bits represent the positions of black stones,
+     * while the highest 32 bits represent the positions of white stones.
+     * @return The lowest 32 bits represent the number of black stones,
+     * while the highest 32 bits represent the number of white stones.
+     */
     fun countStonesInRow(row: Long): Long {
         var i = row
         i -= (i ushr 1) and 0x5555_5555_5555_5555L
@@ -55,7 +53,7 @@ internal object InternalGoban: LongBinaryOperator {
             x < 32 -> y*2
             else -> y*2 + 1
         }
-        val row = rows(goban).getAndAccumulate(y2,
+        val row = goban.getRows(InternalMarker).getAndAccumulate(y2,
             x2.toLong() or when(newColor) {
                 null -> 0L
                 GoColor.BLACK -> NEW_BLACK
@@ -157,8 +155,10 @@ internal object GobanBulk: LongBinaryOperator {
         val width = goban.width
         val height = goban.height
         var mask1 = 1.shl(width) - 1
-        var mask2 = 0
-        if (width >= 32) {
+        val mask2: Int
+        if (width < 32) {
+            mask2 = 0
+        } else {
             // 1 shl (width - 32) == 1 shl width; assuming 32 bits
             mask2 = mask1 // 1.shl(width - 32) - 1
             mask1 = -1 // even if width == 32 exactly
@@ -182,13 +182,13 @@ internal object GobanBulk: LongBinaryOperator {
     }
 
     private fun setRow(goban: AbstractMutableGoban, i: Int, setMask: Int, color: GoColor?): Boolean {
-        val row = InternalGoban.rows(goban).getAndAccumulate(i,
-            setMask.toLong().and(-1L ushr 32) or when(color) {
+        val rowMask = setMask.toLong() and (-1L ushr 32)
+        val row = goban.getRows(InternalMarker).getAndAccumulate(i,
+            rowMask or when(color) {
                 null -> 0L
                 GoColor.BLACK -> InternalGoban.NEW_BLACK
                 GoColor.WHITE -> InternalGoban.NEW_WHITE
             }, this)
-        val rowMask = setMask.toLong() and (-1L ushr 32)
         val recount: Long = if (color == null)
             -InternalGoban.countStonesInRow(row and (rowMask * InternalGoban.MASK))
         else {
@@ -232,7 +232,7 @@ internal object GobanBulk: LongBinaryOperator {
     }
 
     fun isAlive(width: Int, height: Int, xBit: Long, y: Int, player: Int, opponent: Int): Boolean {
-        val arrays: Array<LongArray> = threadLocalRows
+        val arrays: Array<LongArray> = GobanThreadLocals.arrays()
         val cluster = arrays[THREAD_CLUSTER]
         clear(cluster)
         cluster[y] = xBit
@@ -252,12 +252,12 @@ internal object GobanBulk: LongBinaryOperator {
             // check the points above, below, and to the left and right of the current point
             var y2 = y1 - 1 // above
             if (y2 >= 0 && opponentRows[y2] and bit == 0L) {
-                if (playerRows[y2] and bit != 0L) return true
+                if (playerRows[y2] and bit == 0L) return true
                 val clusterRow = cluster[y2]
                 if (clusterRow and bit == 0L) {
                     cluster[y2] = clusterRow or bit
-                    // pendingY is the first non-zero row in pending.
-                    // If the row below it gained a bit, then that
+                    // pendingY is the first (top to bottom) non-zero row in pending.
+                    // If the row before (above) it gained a bit, then that
                     // must be the new pendingY.
                     pendingY = y2
                     pending[y2] = pending[y2] or bit
@@ -314,10 +314,6 @@ internal object GobanBulk: LongBinaryOperator {
         }
     }
 
-    val threadLocalRows by threadLocal {
-        Array(5) { LongArray(52) }
-    }
-
     const val THREAD_META_CLUSTER = 0
     const val THREAD_CLUSTER = 1
     const val THREAD_BLACK = 2
@@ -325,18 +321,19 @@ internal object GobanBulk: LongBinaryOperator {
     const val THREAD_PENDING = 4
 
     fun threadLocalGoban(width: Int, height: Int, rows: AtomicLongArray) {
-        val arrays: Array<LongArray> = threadLocalRows
+        // 5 arrays of 52 longs each
+        val arrays: Array<LongArray> = GobanThreadLocals.arrays()
         val blackRows = arrays[THREAD_BLACK]
         val whiteRows = arrays[THREAD_WHITE]
         var i = 0
         for(y in 0 until height) {
             var row = rows[i++]
-            var blackRow = row and (-1 ushr 32)
-            var whiteRow = row ushr 32
+            var blackRow = row and (-1 ushr 32) // blackRow.lo = row.lo
+            var whiteRow = row ushr 32          // whiteRow.lo = row.hi
             if (width > 32) {
                 row = rows[i++]
-                blackRow = blackRow or (row shl 32)
-                whiteRow = whiteRow or row.and(-1 shl 32)
+                blackRow = blackRow or (row shl 32)             // blackRow.hi = row.lo
+                whiteRow = whiteRow or row.and(-1 shl 32) // whiteRow.hi = row.hi
             }
             blackRows[y] = blackRow
             whiteRows[y] = whiteRow
@@ -348,7 +345,7 @@ internal object GobanBulk: LongBinaryOperator {
     }
 
     fun updateMetaCluster(height: Int) {
-        val arrays: Array<LongArray> = threadLocalRows
+        val arrays: Array<LongArray> = GobanThreadLocals.arrays()
         val metaCluster = arrays[THREAD_META_CLUSTER]
         val cluster = arrays[THREAD_CLUSTER]
         for(y in 0 until height) {

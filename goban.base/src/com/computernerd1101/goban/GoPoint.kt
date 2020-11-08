@@ -21,6 +21,10 @@ class GoPoint private constructor(
 
     infix fun rect(other: GoPoint) = rect(other, other.x, other.y)
 
+    /**
+     * Makes the Java syntax as pretty as I could manage:
+     * `GoRectangle rect = new GoPoint(x1, y1).rect(x2, y2);`
+     */
     fun rect(x: Int, y: Int) = rect(null, x, y)
 
     private fun rect(other: GoPoint?, x2: Int, y2: Int): GoRectangle {
@@ -45,7 +49,7 @@ class GoPoint private constructor(
                 end   = this
             }
         }
-        return InternalGoRectangle.init(start, end, InternalGoRectangle.toString(start, end))
+        return GoRectangle(start, end, InternalGoRectangle.toString(start, end), InternalMarker)
     }
 
     init {
@@ -56,34 +60,42 @@ class GoPoint private constructor(
         buffer4[1] = cx
         buffer4[2] = cy
         string = String(buffer2).intern()
-        selfRect = InternalGoRectangle.init(this, this, String(buffer4).intern())
+        selfRect = GoRectangle(this, this, String(buffer4).intern(), InternalMarker)
+    }
+
+    private object Cache {
+
+        @JvmField val points = unsafeArrayOfNulls<GoPoint>(52*52)
+
     }
 
     companion object {
+
+        private val values = Cache.points
+
+        init {
+            val buffer2 = CharArray(2)
+            val buffer4 = CharArray(4)
+            buffer4[0] = '['
+            buffer4[3] = ']'
+            for(y in 0..51) {
+                for(x in 0..51) {
+                    Cache.points[x + y*52] = GoPoint(x, y, buffer2, buffer4)
+                }
+            }
+        }
 
         @JvmStatic
         fun pointAt(x: Int, y: Int): GoPoint {
             if (x !in 0..51) throw IndexOutOfBoundsException("x=$x is not in the range [0,52)")
             if (y !in 0..51) throw IndexOutOfBoundsException("y=$y is not in the range [0,52)")
-            return CACHE[x + y*52]
+            return values[x + y*52]
+            // return Cache.points[x + y*52]
         }
 
         @JvmStatic
         fun nullable(x: Int, y: Int): GoPoint? {
-            return if (x in 0..51 && y in 0..51) CACHE[x + y*52] else null
-        }
-
-        private val CACHE: Array<GoPoint>
-
-        init {
-            GoRectangle // initialize companion
-            val buffer2 = CharArray(2)
-            val buffer4 = CharArray(4)
-            buffer4[0] = '['
-            buffer4[3] = ']'
-            CACHE = Array(52*52) {
-                GoPoint(it % 52, it / 52, buffer2, buffer4)
-            }
+            return if (x in 0..51 && y in 0..51) Cache.points[x + y*52] else null
         }
 
         @JvmStatic
@@ -155,7 +167,7 @@ class GoPoint private constructor(
     private fun readResolve(): Any {
         if (x !in 0..51) throw InvalidObjectException("x=$x is not in the range [0,52)")
         if (y !in 0..51) throw InvalidObjectException("y=$y is not in the range [0,52)")
-        return CACHE[x + y*52]
+        return Cache.points[x + y*52]
     }
 
 }

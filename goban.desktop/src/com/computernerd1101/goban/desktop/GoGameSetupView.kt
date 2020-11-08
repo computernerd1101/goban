@@ -135,29 +135,29 @@ class GoGameSetupView: JComponent() {
         else null
     }
 
-    companion object {
+    private object Private {
 
-        private val SIZE_PRESETS = intArrayOf(9, 13, 19)
+        @JvmField val SIZE_PRESETS = intArrayOf(9, 13, 19)
 
-        private const val FIXED_HANDICAP = "Fixed Handicap: "
-        private const val FREE_HANDICAP = "Free Handicap: "
+        const val FIXED_HANDICAP = "Fixed Handicap: "
+        const val FREE_HANDICAP = "Free Handicap: "
 
-        private val RULES_PRESETS = enumValues<RulesPreset>()
-        private val SUPERKO_VALUES = enumValues<Superko>()
+        @JvmField val RULES_PRESETS = enumValues<RulesPreset>()
+        @JvmField val SUPERKO_VALUES = enumValues<Superko>()
 
-        private val rulesMap = enumMap<GoRules, RulesPreset>().apply {
+        @JvmField val rulesMap = enumMap<GoRules, RulesPreset>().apply {
             for(preset in RULES_PRESETS)
                 if (preset != RulesPreset.CUSTOM) this[preset.rules] = preset
         }
 
-        private val superkoMap = enumMap<Superko, String>().apply {
+        @JvmField val superkoMap = enumMap<Superko, String>().apply {
             this[Superko.NATURAL] = "Natural Situational Superko"
             this[Superko.SITUATIONAL] = "Situational Superko"
             this[Superko.POSITIONAL] = "Positional Superko"
         }
 
-        private const val TERRITORY_SCORE = "Score by Territory"
-        private const val AREA_SCORE = "Score by Area"
+        const val TERRITORY_SCORE = "Score by Territory"
+        const val AREA_SCORE = "Score by Area"
 
     }
 
@@ -181,7 +181,7 @@ class GoGameSetupView: JComponent() {
     private inner class RulesModel: ComboBoxModel<RulesPreset>, ActionListener {
 
         override fun getSelectedItem(): RulesPreset {
-            return rulesMap[gameSetup.gameInfo.rules] ?: RulesPreset.CUSTOM
+            return Private.rulesMap[gameSetup.gameInfo.rules] ?: RulesPreset.CUSTOM
         }
 
         override fun setSelectedItem(anItem: Any?) {
@@ -194,12 +194,12 @@ class GoGameSetupView: JComponent() {
         }
 
         override fun getSize(): Int {
-            var size = RULES_PRESETS.size
+            var size = Private.RULES_PRESETS.size
             if (selectedItem != RulesPreset.CUSTOM) size--
             return size
         }
 
-        override fun getElementAt(index: Int) = RULES_PRESETS[index]
+        override fun getElementAt(index: Int) = Private.RULES_PRESETS[index]
 
         override fun addListDataListener(l: ListDataListener?) = Unit
 
@@ -216,13 +216,13 @@ class GoGameSetupView: JComponent() {
     private inner class ScoreModel: ComboBoxModel<String> {
 
         override fun getSelectedItem(): String {
-            return if (gameSetup.gameInfo.rules.territoryScore) TERRITORY_SCORE else AREA_SCORE
+            return if (gameSetup.gameInfo.rules.territoryScore) Private.TERRITORY_SCORE else Private.AREA_SCORE
         }
 
         override fun setSelectedItem(anItem: Any?) {
             val territory = when(anItem) {
-                AREA_SCORE -> false
-                TERRITORY_SCORE -> true
+                Private.AREA_SCORE -> false
+                Private.TERRITORY_SCORE -> true
                 else -> return
             }
             val gameInfo = gameSetup.gameInfo
@@ -233,8 +233,8 @@ class GoGameSetupView: JComponent() {
         override fun getSize() = 2
 
         override fun getElementAt(index: Int) = when(index) {
-            0 -> TERRITORY_SCORE
-            1 -> AREA_SCORE
+            0 -> Private.TERRITORY_SCORE
+            1 -> Private.AREA_SCORE
             else -> throw IndexOutOfBoundsException("$index")
         }
 
@@ -259,7 +259,7 @@ class GoGameSetupView: JComponent() {
             cellHasFocus: Boolean
         ): Component = parentRenderer.getListCellRendererComponent(
             list,
-            superkoMap[value],
+            Private.superkoMap[value],
             index,
             isSelected,
             cellHasFocus
@@ -277,9 +277,9 @@ class GoGameSetupView: JComponent() {
             }
         }
 
-        override fun getSize() = SUPERKO_VALUES.size
+        override fun getSize() = Private.SUPERKO_VALUES.size
 
-        override fun getElementAt(index: Int) = SUPERKO_VALUES[index]
+        override fun getElementAt(index: Int) = Private.SUPERKO_VALUES[index]
 
         override fun addListDataListener(l: ListDataListener?) = Unit
 
@@ -318,9 +318,9 @@ class GoGameSetupView: JComponent() {
             spinHeight.isEnabled = false
         }
 
-        override fun getSize() = SIZE_PRESETS.size
+        override fun getSize() = Private.SIZE_PRESETS.size
 
-        override fun getElementAt(index: Int) = SIZE_PRESETS[index]
+        override fun getElementAt(index: Int) = Private.SIZE_PRESETS[index]
 
         override fun addListDataListener(l: ListDataListener?) = Unit
 
@@ -442,13 +442,13 @@ class GoGameSetupView: JComponent() {
         }
 
         override fun getSelectedItem(): String {
-            return if (gameSetup.isFreeHandicap) FREE_HANDICAP else FIXED_HANDICAP
+            return if (gameSetup.isFreeHandicap) Private.FREE_HANDICAP else Private.FIXED_HANDICAP
         }
 
         override fun setSelectedItem(anItem: Any?) {
             val free = when(anItem) {
-                FIXED_HANDICAP -> false
-                FREE_HANDICAP -> true
+                Private.FIXED_HANDICAP -> false
+                Private.FREE_HANDICAP -> true
                 else -> return
             }
             gameSetup.isFreeHandicap = free
@@ -459,8 +459,8 @@ class GoGameSetupView: JComponent() {
         override fun getSize() = 2
 
         override fun getElementAt(index: Int) = when(index) {
-            0 -> FIXED_HANDICAP
-            1 -> FREE_HANDICAP
+            0 -> Private.FIXED_HANDICAP
+            1 -> Private.FREE_HANDICAP
             else -> throw IndexOutOfBoundsException("$index")
         }
 

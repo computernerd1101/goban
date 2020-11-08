@@ -19,14 +19,14 @@ abstract class AbstractOvertimeModel(
         items = Array<Any>(1 + types.size) { index ->
             when(index) {
                 0 -> "Overtime..."
-                else -> {
-                    val item = types[index - 1]
-                    initType(item)
-                    item
-                }
+                else -> types[index - 1]
             }
         }
         (renderer as? JLabel)?.horizontalAlignment = SwingConstants.CENTER
+        for(item in types) {
+            @Suppress("LeakingThis")
+            initType(item)
+        }
     }
 
     protected open fun initType(item: Overtime) = Unit

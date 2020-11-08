@@ -1,3 +1,4 @@
+@file:Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
 
 package com.computernerd1101.goban
 
@@ -5,19 +6,40 @@ import com.computernerd1101.goban.sgf.GoSGF
 import com.computernerd1101.goban.time.millisToStringSeconds
 import kotlinx.coroutines.*
 import kotlin.jvm.functions.FunctionN
-import kotlin.reflect.KProperty
+import kotlin.reflect.*
+import kotlin.reflect.full.memberProperties
 
 fun main() {
-    val array = arrayOf<String>()
-    println(isStringArray(array))
-    println(array.isArrayOf<String>())
+    println(typeOf<Array<in String?>>())
 }
+
+fun unitFunction(foo: Unit) {
+    println(foo)
+}
+
+class PrivateMutableProperty {
+
+    var prop: String = ""; private set
+
+    fun reflectProp(): KProperty1<PrivateMutableProperty, String> {
+        return PrivateMutableProperty::prop
+    }
+
+}
+
+lateinit var mainFoobar: KProperty0<Int>
 
 fun isStringArray(array: Array<*>): Boolean {
     return array.isArrayOf<String>()
 }
 
-lateinit var foo: Any
+class TestJvmField {
+
+    @JvmField var foobar: Any = Any()
+
+}
+
+lateinit var foo: Any private set
 
 class MyFun<P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21, P22, P23, R>:
     (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21, P22, P23) -> R {

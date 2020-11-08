@@ -1,7 +1,7 @@
 package com.computernerd1101.goban.time
 
 import com.computernerd1101.goban.annotations.*
-import com.computernerd1101.goban.resources.GobanResources
+import com.computernerd1101.goban.resources.gobanResources
 import java.util.*
 import java.util.regex.Pattern
 
@@ -55,7 +55,7 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime() {
     override fun getTypeString(): String? = "Canadian"
 
     override fun getDisplayName(locale: Locale): String? {
-        val resources = GobanResources.getBundle(locale)
+        val resources = gobanResources(locale)
         return resources.getString("time.Overtime.Canadian")
     }
 
@@ -67,13 +67,13 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime() {
         fun parse(s: String): CanadianOvertime? = parse(s, null)
 
         private fun parse(s: String, value: CanadianOvertime?): CanadianOvertime? {
-            val m = PATTERN.matcher(s)
+            val m = Regex.PATTERN.matcher(s)
             if (!m.find()) return null
             val time: Long
             val moves: Int
             try {
-                time = m.group(GROUP_TIME).secondsToMillis()
-                moves = m.group(GROUP_MOVES).toInt()
+                time = m.group(Regex.GROUP_TIME).secondsToMillis()
+                moves = m.group(Regex.GROUP_MOVES).toInt()
             } catch (e: NumberFormatException) {
                 return null
             }
@@ -83,13 +83,18 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime() {
             } ?: CanadianOvertime(time, moves)
         }
 
-        private const val GROUP_TIME = 1
-        private const val GROUP_MOVES = 2
-        private val PATTERN = Pattern.compile(
+    }
+
+    private object Regex {
+
+        const val GROUP_TIME = 1
+        const val GROUP_MOVES = 2
+
+        @JvmField
+        val PATTERN: Pattern = Pattern.compile(
             "^\\s*(0*\\.0*[1-9]\\d*|0*[1-9]\\d*\\.?\\d*)\\s*/\\s*(0*[1-9]\\d*)\\s*canadian\\s*$",
             Pattern.CASE_INSENSITIVE
         )
-
     }
 
 }
