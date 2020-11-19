@@ -6,7 +6,7 @@ import java.util.*
 import java.util.regex.Pattern
 
 @PropertyOrder("Seconds", "Moves")
-class CanadianOvertime(millis: Long, moves: Int): Overtime() {
+class CanadianOvertime(millis: Long, moves: Int): Overtime(), PropertyTranslator {
 
     operator fun component1() = millis
     operator fun component2() = moves
@@ -28,6 +28,13 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime() {
     // 600,000 milliseconds = 10 minutes
     @Suppress("unused")
     constructor() : this(millis=600000L, moves=20)
+
+    override fun translateProperty(name: String, locale: Locale): String {
+        return if (name == "Seconds" || name == "Moves") {
+            val resources = gobanResources(locale)
+            resources.getString("PropertyTranslator.Overtime.$name")
+        } else name
+    }
 
     override fun filterEvent(e: TimeEvent): TimeEvent {
         var time = e.timeRemaining

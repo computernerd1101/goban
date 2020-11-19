@@ -4,16 +4,12 @@
       <root url="jar://$KOTLIN_BUNDLED$/lib/kotlin-stdlib.jar!/" />
       <root url="jar://$KOTLIN_BUNDLED$/lib/kotlin-reflect.jar!/" />
       <root url="jar://$KOTLIN_BUNDLED$/lib/kotlin-test.jar!/" />
-      <root url="jar://$KOTLIN_BUNDLED$/lib/kotlin-compiler.jar!/" />
-      <root url="jar://$KOTLIN_BUNDLED$/lib/kotlin-annotations-jvm.jar!/" />
-      <root url="jar://$APPLICATION_PLUGINS_DIR$/Kotlin/lib/kotlinx-collections-immutable-jvm-0.3.1.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES>
       <root url="jar://$KOTLIN_BUNDLED$/lib/kotlin-stdlib-sources.jar!/" />
       <root url="jar://$KOTLIN_BUNDLED$/lib/kotlin-reflect-sources.jar!/" />
       <root url="jar://$KOTLIN_BUNDLED$/lib/kotlin-test-sources.jar!/" />
-      <root url="jar://$KOTLIN_BUNDLED$/lib/kotlin-annotations-jvm-sources.jar!/" />
     </SOURCES>
   </library>
 </component>

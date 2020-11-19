@@ -31,6 +31,15 @@ interface PropertyManager<T : Comparable<T>> {
 @Retention(AnnotationRetention.RUNTIME)
 annotation class PropertyOrder(vararg val value: String)
 
+interface PropertyTranslator {
+
+    fun translateProperty(name: String, locale: Locale): String
+
+}
+
+fun Any?.translateProperty(name: String, locale: Locale): String =
+    (this as? PropertyTranslator)?.translateProperty(name, locale) ?: name
+
 @Target(AnnotationTarget.PROPERTY)
 @Retention(AnnotationRetention.RUNTIME)
 @PropertyAnnotation

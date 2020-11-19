@@ -10,9 +10,15 @@ internal object InternalGoban: LongBinaryOperator {
 
     lateinit var count: AtomicLongFieldUpdater<AbstractGoban>
 
-    fun copyRows(src: AtomicLongArray, dst: AtomicLongArray): Long {
+    fun newRows(size: Int, wide: Boolean): GobanRows1 {
+        var index = 2*(size - 1)
+        if (wide) index++
+        return GobanRows.init[index]()
+    }
+
+    fun copyRows(src: GobanRows1, dst: GobanRows1): Long {
         var count = 0L
-        for(i in 0 until src.length()) {
+        for(i in 0 until src.size) {
             val row = src[i]
             dst[i] = row
             count += countStonesInRow(row)
@@ -53,7 +59,7 @@ internal object InternalGoban: LongBinaryOperator {
             x < 32 -> y*2
             else -> y*2 + 1
         }
-        val row = goban.getRows(InternalMarker).getAndAccumulate(y2,
+        val row = GobanRows.updaters[y2].getAndAccumulate(goban.rows,
             x2.toLong() or when(newColor) {
                 null -> 0L
                 GoColor.BLACK -> NEW_BLACK
@@ -117,7 +123,7 @@ internal object InternalGoban: LongBinaryOperator {
         return (row or add) and remove.inv()
     }
 
-    fun get(width: Int, rows: AtomicLongArray, x: Int, y: Int): GoColor? {
+    fun get(width: Int, rows: GobanRows1, x: Int, y: Int): GoColor? {
         val row = rows[when {
             width <= 32 -> y
             x < 32 -> 2*y
@@ -167,6 +173,8 @@ internal object GobanBulk: LongBinaryOperator {
         var i = 0
         for(y in 0 until height) {
             val row = when(rows) {
+                // TODO volatile row field of GoPointSet
+                is GoPointSet -> InternalGoPointSet.rowUpdaters[y][rows]
                 is AtomicLongArray -> rows[y]
                 else -> (rows as LongArray)[y]
             }
@@ -183,7 +191,7 @@ internal object GobanBulk: LongBinaryOperator {
 
     private fun setRow(goban: AbstractMutableGoban, i: Int, setMask: Int, color: GoColor?): Boolean {
         val rowMask = setMask.toLong() and (-1L ushr 32)
-        val row = goban.getRows(InternalMarker).getAndAccumulate(i,
+        val row = GobanRows.updaters[i].getAndAccumulate(goban.rows,
             rowMask or when(color) {
                 null -> 0L
                 GoColor.BLACK -> InternalGoban.NEW_BLACK
@@ -233,7 +241,7 @@ internal object GobanBulk: LongBinaryOperator {
 
     fun isAlive(width: Int, height: Int, xBit: Long, y: Int, player: Int, opponent: Int): Boolean {
         val arrays: Array<LongArray> = GobanThreadLocals.arrays()
-        val cluster = arrays[THREAD_CLUSTER]
+        val cluster = arrays[GobanThreadLocals.CLUSTER]
         clear(cluster)
         cluster[y] = xBit
         val playerRows = arrays[player]
@@ -242,7 +250,7 @@ internal object GobanBulk: LongBinaryOperator {
         // Fortunately, an array of 52 Longs occupies 52*8 = 416 bytes, plus the obligatory
         // heap allocation data, which still consumes way less memory than every local variable
         // in this function times a large number of recursive steps in the worse-case scenario.
-        val pending = arrays[THREAD_PENDING]
+        val pending = arrays[GobanThreadLocals.PENDING]
         clear(pending)
         val maxBit = 1L shl (width - 1)
         var bit = xBit
@@ -314,17 +322,11 @@ internal object GobanBulk: LongBinaryOperator {
         }
     }
 
-    const val THREAD_META_CLUSTER = 0
-    const val THREAD_CLUSTER = 1
-    const val THREAD_BLACK = 2
-    const val THREAD_WHITE = 3
-    const val THREAD_PENDING = 4
-
-    fun threadLocalGoban(width: Int, height: Int, rows: AtomicLongArray) {
+    fun threadLocalGoban(width: Int, height: Int, rows: GobanRows1) {
         // 5 arrays of 52 longs each
         val arrays: Array<LongArray> = GobanThreadLocals.arrays()
-        val blackRows = arrays[THREAD_BLACK]
-        val whiteRows = arrays[THREAD_WHITE]
+        val blackRows = arrays[GobanThreadLocals.BLACK]
+        val whiteRows = arrays[GobanThreadLocals.WHITE]
         var i = 0
         for(y in 0 until height) {
             var row = rows[i++]
@@ -346,8 +348,8 @@ internal object GobanBulk: LongBinaryOperator {
 
     fun updateMetaCluster(height: Int) {
         val arrays: Array<LongArray> = GobanThreadLocals.arrays()
-        val metaCluster = arrays[THREAD_META_CLUSTER]
-        val cluster = arrays[THREAD_CLUSTER]
+        val metaCluster = arrays[GobanThreadLocals.META_CLUSTER]
+        val cluster = arrays[GobanThreadLocals.CLUSTER]
         for(y in 0 until height) {
             metaCluster[y] = metaCluster[y] or cluster[y]
         }

@@ -6,7 +6,7 @@ import java.util.*
 import java.util.regex.Pattern
 
 @PropertyOrder("Periods", "Seconds")
-class ByoYomi(periods: Int, millis: Long): Overtime() {
+class ByoYomi(periods: Int, millis: Long): Overtime(), PropertyTranslator {
 
     operator fun component1() = periods
     operator fun component2() = millis
@@ -27,6 +27,13 @@ class ByoYomi(periods: Int, millis: Long): Overtime() {
 
     @Suppress("unused")
     constructor(): this(periods=1, millis=10000L)
+
+    override fun translateProperty(name: String, locale: Locale): String {
+        return if (name == "Periods" || name == "Seconds") {
+            val resources = gobanResources(locale)
+            resources.getString("PropertyTranslator.Overtime.$name")
+        } else  name
+    }
 
     override fun filterEvent(e: TimeEvent): TimeEvent {
         var time = e.timeRemaining
@@ -80,8 +87,6 @@ class ByoYomi(periods: Int, millis: Long): Overtime() {
                 this.millis = time
             } ?: ByoYomi(periods, time)
         }
-
-
 
     }
 

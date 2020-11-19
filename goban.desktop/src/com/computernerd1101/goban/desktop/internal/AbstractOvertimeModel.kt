@@ -1,9 +1,11 @@
 package com.computernerd1101.goban.desktop.internal
 
 import com.computernerd1101.goban.desktop.OvertimeComponent
+import com.computernerd1101.goban.desktop.resources.gobanDesktopResources
 import com.computernerd1101.goban.sgf.GameInfo
 import com.computernerd1101.goban.time.Overtime
 import java.awt.Component
+import java.util.*
 import javax.swing.*
 import javax.swing.event.ListDataListener
 
@@ -13,12 +15,20 @@ abstract class AbstractOvertimeModel(
 
     val items: Array<Any>
 
+    private object Header {
+
+        override fun toString(): String {
+            val resources = gobanDesktopResources(Locale.getDefault())
+            return resources.getString("Overtime.Header")
+        }
+
+    }
+
     init {
         val types = Overtime.loadTypes()
-        @Suppress("RemoveExplicitTypeArguments")
-        items = Array<Any>(1 + types.size) { index ->
+        items = Array(1 + types.size) { index ->
             when(index) {
-                0 -> "Overtime..."
+                0 -> Header
                 else -> types[index - 1]
             }
         }
@@ -42,14 +52,18 @@ abstract class AbstractOvertimeModel(
         cellHasFocus: Boolean
     ): Component = renderer.getListCellRendererComponent(
         list,
-        if (value is Overtime) "Overtime: ${value.typeString}" else value,
+        if (value is Overtime) {
+            val resources = gobanDesktopResources(Locale.getDefault())
+            resources.getString("Overtime.Prefix") + value.displayName() +
+                    resources.getString("Overtime.Suffix")
+        } else value,
         index,
         isSelected,
         cellHasFocus
     )
 
     override fun getSelectedItem(): Any {
-        val overtime = gameInfo?.overtime ?: return items[0]
+        val overtime = gameInfo?.overtime ?: return Header
         var index = items.indexOfFirst { it.javaClass == overtime.javaClass }
         if (index < 0) index = 0
         return items[index]

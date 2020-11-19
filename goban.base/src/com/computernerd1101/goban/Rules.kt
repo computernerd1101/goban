@@ -4,11 +4,21 @@
 
 package com.computernerd1101.goban
 
+import com.computernerd1101.goban.resources.gobanResources
+import java.util.*
+
 enum class Superko {
 
     NATURAL,
     SITUATIONAL,
-    POSITIONAL
+    POSITIONAL;
+
+    override fun toString(): String = toString(Locale.getDefault())
+
+    fun toString(locale: Locale): String {
+        val resources = gobanResources(locale)
+        return resources.getString("Superko.$name")
+    }
 
 }
 

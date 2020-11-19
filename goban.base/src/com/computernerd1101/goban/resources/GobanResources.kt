@@ -21,6 +21,9 @@ class GobanResources: ListResourceBundle() {
             ),
             arrayOf("time.Overtime.ByoYomi", "Byo-Yomi"),
             arrayOf("time.Overtime.Canadian", "Canadian"),
+            arrayOf("PropertyTranslator.Overtime.Seconds", "Seconds"),
+            arrayOf("PropertyTranslator.Overtime.Periods", "Periods"),
+            arrayOf("PropertyTranslator.Overtime.Moves", "Moves"),
             arrayOf(
                 "sgf.PrintMethod",
                 arrayOf(
@@ -54,7 +57,10 @@ class GobanResources: ListResourceBundle() {
             arrayOf(
                 "sgf.MoveAnnotation.BM",
                 arrayOf("Bad move", "Very bad move")
-            )
+            ),
+            arrayOf("Superko.NATURAL", "Natural Situational Superko"),
+            arrayOf("Superko.SITUATIONAL", "Situational Superko"),
+            arrayOf("Superko.POSITIONAL", "Positional Superko")
         )
     }
 

@@ -1,9 +1,11 @@
 package com.computernerd1101.goban.desktop
 
 import com.computernerd1101.goban.annotations.*
+import com.computernerd1101.goban.desktop.resources.gobanDesktopResources
 import com.computernerd1101.goban.time.Overtime
 import java.awt.*
 import java.text.ParseException
+import java.util.*
 import javax.swing.*
 
 class OvertimeComponent(
@@ -78,6 +80,8 @@ class OvertimeComponent(
             rows = rows.copyOf(count)
             this.rows = rows
         }
+        val locale = Locale.getDefault()
+        val resources = gobanDesktopResources(locale)
         for(y in 0 until count) {
             var row = rows[y]
             if (row != null) {
@@ -89,7 +93,9 @@ class OvertimeComponent(
                 addRow(y, row)
             }
             val entry = properties[y]
-            row.label.text = "${entry.name}: "
+            row.label.text = resources.getString("PropertyTranslator.Prefix") +
+                    overtime.translateProperty(entry.name, locale) +
+                    resources.getString("PropertyTranslator.Suffix")
             row.entry = entry
             row.spin.updateUI()
         }

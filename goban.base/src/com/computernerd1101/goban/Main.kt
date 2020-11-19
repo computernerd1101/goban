@@ -10,7 +10,7 @@ import kotlin.reflect.*
 import kotlin.reflect.full.memberProperties
 
 fun main() {
-    println(typeOf<Array<in String?>>())
+
 }
 
 fun unitFunction(foo: Unit) {

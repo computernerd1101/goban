@@ -3,11 +3,13 @@ package com.computernerd1101.goban.desktop
 import com.computernerd1101.goban.*
 import com.computernerd1101.goban.annotations.PropertyFactory
 import com.computernerd1101.goban.desktop.internal.*
+import com.computernerd1101.goban.desktop.resources.gobanDesktopResources
 import com.computernerd1101.goban.sgf.GameInfo
 import com.computernerd1101.goban.time.Overtime
 import java.awt.*
 import java.awt.event.*
 import java.text.NumberFormat
+import java.util.*
 import javax.swing.*
 import javax.swing.event.ListDataListener
 
@@ -19,22 +21,30 @@ fun main() {
     }
 }
 
-class GoGameSetupView: JComponent() {
+class GoGameSetupView private constructor(resources: ResourceBundle): JComponent() {
+
+    constructor(locale: Locale): this(gobanDesktopResources(locale))
+
+    constructor(): this(Locale.getDefault())
 
     private val gameSetup: GoGameSetup
 
     private val comboSize = JComboBox<Any>()
-    private val checkHeight = JCheckBox("Height:")
+    private val checkHeight = JCheckBox(resources.getString("SizeHeader.HEIGHT"))
     private val spinWidth = CN13Spinner()
     private val spinHeight = CN13Spinner()
-    private val comboHandicap = JComboBox<String>()
+    private val comboHandicap = JComboBox<HandicapType>()
     private val spinHandicap = CN13Spinner()
     private val comboKomi = JComboBox<Any>()
     private val spinKomi = CN13Spinner()
     private val comboRules = JComboBox<RulesPreset>()
-    private val comboScore = JComboBox<String>()
-    private val checkSuicide = JCheckBox("Allow Suicide?")
+    private val comboScore = JComboBox<ScoreType>()
+    private val checkSuicide = JCheckBox(resources.getString("AllowSuicide"))
     private val comboSuperko = JComboBox<Superko>()
+
+    private val sizeHeader = localeToString { resources ->
+        resources.getString("SizeHeader." + if (checkHeight.isSelected) "WIDTH" else "SIZE")
+    }
 
     init {
         val gameInfo = GameInfo()
@@ -69,9 +79,7 @@ class GoGameSetupView: JComponent() {
         comboRules.model = rulesModel
         comboScore.model = ScoreModel()
         checkSuicide.addActionListener(rulesModel)
-        val superkoModel = SuperkoModel(comboSuperko.renderer)
-        comboSuperko.model = superkoModel
-        comboSuperko.renderer = superkoModel
+        comboSuperko.model = SuperkoModel()
         spinTimeLimit.model = TimeLimitFormatter()
         spinTimeLimit.adjustCaret = true
         layout = GridBagLayout()
@@ -111,7 +119,7 @@ class GoGameSetupView: JComponent() {
         add(comboSuperko, gbc2)
         gbc1.gridy = ++row
         gbc1.fill = GridBagConstraints.NONE
-        add(JLabel("Time Limit: "), gbc1)
+        add(JLabel(resources.getString("TimeLimit")), gbc1)
         gbc2.gridx = 1
         gbc2.gridy = row
         gbc2.gridwidth = 1
@@ -125,10 +133,11 @@ class GoGameSetupView: JComponent() {
     }
 
     fun showDialog(parentComponent: Component?): GoGameSetup? {
+        val resources = gobanDesktopResources(Locale.getDefault())
         return if (JOptionPane.showConfirmDialog(
                 parentComponent,
                 this,
-                "New Game",
+                resources.getString("NewGame"),
                 JOptionPane.OK_CANCEL_OPTION,
                 JOptionPane.PLAIN_MESSAGE
             ) == JOptionPane.OK_OPTION) gameSetup
@@ -139,9 +148,6 @@ class GoGameSetupView: JComponent() {
 
         @JvmField val SIZE_PRESETS = intArrayOf(9, 13, 19)
 
-        const val FIXED_HANDICAP = "Fixed Handicap: "
-        const val FREE_HANDICAP = "Free Handicap: "
-
         @JvmField val RULES_PRESETS = enumValues<RulesPreset>()
         @JvmField val SUPERKO_VALUES = enumValues<Superko>()
 
@@ -150,30 +156,22 @@ class GoGameSetupView: JComponent() {
                 if (preset != RulesPreset.CUSTOM) this[preset.rules] = preset
         }
 
-        @JvmField val superkoMap = enumMap<Superko, String>().apply {
-            this[Superko.NATURAL] = "Natural Situational Superko"
-            this[Superko.SITUATIONAL] = "Situational Superko"
-            this[Superko.POSITIONAL] = "Positional Superko"
-        }
-
-        const val TERRITORY_SCORE = "Score by Territory"
-        const val AREA_SCORE = "Score by Area"
-
     }
 
-    private enum class RulesPreset(
-        private val string: String,
-        val rules: GoRules
-    ) {
+    private enum class RulesPreset(val rules: GoRules) {
 
-        JAPANESE("Japanese Rules", GoRules.JAPANESE),
-        AGA("AGA Rules", GoRules.AGA),
-        NZ("New Zealand Rules", GoRules.NEW_ZEALAND),
-        GOE("Ing Rules", GoRules.ING),
-        CUSTOM("Custom Rules...", GoRules.DEFAULT);
+        JAPANESE(GoRules.JAPANESE),
+        AGA(GoRules.AGA),
+        NZ(GoRules.NEW_ZEALAND),
+        GOE(GoRules.ING),
+        CUSTOM(GoRules.DEFAULT);
 
-        override fun toString(): String {
-            return string
+        override fun toString(): String = toString(Locale.getDefault())
+
+        fun toString(locale: Locale): String {
+            val resources = gobanDesktopResources(locale)
+            resources.locale
+            return resources.getString("RulesPreset.$name")
         }
 
     }
@@ -213,18 +211,28 @@ class GoGameSetupView: JComponent() {
 
     }
 
-    private inner class ScoreModel: ComboBoxModel<String> {
+    private enum class ScoreType {
 
-        override fun getSelectedItem(): String {
-            return if (gameSetup.gameInfo.rules.territoryScore) Private.TERRITORY_SCORE else Private.AREA_SCORE
+        AREA, TERRITORY;
+
+        override fun toString(): String = toString(Locale.getDefault())
+
+        fun toString(locale: Locale): String {
+            val resources = gobanDesktopResources(locale)
+            return resources.getString("ScoreType.$name")
+        }
+
+    }
+
+    private inner class ScoreModel: ComboBoxModel<ScoreType> {
+
+        override fun getSelectedItem(): ScoreType {
+            return if (gameSetup.gameInfo.rules.territoryScore) ScoreType.TERRITORY else ScoreType.AREA
         }
 
         override fun setSelectedItem(anItem: Any?) {
-            val territory = when(anItem) {
-                Private.AREA_SCORE -> false
-                Private.TERRITORY_SCORE -> true
-                else -> return
-            }
+            if (anItem !is ScoreType) return
+            val territory = anItem == ScoreType.TERRITORY
             val gameInfo = gameSetup.gameInfo
             gameInfo.rules = gameInfo.rules.copy(territoryScore = territory)
             comboRules.updateUI()
@@ -233,8 +241,8 @@ class GoGameSetupView: JComponent() {
         override fun getSize() = 2
 
         override fun getElementAt(index: Int) = when(index) {
-            0 -> Private.TERRITORY_SCORE
-            1 -> Private.AREA_SCORE
+            0 -> ScoreType.TERRITORY
+            1 -> ScoreType.AREA
             else -> throw IndexOutOfBoundsException("$index")
         }
 
@@ -244,26 +252,7 @@ class GoGameSetupView: JComponent() {
 
     }
 
-    private inner class SuperkoModel(
-        parentRenderer: ListCellRenderer<in Superko>
-    ): ListCellRenderer<Superko>, ComboBoxModel<Superko> {
-
-        @Suppress("UNCHECKED_CAST")
-        val parentRenderer = parentRenderer as ListCellRenderer<Any?>
-
-        override fun getListCellRendererComponent(
-            list: JList<out Superko>,
-            value: Superko,
-            index: Int,
-            isSelected: Boolean,
-            cellHasFocus: Boolean
-        ): Component = parentRenderer.getListCellRendererComponent(
-            list,
-            Private.superkoMap[value],
-            index,
-            isSelected,
-            cellHasFocus
-        )
+    private inner class SuperkoModel: ComboBoxModel<Superko> {
 
         override fun getSelectedItem(): Superko {
             return gameSetup.gameInfo.rules.superko
@@ -309,7 +298,7 @@ class GoGameSetupView: JComponent() {
             return component
         }
 
-        override fun getSelectedItem(): Any = if (checkHeight.isSelected) "Width: " else "Size: "
+        override fun getSelectedItem(): Any = sizeHeader
 
         override fun setSelectedItem(anItem: Any?) {
             checkHeight.isSelected = false
@@ -405,9 +394,20 @@ class GoGameSetupView: JComponent() {
 
     }
 
+    private enum class HandicapType {
+
+        FIXED, FREE;
+
+        override fun toString(): String {
+            val resources = gobanDesktopResources(Locale.getDefault())
+            return resources.getString("HandicapType.$name")
+        }
+
+    }
+
     private inner class HandicapFormatter:
         CN13Spinner.Formatter(NumberFormat.getIntegerInstance()),
-        ComboBoxModel<String> {
+        ComboBoxModel<HandicapType> {
 
         override fun getValue() = gameSetup.gameInfo.handicap
 
@@ -441,17 +441,13 @@ class GoGameSetupView: JComponent() {
             return if (handicap > max) null else handicap
         }
 
-        override fun getSelectedItem(): String {
-            return if (gameSetup.isFreeHandicap) Private.FREE_HANDICAP else Private.FIXED_HANDICAP
+        override fun getSelectedItem(): HandicapType {
+            return if (gameSetup.isFreeHandicap) HandicapType.FREE else HandicapType.FIXED
         }
 
         override fun setSelectedItem(anItem: Any?) {
-            val free = when(anItem) {
-                Private.FIXED_HANDICAP -> false
-                Private.FREE_HANDICAP -> true
-                else -> return
-            }
-            gameSetup.isFreeHandicap = free
+            if (anItem !is HandicapType) return
+            gameSetup.isFreeHandicap = anItem == HandicapType.FREE
             val max = gameSetup.maxHandicap
             if (value > max) value = max
         }
@@ -459,8 +455,8 @@ class GoGameSetupView: JComponent() {
         override fun getSize() = 2
 
         override fun getElementAt(index: Int) = when(index) {
-            0 -> Private.FIXED_HANDICAP
-            1 -> Private.FREE_HANDICAP
+            0 -> HandicapType.FIXED
+            1 -> HandicapType.FREE
             else -> throw IndexOutOfBoundsException("$index")
         }
 

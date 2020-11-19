@@ -8,38 +8,45 @@ internal object InternalGoPointSet {
     /** Updates [GoPointSet.sizeAndHash] */
     lateinit var sizeAndHash: AtomicLongFieldUpdater<GoPointSet>
 
-    fun toLongArray(elements: Array<out Iterable<GoPoint>>): AtomicLongArray {
-        val rows = AtomicLongArray(52)
+    @JvmField val rowUpdaters = unsafeArrayOfNulls<AtomicLongFieldUpdater<GoPointSet>>(52)
+
+    fun init(set: GoPointSet, elements: Array<out Iterable<GoPoint>>) {
         for(element in elements) when(element) {
             is GoPoint -> {
                 val y = element.y
+                val updater = rowUpdaters[y]
                 // rows has just been created and is not yet visible to any other threads
-                rows[y] = rows[y] or (1L shl element.x)
+                updater[set] = updater[set] or (1L shl element.x)
             }
             is GoRectangle -> {
                 val (x1, y1) = element.start
                 val (x2, y2) = element.end
                 val mask = (1L shl (x2 + 1)) - (1L shl x1)
-                for(y in y1..y2)
-                    rows[y] = rows[y] or mask
+                for (y in y1..y2) {
+                    val updater = rowUpdaters[y]
+                    updater[set] = updater[set] or mask
+                }
             }
             is GoPointSet -> {
-                val rows2 = element.getRows(InternalMarker)
-                for(y in 0..51)
-                    rows[y] = rows[y] or rows2[y]
+                for(updater in rowUpdaters)
+                    updater[set] = updater[set] or updater[element]
             }
-            is GoPointKeys<*> -> for(y in 0..51)
-                rows[y] = rows[y] or element.rowBits(y)
-            else -> for((x, y) in element)
-                rows[y] = rows[y] or (1L shl x)
+            is GoPointKeys<*> -> for (y in 0..51) {
+                val updater = rowUpdaters[y]
+                updater[set] = updater[set] or element.rowBits(y)
+            }
+            else -> for((x, y) in element) {
+                val updater = rowUpdaters[y]
+                updater[set] = updater[set] or (1L shl x)
+            }
         }
-        return rows
+        sizeAndHash[set] = sizeAndHash(set)
     }
 
-    fun sizeAndHash(rows: AtomicLongArray): Long  {
+    fun sizeAndHash(set: GoPointSet): Long  {
         var words = 0L
         for(y in 0..51)
-            words += sizeAndHash(rows[y], y)
+            words += sizeAndHash(rowUpdaters[y][set], y)
         return words
     }
 
@@ -59,9 +66,9 @@ internal object InternalGoPointSet {
 
 }
 
-internal open class GoPointItr(val rows: AtomicLongArray) : Iterator<GoPoint> {
+internal open class GoPointItr(val set: GoPointSet) : Iterator<GoPoint> {
 
-    private var unseenX = rows[0]
+    private var unseenX = InternalGoPointSet.rowUpdaters[0][set]
     private var unseenY = 0
     @JvmField var lastReturned: GoPoint? = null
 
@@ -69,7 +76,7 @@ internal open class GoPointItr(val rows: AtomicLongArray) : Iterator<GoPoint> {
         var unseen = unseenX
         var y = unseenY
         while(unseen == 0L && y < 51)
-            unseen = rows[++y]
+            unseen = InternalGoPointSet.rowUpdaters[++y][set]
         unseenX = unseen
         unseenY = y
         return unseen != 0L
@@ -79,7 +86,7 @@ internal open class GoPointItr(val rows: AtomicLongArray) : Iterator<GoPoint> {
         var unseen = unseenX
         var y = unseenY
         while(unseen == 0L && y < 51)
-            unseen = rows[++y]
+            unseen = InternalGoPointSet.rowUpdaters[++y][set]
         val xBit = unseen and -unseen
         unseenX = unseen - xBit
         unseenY = y
