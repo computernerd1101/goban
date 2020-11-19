@@ -57,10 +57,9 @@ class GoRectangle internal constructor(
         when(elements) {
             is GoRectangle -> return contains(elements.start) && contains(elements.end)
             is GoPointSet -> {
-                val rows = elements.getRows(InternalMarker)
                 val mask: Long = ((1L shl (end.x + 1)) - (1L shl start.x)).inv()
                 for(y in 0..51) {
-                    var row = rows[y]
+                    var row = InternalGoPointSet.rowUpdaters[y][elements]
                     if (y in start.y..end.y) row = row and mask
                     if (row != 0L) return false
                 }

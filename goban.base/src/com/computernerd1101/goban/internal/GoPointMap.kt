@@ -600,9 +600,8 @@ internal open class GoPointKeys<out V>(map: GoPointMap<V>):
                 true
             }
             is GoPointSet -> {
-                val rows2 = elements.getRows(InternalMarker)
                 for(y in 0..51)
-                    if (rowBits(y).inv() and rows2[y] != 0L)
+                    if (rowBits(y).inv() and InternalGoPointSet.rowUpdaters[y][elements] != 0L)
                         return false
                 true
             }
@@ -653,9 +652,8 @@ internal open class GoPointKeys<out V>(map: GoPointMap<V>):
                 true
             }
             is GoPointSet -> {
-                val rows = other.getRows(InternalMarker)
                 for(y in 0..51)
-                    if (rowBits(y) != rows[y]) return false
+                    if (rowBits(y) != InternalGoPointSet.rowUpdaters[y][other]) return false
                 true
             }
             is GoPointKeys<*> -> {
@@ -804,21 +802,17 @@ internal class MutableGoPointKeys<V>(
                         }
                     }
                 }
-                is GoPointSet -> {
-                    val rows2 = elements.getRows(InternalMarker)
-                    for(y in 0..51) {
-                        val row = rows1[y]
-                        if (row != null && removeBitsFromRow(y, rows1, weakRows, row, rows2[y]))
-                            modified = true
-                    }
+                is GoPointSet -> for(y in 0..51) {
+                    val row = rows1[y]
+                    if (row != null && removeBitsFromRow(y, rows1, weakRows, row,
+                            InternalGoPointSet.rowUpdaters[y][elements]))
+                        modified = true
                 }
-                is GoRectangle -> {
-                    for(y in elements.start.y..elements.end.y) {
-                        val row = rows1[y]
-                        if (row != null && removeRangeFromRow(elements.start.x, elements.end.x,
-                                y, rows1, weakRows, row, retain=false))
-                            modified = true
-                    }
+                is GoRectangle -> for(y in elements.start.y..elements.end.y) {
+                    val row = rows1[y]
+                    if (row != null && removeRangeFromRow(elements.start.x, elements.end.x,
+                            y, rows1, weakRows, row, retain=false))
+                        modified = true
                 }
                 else -> {
                     val c = toImmutable(elements)
@@ -885,13 +879,11 @@ internal class MutableGoPointKeys<V>(
                         }
                     }
                 }
-                is GoPointSet -> {
-                    val rows2 = elements.getRows(InternalMarker)
-                    for(y in 0..51) {
-                        val row = rows1[y]
-                        if (row != null && removeBitsFromRow(y, rows1, weakRows, row, rows2[y].inv()))
-                            modified = true
-                    }
+                is GoPointSet -> for(y in 0..51) {
+                    val row = rows1[y]
+                    if (row != null && removeBitsFromRow(y, rows1, weakRows, row,
+                            InternalGoPointSet.rowUpdaters[y][elements].inv()))
+                        modified = true
                 }
                 is GoRectangle -> {
                     modified = removeRows(0, elements.start.y - 1, rows1, weakRows)

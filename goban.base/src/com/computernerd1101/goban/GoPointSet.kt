@@ -371,13 +371,15 @@ open class GoPointSet internal constructor(marker: InternalMarker): Set<GoPoint>
 
 }
 
-class MutableGoPointSet(): GoPointSet(InternalMarker), MutableSet<GoPoint> {
+class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
 
 //    internal constructor(rows: AtomicLongArray, marker: InternalMarker):
 //            super(rows, InternalGoPointSet.sizeAndHash(rows), marker)
 
+    constructor(): super(InternalMarker)
+
     @Suppress("unused")
-    constructor(vararg points: Iterable<GoPoint>) {
+    constructor(vararg points: Iterable<GoPoint>): super(InternalMarker) {
         InternalGoPointSet.init(this, points)
     }
 
