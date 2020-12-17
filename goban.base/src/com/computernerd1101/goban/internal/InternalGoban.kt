@@ -173,9 +173,7 @@ internal object GobanBulk: LongBinaryOperator {
         var i = 0
         for(y in 0 until height) {
             val row = when(rows) {
-                // TODO volatile row field of GoPointSet
                 is GoPointSet -> InternalGoPointSet.rowUpdaters[y][rows]
-                is AtomicLongArray -> rows[y]
                 else -> (rows as LongArray)[y]
             }
             if (setRow(goban, i++, row.toInt() and mask1, color))

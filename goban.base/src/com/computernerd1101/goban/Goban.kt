@@ -44,8 +44,6 @@ sealed class AbstractGoban(
 
     constructor(other: AbstractGoban): this(other, InternalGoban.newRows(other.width, other.height > 32))
 
-    internal fun getRows(marker: InternalMarker) = marker.access { rows }
-
     val blackCount: Int
         @JvmName("blackCount")
         get() = count.toInt()
@@ -387,7 +385,6 @@ class MutableGoban: AbstractMutableGoban {
 
     companion object;
 
-    @Suppress("UNUSED_PARAMETER")
     internal constructor(width: Int, height: Int, rows: GobanRows1, count: Long):
             super(width, height, rows, count)
 
@@ -457,7 +454,7 @@ class Goban: AbstractMutableGoban {
         val metaCluster = arrays[GobanThreadLocals.META_CLUSTER]
         GobanBulk.clear(metaCluster)
         val cluster = arrays[GobanThreadLocals.CLUSTER]
-        val rows = getRows(InternalMarker)
+        val rows = this.rows
         GobanBulk.threadLocalGoban(width, height, rows)
         val player: Int
         val opponent: Int

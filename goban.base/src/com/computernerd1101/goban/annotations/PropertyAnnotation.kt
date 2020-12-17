@@ -289,7 +289,7 @@ class PropertyFactory<T: Any> private constructor(
                         }?.let {
                             val returnType = it.returnType
                             if (!returnType.isMarkedNullable &&
-                                returnType.classifier == String::class)
+                                String::class == returnType.classifier)
                                 it as KProperty1<Annotation, String>
                             else null
                         } ?: return@setPmm null
