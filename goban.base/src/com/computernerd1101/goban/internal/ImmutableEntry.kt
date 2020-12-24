@@ -10,16 +10,16 @@ internal class ImmutableEntry<K, V>(override val key: K, override val value: V):
     }
 
     override fun hashCode(): Int {
-        return key.hashCode() xor value.hashCode();
+        return key.hashCode() xor value.hashCode()
     }
 
     override fun toString(): String {
-        val value = this.value;
+        val value = this.value
         return "$key=${if (value === this) "(this Map.Entry)" else value.toString()}"
     }
 
     companion object {
-        private const val serialVersionUID = 1L;
+        private const val serialVersionUID = 1L
     }
 
 }
