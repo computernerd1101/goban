@@ -1,7 +1,12 @@
+@file:JvmMultifileClass
+@file:JvmName("GobanKt")
+
 package com.computernerd1101.goban
 
 import com.computernerd1101.goban.resources.gobanResources
 import java.util.*
+
+fun Boolean.goBlackOrWhite() = if (this) GoColor.BLACK else GoColor.WHITE
 
 @Suppress("unused")
 enum class GoColor {

@@ -288,7 +288,7 @@ open class GoPointSet internal constructor(marker: InternalMarker): Set<GoPoint>
             is GoPointSet -> for(updater in InternalGoPointSet.rowUpdaters)
                 if (updater[this].inv() and updater[elements] != 0L) return false
             is GoRectangle -> {
-                val bits = 1L.shl(elements.end.x + 1) - 1L.shl(elements.start.x)
+                val bits = InternalGoRectangle.rowBits(elements)
                 for (y in elements.start.y..elements.end.y) {
                     if (InternalGoPointSet.rowUpdaters[y][this].inv() and bits != 0L) return false
                 }
@@ -326,7 +326,7 @@ open class GoPointSet internal constructor(marker: InternalMarker): Set<GoPoint>
                 true
             }
             is GoRectangle -> {
-                val bits: Long = 1L.shl(other.end.x + 1) - 1L.shl(other.start.x)
+                val bits: Long = InternalGoRectangle.rowBits(other)
                 for(y in 0..51) {
                     if (InternalGoPointSet.rowUpdaters[y][this] != if (y in other.start.y..other.end.y) bits else 0)
                         return false
@@ -396,6 +396,11 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
 
     override fun iterator(): MutableIterator<GoPoint> = object :
         GoPointItr(this), MutableIterator<GoPoint> {
+
+        private var lastReturned: GoPoint? = null
+
+        override fun next(): GoPoint = super.next().also { lastReturned = it }
+
         override fun remove() {
             val (x, y) = lastReturned ?: throw IllegalStateException()
             val mask = (1L shl x).inv()
@@ -406,6 +411,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
             }
             lastReturned = null
         }
+
     }
 
     override fun add(element: GoPoint): Boolean {
@@ -464,10 +470,8 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                 }
             }
             is GoRectangle -> {
-                val (x1, y1) = elements.start
-                val (x2, y2) = elements.end
-                val mask = (1L shl (x2 + 1)) - (1L shl x1)
-                for(y in y1..y2) {
+                val mask = InternalGoRectangle.rowBits(elements)
+                for(y in elements.start.y..elements.end.y) {
                     val oldBits = InternalGoPointSet.rowUpdaters[y].accumulateAndGet(this, mask, LongBinOp.OR)
                     val newBits = mask and oldBits.inv()
                     if (newBits != 0L) {
@@ -526,10 +530,8 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                 return false
             }
             elements is GoRectangle -> {
-                val (x1, y1) = elements.start
-                val (x2, y2) = elements.end
-                val mask = (1L shl (x2 + 1)) - (1L shl x1)
-                for(y in y1..y2) {
+                val mask = InternalGoRectangle.rowBits(elements)
+                for(y in elements.start.y..elements.end.y) {
                     val oldBits = InternalGoPointSet.rowUpdaters[y].accumulateAndGet(
                         this, mask.inv(), LongBinOp.AND)
                     val modBits = mask and oldBits
@@ -599,10 +601,8 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                 return true
             }
             is GoRectangle -> {
-                val (x1, y1) = elements.start
-                val (x2, y2) = elements.end
-                val mask = (1L shl (x2 + 1)) - (1L shl x1)
-                for(y in y1..y2) {
+                val mask = InternalGoRectangle.rowBits(elements)
+                for(y in elements.start.y..elements.end.y) {
                     val oldBits = InternalGoPointSet.rowUpdaters[y].accumulateAndGet(
                         this, mask, LongBinOp.AND)
                     val modBits = mask.inv() and oldBits
@@ -640,10 +640,8 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                 return false
             }
             is GoRectangle -> {
-                val (x1, y1) = elements.start
-                val (x2, y2) = elements.end
-                val mask = (1L shl (x2 + 1)) - (1L shl x1)
-                for(y in y1..y2)
+                val mask = InternalGoRectangle.rowBits(elements)
+                for(y in elements.start.y..elements.end.y)
                     if (invertRow(y, mask)) modified = true
             }
             is GoPointSet -> {
@@ -653,10 +651,8 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
             else -> {
                 val rows2 = LongArray(52)
                 @Suppress("USELESS_CAST")
-                for(element in (elements as Collection<*>)) if (element is GoPoint) {
-                    val (x, y) = element
+                for((x, y) in elements)
                     rows2[y] = rows2[y] xor (1L shl x)
-                }
                 for(y in 0..51)
                     if (invertRow(y, rows2[y])) modified = true
             }

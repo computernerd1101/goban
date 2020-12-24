@@ -35,8 +35,10 @@ enum class MoveAnnotation(
 
     companion object {
 
+        @Suppress("unused")
         @JvmStatic
-        fun valueOf(code: String, extent: Int): MoveAnnotation? {
+        @JvmName("valueOf")
+        fun nullable(code: String, extent: Int): MoveAnnotation? {
             val values = moveAnnotationMap[code] ?: return null
             return values[if (values.size == 1 || extent <= 1) 0 else 1]
         }

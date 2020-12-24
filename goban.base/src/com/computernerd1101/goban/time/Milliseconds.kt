@@ -1,12 +1,20 @@
+@file:Suppress("unused", "NOTHING_TO_INLINE")
+
 package com.computernerd1101.goban.time
 
 import com.computernerd1101.goban.internal.unsafeArrayOfNulls
 import java.io.*
 import java.util.regex.*
 
-@Suppress("unused")
-class Milliseconds private constructor(private val value: Long, private var extra: Int):
-    Number(), Comparable<Milliseconds>, Serializable {
+class Milliseconds private constructor(
+    private val value: Long,
+    private var extra: Int,
+    marker: Private
+): Number(), Comparable<Milliseconds>, Serializable {
+
+    init {
+        marker.ignore()
+    }
 
     @Suppress("SpellCheckingInspection", "UNCHECKED_CAST")
     private object Private {
@@ -20,19 +28,21 @@ class Milliseconds private constructor(private val value: Long, private var extr
         @JvmField val MINUS_ZERO = unsafeArrayOfNulls<Milliseconds>(4)
         @JvmField val  PLUS_ZERO = unsafeArrayOfNulls<Milliseconds>(4)
 
+        fun ignore() = Unit
+
     }
 
     companion object {
 
-        @JvmField val MINUS_SIGN = Milliseconds(0, -1)
-        @JvmField val       ZERO = Milliseconds(0, 0)
+        @JvmField val MINUS_SIGN = Milliseconds(0, -1, Private)
+        @JvmField val       ZERO = Milliseconds(0, 0, Private)
 
         init {
             Private.MINUS_ZERO[0] = MINUS_SIGN
             Private.PLUS_ZERO[0] = ZERO
             for(i in 1..3) {
-                Private.MINUS_ZERO[i] = Milliseconds(0, -1 - i)
-                Private.PLUS_ZERO[i] = Milliseconds(0, i)
+                Private.MINUS_ZERO[i] = Milliseconds(0, -1 - i, Private)
+                Private.PLUS_ZERO[i] = Milliseconds(0, i, Private)
             }
         }
 
@@ -50,7 +60,7 @@ class Milliseconds private constructor(private val value: Long, private var extr
         @JvmStatic fun withDecimalPlaces(millis: Long, digits: Int) = valueOf(millis, digits, zeros = false)
 
         @JvmStatic
-        fun valueOf(value: Long) = if (value == 0L) ZERO else Milliseconds(value, 0)
+        fun valueOf(value: Long) = if (value == 0L) ZERO else Milliseconds(value, 0, Private)
 
         private fun valueOf(value: Long, digits: Int, zeros: Boolean): Milliseconds {
             var extra = when {
@@ -75,7 +85,7 @@ class Milliseconds private constructor(private val value: Long, private var extr
                 if (extra < 0) extra = 0
             }
             if (nonZeroDigits == 0) extra++ // decimal point
-            return Milliseconds(value, extra)
+            return Milliseconds(value, extra, Private)
         }
 
         @JvmStatic
@@ -122,7 +132,7 @@ class Milliseconds private constructor(private val value: Long, private var extr
                 throw NumberFormatException("For input string: \"$s\"")
             }
             if (value == 0L && sign == "-") extra = -1 - extra
-            return Milliseconds(value, extra)
+            return Milliseconds(value, extra, Private)
         }
 
         private const val serialVersionUID = 1L
@@ -168,10 +178,9 @@ class Milliseconds private constructor(private val value: Long, private var extr
     operator fun compareTo(other:   UInt) = value.compareTo(other.toLong())
 
     @ExperimentalUnsignedTypes
-    @Suppress("NOTHING_TO_INLINE")
     inline operator fun compareTo(other: ULong) = compareToUnsigned(other.toLong())
 
-    fun compareToUnsigned(other: Long) = if (value < 0) -1 else
+    fun compareToUnsigned(other: Long) = if (value < 0L) -1 else
         (value xor Long.MIN_VALUE).compareTo(other xor Long.MIN_VALUE)
 
     override fun   toChar() = value.toChar()
@@ -203,38 +212,33 @@ class Milliseconds private constructor(private val value: Long, private var extr
 
     private var string: String? = null
 
-    override fun toString(): String {
-        var s = string
-        if (s == null) {
-            val withPoint: String
-            val withoutPoint: String
-            when (extra) {
-                -4 -> return "-0.00"
-                -3 -> return "-0.0"
-                -2 -> return "-0."
-                -1 -> return "-"
-                0 -> {
-                    withPoint = ""
-                    withoutPoint = ""
-                }
-                1 -> {
-                    withPoint = "."
-                    withoutPoint = "0"
-                }
-                2 -> {
-                    withPoint = ".0"
-                    withoutPoint = "00"
-                }
-                else -> {
-                    withPoint = ".00"
-                    withoutPoint = ""
-                }
+    override fun toString(): String = string ?: run lazy@{
+        val withPoint: String
+        val withoutPoint: String
+        when (extra) {
+            -4 -> return@lazy "-0.00"
+            -3 -> return@lazy "-0.0"
+            -2 -> return@lazy "-0."
+            -1 -> return@lazy "-"
+            0 -> {
+                withPoint = ""
+                withoutPoint = ""
             }
-            s = value.millisToStringSeconds() + if (value % 1000 == 0L) withPoint else withoutPoint
-            string = s
+            1 -> {
+                withPoint = "."
+                withoutPoint = "0"
+            }
+            2 -> {
+                withPoint = ".0"
+                withoutPoint = "00"
+            }
+            else -> {
+                withPoint = ".00"
+                withoutPoint = ""
+            }
         }
-        return s
-    }
+        value.millisToStringSeconds() + if (value % 1000 == 0L) withPoint else withoutPoint
+    }.also { string = it }
 
     private fun readObject(input: ObjectInputStream) {
         input.defaultReadObject()
@@ -274,3 +278,16 @@ class Milliseconds private constructor(private val value: Long, private var extr
     }
 
 }
+
+inline fun Byte.toMilliseconds() = Milliseconds.valueOf(toLong())
+inline fun Short.toMilliseconds() = Milliseconds.valueOf(toLong())
+inline fun Int.toMilliseconds() = Milliseconds.valueOf(toLong())
+inline fun Long.toMilliseconds() = Milliseconds.valueOf(this)
+@ExperimentalUnsignedTypes
+inline fun UByte.toMilliseconds() = Milliseconds.valueOf(toLong())
+@ExperimentalUnsignedTypes
+inline fun UShort.toMilliseconds() = Milliseconds.valueOf(toLong())
+@ExperimentalUnsignedTypes
+inline fun UInt.toMilliseconds() = Milliseconds.valueOf(toLong())
+@ExperimentalUnsignedTypes
+inline fun ULong.toMilliseconds() = Milliseconds.valueOf(toLong())

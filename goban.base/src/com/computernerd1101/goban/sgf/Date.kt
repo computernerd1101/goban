@@ -26,7 +26,7 @@ class Date private constructor(private val value: Int): Comparable<Date>, Serial
             month < 0 || month > 12 -> 0
             else -> month
         }.let { m -> (m shl 5) or when {
-                day < 0 || day > daysInMonth[m] -> 0
+                day < 0 || day > Private.daysInMonth[m] -> 0
                 else -> day
             }
         }
@@ -45,15 +45,12 @@ class Date private constructor(private val value: Int): Comparable<Date>, Serial
     @Suppress("unused")
     constructor(date: java.util.Date): this(GregorianCalendar().apply { time = date })
 
-    companion object {
+    private object Private {
 
-        const val MIN_YEAR = -1 shl 22
-        const val MAX_YEAR = (1 shl 22) - 1
-
-        private val daysInMonth = intArrayOf(
+        @JvmField val daysInMonth = intArrayOf(
             0,
             31,  // January
-            29,  // February
+            29,  // February (simplify Leap Day by pretending it happens every year)
             31,  // March
             30,  // April
             31,  // May
@@ -66,8 +63,15 @@ class Date private constructor(private val value: Int): Comparable<Date>, Serial
             31   // December
         )
 
+    }
+
+    companion object {
+
+        const val MIN_YEAR = -1 shl 22
+        const val MAX_YEAR = (1 shl 22) - 1
+
         @JvmStatic
-        fun daysInMonth(month: Int): Int = if (month in 1..12) daysInMonth[month] else 0
+        fun daysInMonth(month: Int): Int = if (month in 1..12) Private.daysInMonth[month] else 0
 
         fun parse(s: String): Date? = InternalDate.parse(null, s)
 
@@ -139,7 +143,7 @@ class Date private constructor(private val value: Int): Comparable<Date>, Serial
         return when {
             month == 0 && day == 0 -> this
             month <= 0 || month > 12 -> Date(year, 0, 0)
-            day < 0 || day > daysInMonth[month] -> Date(year, month, 0)
+            day < 0 || day > Private.daysInMonth[month] -> Date(year, month, 0)
             else -> this
         }
     }

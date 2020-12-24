@@ -1,8 +1,21 @@
+@file:Suppress("FunctionName", "NOTHING_TO_INLINE")
+@file:JvmMultifileClass
+@file:JvmName("GobanKt")
+
 package com.computernerd1101.goban
 
 import com.computernerd1101.goban.internal.*
 import com.computernerd1101.sgf.SGFBytes
 import java.io.*
+
+inline fun GoPoint(x: Int, y: Int) = GoPoint.pointAt(x, y)
+
+@Suppress("unused")
+inline fun String.toGoPoint() = toGoPointOrNull() ?: throw IllegalArgumentException(this)
+inline fun String.toGoPointOrNull() = GoPoint.parse(this)
+inline fun Int.toGoPointChar() = GoPoint.toChar(this)
+@Suppress("unused")
+inline fun Char.toGoPointInt() = GoPoint.parseChar(this)
 
 // Implement all the same methods as a data class, with the same behavior,
 // except that all instances are cached.
@@ -71,8 +84,6 @@ class GoPoint private constructor(
 
     companion object {
 
-        private val values = Cache.points
-
         init {
             val buffer2 = CharArray(2)
             val buffer4 = CharArray(4)
@@ -89,8 +100,7 @@ class GoPoint private constructor(
         fun pointAt(x: Int, y: Int): GoPoint {
             if (x !in 0..51) throw IndexOutOfBoundsException("x=$x is not in the range [0,52)")
             if (y !in 0..51) throw IndexOutOfBoundsException("y=$y is not in the range [0,52)")
-            return values[x + y*52]
-            // return Cache.points[x + y*52]
+            return Cache.points[x + y*52]
         }
 
         @JvmStatic

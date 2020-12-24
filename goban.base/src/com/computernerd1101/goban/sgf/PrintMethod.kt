@@ -5,6 +5,7 @@ import java.util.*
 
 enum class PrintMethod {
 
+    @Suppress("SpellCheckingInspection")
     DONT_PRINT,
     PRINT_ALL,
     PRINT_MOD100;

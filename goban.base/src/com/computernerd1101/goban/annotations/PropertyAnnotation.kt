@@ -33,7 +33,7 @@ annotation class PropertyOrder(vararg val value: String)
 
 interface PropertyTranslator {
 
-    fun translateProperty(name: String, locale: Locale): String
+    fun translateProperty(name: String, locale: Locale): String?
 
 }
 

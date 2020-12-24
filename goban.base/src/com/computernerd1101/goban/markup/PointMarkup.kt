@@ -5,6 +5,7 @@ package com.computernerd1101.goban.markup
 
 import com.computernerd1101.goban.GoPoint
 import com.computernerd1101.goban.MutableGoPointMap
+import com.computernerd1101.goban.internal.InternalMarker
 import java.io.*
 
 class PointMarkup: Comparable<PointMarkup>, Serializable {
@@ -12,7 +13,7 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
     companion object {
 
         @JvmField
-        val EMPTY_LABEL = PointMarkup("")
+        val EMPTY_LABEL = PointMarkup("", InternalMarker)
         @JvmField
         val SELECT = PointMarkup(MarkupEnum.SL)
         @JvmField
@@ -40,7 +41,7 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
             val lineEnd = label.indexOf('\n')
             if (lineEnd > 0)
                 trim = trim.substring(0, lineEnd).trim()
-            return if (trim.isEmpty()) EMPTY_LABEL else PointMarkup(trim)
+            return if (trim.isEmpty()) EMPTY_LABEL else PointMarkup(trim, InternalMarker)
         }
 
         @JvmStatic
@@ -86,7 +87,8 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
         type.value = this
     }
 
-    private constructor(label: String) {
+    private constructor(label: String, marker: InternalMarker) {
+        marker.ignore();
         enumType = null
         this.label = label
     }

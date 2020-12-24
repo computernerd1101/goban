@@ -7,6 +7,7 @@ import com.computernerd1101.sgf.*
 import java.io.*
 import java.nio.charset.Charset
 import java.util.regex.Pattern
+import kotlin.contracts.*
 
 @Suppress("NOTHING_TO_INLINE", "EXPERIMENTAL_FEATURE_WARNING")
 inline class InlineGameInfoPlayer(val info: GameInfo) {
@@ -21,6 +22,15 @@ inline class InlineGameInfoPlayer(val info: GameInfo) {
         info.setPlayer(color, player)
     }
 
+}
+
+@Suppress("unused", "NOTHING_TO_INLINE")
+@OptIn(ExperimentalContracts::class)
+inline fun GameInfo.Player?.isNullOrEmpty(): Boolean {
+    contract {
+        returns(false) implies (this@isNullOrEmpty != null)
+    }
+    return this?.isEmpty() != false
 }
 
 class GameInfo: Serializable {
@@ -144,13 +154,14 @@ class GameInfo: Serializable {
         }
     }
 
+    @Suppress("SpellCheckingInspection")
     private object ParseKomi {
 
         const val SIGN = 1
         const val IPART = 3
         const val FPART = 4
         const val INT = 5
-        val PATTERN: Pattern = Pattern.compile("([+\\-])?((\\d*)\\.(\\d)|(\\d+)\\.?)")
+        val PATTERN: Pattern = Pattern.compile("""([+\-])?((\d*)\.(\d)|(\d+)\.?)""")
 
     }
 
@@ -159,7 +170,7 @@ class GameInfo: Serializable {
     fun parseResult(prop: SGFProperty, warnings: SGFWarningList?): GameResult? {
         val bytes: SGFBytes = prop.list[0].list[0]
         val s = bytes.toString()
-        val result = nullableGameResult(s)
+        val result = GameResult.nullable(s)
         malformedResult = if (result == null) {
             warnings?.addWarning(SGFWarning(bytes.row, bytes.column,
                 "Unable to parse result RE[$s]"))
@@ -543,15 +554,18 @@ class GameInfo: Serializable {
         malformedDates = fields["malformedDates", null] as? SGFProperty
         timeLimit = fields["timeLimit", 0L]
         malformedTimeLimit = fields["malformedTimeLimit", null] as? SGFProperty
-        var overtime: String? = null
+        var overtimeString: String? = null
         try {
-            overtime = fields["overtime", null]?.toString()
-            if (overtime != null) {
-                this.overtime = Overtime.parse(overtime)
-                overtime = null
+            overtimeString = fields["overtime", null]?.toString()
+            if (overtimeString != null) {
+                val overtime = Overtime.parse(overtimeString)
+                if (overtime != null) {
+                    this.overtime = overtime
+                    overtimeString = null
+                }
             }
         } catch(e: Exception) { }
-        malformedOvertime = overtime
+        malformedOvertime = overtimeString
         rulesString = fields.getString("rules")
         gameName = fields.getString("gameName")
         gameComment = fields.getString("gameComment")

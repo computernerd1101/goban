@@ -29,7 +29,7 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime(), PropertyTranslator
     @Suppress("unused")
     constructor() : this(millis=600000L, moves=20)
 
-    override fun translateProperty(name: String, locale: Locale): String {
+    override fun translateProperty(name: String, locale: Locale): String? {
         return if (name == "Seconds" || name == "Moves") {
             val resources = gobanResources(locale)
             resources.getString("PropertyTranslator.Overtime.$name")
@@ -99,7 +99,7 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime(), PropertyTranslator
 
         @JvmField
         val PATTERN: Pattern = Pattern.compile(
-            "^\\s*(0*\\.0*[1-9]\\d*|0*[1-9]\\d*\\.?\\d*)\\s*/\\s*(0*[1-9]\\d*)\\s*canadian\\s*$",
+            """^\s*(0*\.0*[1-9]\d*|0*[1-9]\d*\.?\d*)\s*/\s*(0*[1-9]\d*)\s*canadian\s*$""",
             Pattern.CASE_INSENSITIVE
         )
     }

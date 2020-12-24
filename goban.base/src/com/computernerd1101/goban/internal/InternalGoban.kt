@@ -60,7 +60,7 @@ internal object InternalGoban: LongBinaryOperator {
             else -> y*2 + 1
         }
         val row = GobanRows.updaters[y2].getAndAccumulate(goban.rows,
-            x2.toLong() or when(newColor) {
+            (1L shl x2) or when(newColor) {
                 null -> 0L
                 GoColor.BLACK -> NEW_BLACK
                 GoColor.WHITE -> NEW_WHITE
@@ -93,13 +93,13 @@ internal object InternalGoban: LongBinaryOperator {
     }
 
     override fun applyAsLong(row: Long, flags: Long): Long {
-        val x = flags.toInt()
+        val bit = flags and (-1L ushr 32)
         val expected = flags and EXPECT_EMPTY
         if (expected != 0L) {
-            val mask = MASK shl x
+            val mask = bit * MASK
             val rowFlags: Long = when(expected) {
-                EXPECT_WHITE -> WHITE shl x
-                EXPECT_BLACK -> BLACK shl x
+                EXPECT_WHITE -> bit shl 32
+                EXPECT_BLACK -> bit
                 else -> 0L
             }
             if (row and mask != rowFlags) return row
@@ -108,16 +108,16 @@ internal object InternalGoban: LongBinaryOperator {
         val remove: Long
         when(flags and NEW_MASK) {
             NEW_BLACK -> {
-                add = BLACK shl x
-                remove = WHITE shl x
+                add = bit
+                remove = bit shl 32
             }
             NEW_WHITE -> {
-                add = WHITE shl x
-                remove = BLACK shl x
+                add = bit shl 32
+                remove = bit
             }
             else -> {
                 add = 0L
-                remove = MASK shl x
+                remove = bit * MASK
             }
         }
         return (row or add) and remove.inv()
@@ -170,10 +170,25 @@ internal object GobanBulk: LongBinaryOperator {
             mask1 = -1 // even if width == 32 exactly
         }
         var modified = false
-        var i = 0
-        for(y in 0 until height) {
-            val row = when(rows) {
-                is GoPointSet -> InternalGoPointSet.rowUpdaters[y][rows]
+        val y1: Int
+        val y2: Int
+        val rectRow: Long
+        var i: Int
+        if (rows is GoRectangle) {
+            y1 = rows.start.y
+            y2 = rows.end.y
+            rectRow = InternalGoRectangle.rowBits(rows) // Guaranteed non-zero
+            i = if (width <= 32) y1 else y1*2
+        } else {
+            y1 = 0
+            y2 = height - 1
+            rectRow = 0L
+            i = 0
+        }
+        for(y in y1..y2) {
+            val row = when {
+                rectRow != 0L -> rectRow
+                rows is GoPointSet -> InternalGoPointSet.rowUpdaters[y][rows]
                 else -> (rows as LongArray)[y]
             }
             if (setRow(goban, i++, row.toInt() and mask1, color))
@@ -187,28 +202,22 @@ internal object GobanBulk: LongBinaryOperator {
         return modified
     }
 
-    private fun setRow(goban: AbstractMutableGoban, i: Int, setMask: Int, color: GoColor?): Boolean {
-        val rowMask = setMask.toLong() and (-1L ushr 32)
-        val row = GobanRows.updaters[i].getAndAccumulate(goban.rows,
-            rowMask or when(color) {
-                null -> 0L
-                GoColor.BLACK -> InternalGoban.NEW_BLACK
-                GoColor.WHITE -> InternalGoban.NEW_WHITE
-            }, this)
+    private fun setRow(goban: AbstractMutableGoban, i: Int, mask: Int, color: GoColor?): Boolean {
+        if (mask == 0) return false
+        var removeBits = mask.toLong() and (-1L ushr 32)
+        if (color == null) removeBits *= InternalGoban.MASK // remove both black and white
+        else if (color == GoColor.BLACK) removeBits = removeBits shl 32 // remove white
+        // else remove black
+        val row = GobanRows.updaters[i].getAndAccumulate(goban.rows, removeBits, this)
         val recount: Long = if (color == null)
-            -InternalGoban.countStonesInRow(row and (rowMask * InternalGoban.MASK))
+            -InternalGoban.countStonesInRow(row and removeBits)
         else {
-            val addMask: Long
-            val removeMask: Long
-            if (color == GoColor.BLACK) {
-                addMask = rowMask
-                removeMask = rowMask shl 32
-            } else { // color == GoColor.WHITE
-                addMask = rowMask shl 32
-                removeMask = rowMask
-            }
-            InternalGoban.countStonesInRow(row.inv() and addMask) -
-                    InternalGoban.countStonesInRow(row and removeMask)
+            val addBits = if (color == GoColor.BLACK)
+                removeBits ushr 32
+            else // color == GoColor.WHITE
+                removeBits shl 32
+            InternalGoban.countStonesInRow(row.inv() and addBits) -
+                    InternalGoban.countStonesInRow(row and removeBits)
         }
         return if (recount != 0L) {
             InternalGoban.count.addAndGet(goban, recount)
@@ -216,23 +225,11 @@ internal object GobanBulk: LongBinaryOperator {
         } else false
     }
 
-    override fun applyAsLong(row: Long, flags: Long): Long {
-        val setMask = flags and (-1L ushr 32)
-        val add: Long
-        val remove: Long
-        when(flags and InternalGoban.NEW_MASK) {
-            InternalGoban.NEW_BLACK -> {
-                add = setMask
-                remove = setMask shl 32
-            }
-            InternalGoban.NEW_WHITE -> {
-                add = setMask shl 32
-                remove = setMask
-            }
-            else -> {
-                add = 0L
-                remove = setMask * InternalGoban.MASK
-            }
+    override fun applyAsLong(row: Long, remove: Long): Long {
+        val add: Long = when {
+            remove and (-1L ushr 32) == 0L -> remove ushr 32
+            remove and (-1L shl 32) == 0L -> remove shl 32
+            else -> 0L
         }
         return (row or add) and remove.inv()
     }
@@ -257,9 +254,10 @@ internal object GobanBulk: LongBinaryOperator {
         pop@ while(true) {
             // check the points above, below, and to the left and right of the current point
             var y2 = y1 - 1 // above
+            var clusterRow: Long
             if (y2 >= 0 && opponentRows[y2] and bit == 0L) {
                 if (playerRows[y2] and bit == 0L) return true
-                val clusterRow = cluster[y2]
+                clusterRow = cluster[y2]
                 if (clusterRow and bit == 0L) {
                     cluster[y2] = clusterRow or bit
                     // pendingY is the first (top to bottom) non-zero row in pending.
@@ -276,9 +274,9 @@ internal object GobanBulk: LongBinaryOperator {
             // see it that way (big endian vs little endian), but enough human mathematicians
             // have agreed to name the operations "left shift" and "right shift" accordingly.
             var bit2 = bit shr 1 // left
+            clusterRow = cluster[y1]
             if (bit2 > 0 && opponentRows[y1] and bit2 == 0L) {
                 if (playerRows[y1] and bit2 == 0L) return true
-                val clusterRow = cluster[y1]
                 if (clusterRow and bit2 == 0L) {
                     cluster[y1] = clusterRow or bit2
                     bits = bit2
@@ -287,7 +285,6 @@ internal object GobanBulk: LongBinaryOperator {
             bit2 = bit shl 1 // right
             if (bit2 <= maxBit && opponentRows[y1] and bit2 == 0L) {
                 if (playerRows[y1] and bit2 == 0L) return true
-                val clusterRow = cluster[y1]
                 if (clusterRow and bit2 == 0L) {
                     cluster[y1] = clusterRow or bit2
                     bits = bits or bit2
@@ -297,7 +294,7 @@ internal object GobanBulk: LongBinaryOperator {
             y2 = y1 + 1 // down
             if (y2 < height && opponentRows[y2] and bit == 0L) {
                 if (playerRows[y2] and bit == 0L) return true
-                val clusterRow = cluster[y2]
+                clusterRow = cluster[y2]
                 if (clusterRow and bit == 0L) {
                     cluster[y2] = clusterRow or bit
                     pending[y2] = pending[y2] or bit

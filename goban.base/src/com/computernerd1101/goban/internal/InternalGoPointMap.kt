@@ -3,7 +3,6 @@ package com.computernerd1101.goban.internal
 import com.computernerd1101.goban.*
 import java.lang.ref.ReferenceQueue
 import java.lang.ref.WeakReference
-import java.util.AbstractMap.SimpleImmutableEntry
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater
 
 internal object InternalGoPointMap {
@@ -249,8 +248,8 @@ internal open class GoPointEntries<out V, out E>(
 
     @Suppress("UNCHECKED_CAST")
     override fun elementFrom(entry: Map.Entry<GoPoint, @UnsafeVariance V>): E {
-        return (if (entry !is SimpleImmutableEntry<*, *>)
-            SimpleImmutableEntry(entry.key, entry.value)
+        return (if (entry !is ImmutableEntry<*, *>)
+            ImmutableEntry(entry.key, entry.value)
         else entry) as E
     }
 
@@ -342,12 +341,14 @@ internal open class GoPointEntries<out V, out E>(
 }
 
 internal class MutableGoPointEntry<V>(
-    var map: MutableGoPointMap<V>?,
+    map: MutableGoPointMap<V>,
     override val key: GoPoint,
     value: V
 ): MutableMap.MutableEntry<GoPoint, V> {
 
     override var value: V = value; private set
+
+    var map: MutableGoPointMap<V>? = map
 
     override fun setValue(newValue: V): V {
         map?.filterValue(newValue, InternalMarker)

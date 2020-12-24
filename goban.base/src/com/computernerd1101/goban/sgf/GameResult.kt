@@ -1,7 +1,19 @@
 package com.computernerd1101.goban.sgf
 
 import com.computernerd1101.goban.GoColor
+import com.computernerd1101.goban.internal.InternalMarker
 import java.io.*
+
+@Suppress("NOTHING_TO_INLINE")
+inline fun GameResult(winner: GoColor?, score: Float): GameResult {
+    return GameResult.result(winner, score)
+}
+
+
+@Suppress("unused", "NOTHING_TO_INLINE")
+inline fun GameResult(s: String): GameResult {
+    return GameResult.parse(s)
+}
 
 class GameResult private constructor(
     @Transient private var code: Int,
@@ -58,11 +70,15 @@ class GameResult private constructor(
                 code = code or WHITE_WINS
                 s = "W+$s"
             }
-            return GameResult(code, s)
+            return GameResult(code, s, InternalMarker)
         }
 
         @JvmStatic
-        fun parse(s: String): GameResult? {
+        fun parse(s: String): GameResult = nullable(s) ?: UNKNOWN
+
+        @JvmStatic
+        @JvmName("parseNullable")
+        fun nullable(s: String): GameResult? {
             if (s.isEmpty()) return null
             var ch = s[0]
             val prefix: String
@@ -129,15 +145,18 @@ class GameResult private constructor(
                 }
                 if (score != 0)
                     return GameResult(color or score,
-                        prefix + if (score and 1 == 0) (score shr 1).toString() else (score*0.5f).toString())
+                        prefix + if (score and 1 == 0) (score shr 1).toString() else (score*0.5f).toString(),
+                        InternalMarker)
             }
             return unknown
         }
 
-
-
         private const val serialVersionUID: Long = 1L
 
+    }
+
+    internal constructor(code: Int, string: String, marker: InternalMarker): this(code, string) {
+        marker.ignore()
     }
 
     private object Tables {
@@ -216,8 +235,8 @@ class GameResult private constructor(
 
     override fun compareTo(other: GameResult): Int {
         if (this === other) return 0
-        var code1: Int = code
-        var code2: Int = other.code
+        val code1: Int = code
+        val code2: Int = other.code
         if (code1 == code2) return 0
         val color1 = code1 shr 24
         val color2 = code2 shr 24
@@ -226,20 +245,21 @@ class GameResult private constructor(
         // all black victory results.
         if (color1 > color2) return 1
         if (color1 < color2) return -1
-        code1 = code1 and 0xFFFFFF
-        code2 = code2 and 0xFFFFFF
-        if (color1 == 0) return if (code1 > code2) 1 else -1
+        if (color1 == 0) return if (code1 and 0xFFFFFF > code2 and 0xFFFFFF) 1 else -1
+        // Sort white victory results in reverse order
+        // from their black victory equivalents.
+        // I said "bigger" in the sortableCode() comments
+        // instead of "greater" for this reason.
+        return if (sortableCode() > other.sortableCode()) color1 else -color1
+    }
+
+    private fun sortableCode(): Int {
+        val code = this.code and 0xFFFFFF
         // Numerically scored winner results are
         // "bigger" than character-coded winner results.
         // Rearrange significant figures accordingly.
-        //      numeric score               1 iff the whole thing is 0      character code
-        code1 = (code1 and 0xFFFF shl 9) or (code1 - 1 shr 31 and 0x100) or (code1 ushr 16)
-        code2 = (code2 and 0xFFFF shl 9) or (code2 - 1 shr 31 and 0x100) or (code2 ushr 16)
-        // Sort white victory results in reverse order
-        // from their black victory equivalents.
-        // I said "bigger" in the above comments
-        // instead of "greater" for this reason.
-        return if (code1 > code2) color1 else -color1
+        //     numeric score              1 iff the whole thing is 0     character code
+        return (code and 0xFFFF shl 9) or (code - 1 shr 31 and 0x100) or (code ushr 16)
     }
 
     override fun equals(other: Any?) = this === other || (other is GameResult && code == other.code)

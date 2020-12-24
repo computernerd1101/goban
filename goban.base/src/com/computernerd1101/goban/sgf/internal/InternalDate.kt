@@ -8,11 +8,10 @@ internal object InternalDate {
         if (s.isEmpty()) return null
         val split = s.split('-').toTypedArray()
         val negativeYear = split[0].isEmpty()
-        var off = 0
-        if (negativeYear) {
-            off = 1
+        val off = if (negativeYear) {
             if (split.size == 1) return null
-        }
+            1
+        } else 0
         var y = 0
         var m = 0
         var d = 0

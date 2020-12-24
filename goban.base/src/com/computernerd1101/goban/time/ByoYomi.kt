@@ -28,11 +28,11 @@ class ByoYomi(periods: Int, millis: Long): Overtime(), PropertyTranslator {
     @Suppress("unused")
     constructor(): this(periods=1, millis=10000L)
 
-    override fun translateProperty(name: String, locale: Locale): String {
+    override fun translateProperty(name: String, locale: Locale): String? {
         return if (name == "Periods" || name == "Seconds") {
             val resources = gobanResources(locale)
             resources.getString("PropertyTranslator.Overtime.$name")
-        } else  name
+        } else name
     }
 
     override fun filterEvent(e: TimeEvent): TimeEvent {
@@ -97,7 +97,7 @@ class ByoYomi(periods: Int, millis: Long): Overtime(), PropertyTranslator {
 
         @JvmField
         val PATTERN: Pattern = Pattern.compile(
-            "^\\s*(0*[1-9]\\d*)\\s*[*x]\\s*(0*\\.0*[1-9]\\d*|0*[1-9]\\d*\\.?\\d*)\\s*byo\\s*[\\-_]?\\s*yomi\\s*$",
+            """^\s*(0*[1-9]\d*)\s*[*x]\s*(0*\.0*[1-9]\d*|0*[1-9]\d*\.?\d*)\s*byo\s*[\-_]?\s*yomi\s*$""",
             Pattern.CASE_INSENSITIVE
         )
 

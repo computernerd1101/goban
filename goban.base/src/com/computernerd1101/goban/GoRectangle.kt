@@ -1,7 +1,13 @@
+@file:Suppress("FunctionName", "NOTHING_TO_INLINE")
+@file:JvmMultifileClass
+@file:JvmName("GobanKt")
+
 package com.computernerd1101.goban
 
 import com.computernerd1101.goban.internal.*
 import java.io.Serializable
+
+inline fun GoRectangle(x1: Int, y1: Int, x2: Int, y2: Int) = GoRectangle.rect(x1, x2, y1, y2)
 
 class GoRectangle internal constructor(
     @JvmField val start: GoPoint,
@@ -57,7 +63,7 @@ class GoRectangle internal constructor(
         when(elements) {
             is GoRectangle -> return contains(elements.start) && contains(elements.end)
             is GoPointSet -> {
-                val mask: Long = ((1L shl (end.x + 1)) - (1L shl start.x)).inv()
+                val mask: Long = InternalGoRectangle.rowBits(this).inv()
                 for(y in 0..51) {
                     var row = InternalGoPointSet.rowUpdaters[y][elements]
                     if (y in start.y..end.y) row = row and mask

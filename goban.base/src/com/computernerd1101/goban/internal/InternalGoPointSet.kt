@@ -13,16 +13,13 @@ internal object InternalGoPointSet {
     fun init(set: GoPointSet, elements: Array<out Iterable<GoPoint>>) {
         for(element in elements) when(element) {
             is GoPoint -> {
-                val y = element.y
-                val updater = rowUpdaters[y]
-                // rows has just been created and is not yet visible to any other threads
+                val updater = rowUpdaters[element.y]
+                // set has just been created and is not yet visible to any other threads
                 updater[set] = updater[set] or (1L shl element.x)
             }
             is GoRectangle -> {
-                val (x1, y1) = element.start
-                val (x2, y2) = element.end
-                val mask = (1L shl (x2 + 1)) - (1L shl x1)
-                for (y in y1..y2) {
+                val mask = InternalGoRectangle.rowBits(element)
+                for (y in element.start.y..element.end.y) {
                     val updater = rowUpdaters[y]
                     updater[set] = updater[set] or mask
                 }
@@ -70,7 +67,6 @@ internal open class GoPointItr(val set: GoPointSet) : Iterator<GoPoint> {
 
     private var unseenX = InternalGoPointSet.rowUpdaters[0][set]
     private var unseenY = 0
-    @JvmField var lastReturned: GoPoint? = null
 
     override fun hasNext(): Boolean {
         var unseen = unseenX
@@ -91,9 +87,7 @@ internal open class GoPointItr(val set: GoPointSet) : Iterator<GoPoint> {
         unseenX = unseen - xBit
         unseenY = y
         val x = if (xBit != 0L) trailingZerosPow2(xBit) else throw NoSuchElementException()
-        val p = GoPoint(x, y)
-        lastReturned = p
-        return p
+        return GoPoint(x, y)
     }
 
 }

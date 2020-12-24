@@ -82,7 +82,7 @@ class LineMarkup private constructor(
     private var string: String? = null
 
     override fun toString(): String {
-        return string ?: "$start${if (isArrow) "->" else "-"}$end".apply { string = this }
+        return string ?: "$start${if (isArrow) "->" else "-"}$end".also { string = it }
     }
 
     private fun readObject(input: ObjectInputStream) {
@@ -221,9 +221,13 @@ class LineMarkupSet: MutableIterable<LineMarkup> {
 
     private class WeakMap(
         val start: GoPoint,
-        var endMap: MutableGoPointMap<LineMarkup>?,
+        endMap: MutableGoPointMap<LineMarkup>,
         queue: ReferenceQueue<in MutableGoPointMap<LineMarkup>>
-    ): WeakReference<MutableGoPointMap<LineMarkup>>(endMap, queue)
+    ): WeakReference<MutableGoPointMap<LineMarkup>>(endMap, queue) {
+
+        var endMap: MutableGoPointMap<LineMarkup>? = endMap
+
+    }
 
     fun add(markup: LineMarkup): Boolean {
         expungeStaleSlots()
@@ -233,13 +237,15 @@ class LineMarkupSet: MutableIterable<LineMarkup> {
         var endMap: MutableGoPointMap<LineMarkup>? = null
         if (weakMap != null) {
             endMap = weakMap.endMap
-            if (endMap == null)
+            if (endMap == null) {
                 endMap = weakMap.get()
+                weakMap = null
+            }
         }
         if (endMap == null)
-            endMap = MutableGoPointMap<LineMarkup>().apply {
-                startMap[a] = WeakMap(a, this, queue)
-            }
+            endMap = MutableGoPointMap()
+        if (weakMap == null)
+            startMap[a] = WeakMap(a, endMap, queue)
         var oldValue = endMap.put(b, markup)
         var delta = 0
         if (oldValue == null) delta = 1

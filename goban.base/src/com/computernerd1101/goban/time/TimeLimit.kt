@@ -5,6 +5,11 @@ import java.util.*
 import java.util.regex.*
 import kotlin.concurrent.scheduleAtFixedRate
 
+@Suppress("NOTHING_TO_INLINE")
+inline fun Long.millisToStringSeconds(): String = TimeLimit.millisToStringSeconds(this)
+@Suppress("NOTHING_TO_INLINE")
+inline fun String.secondsToMillis(): Long = TimeLimit.parseSeconds(this)
+
 class TimeLimit(mainTime: Long, val overtime: Overtime?) {
 
     @Suppress("SpellCheckingInspection")

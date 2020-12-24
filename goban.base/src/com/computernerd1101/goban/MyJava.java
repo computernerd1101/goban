@@ -3,7 +3,7 @@ package com.computernerd1101.goban;
 import java.util.*;
 
 import kotlin.jvm.JvmWildcard;
-import org.jetbrains.annotations.NotNull;
+// import org.jetbrains.annotations.NotNull;
 
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLongArray;

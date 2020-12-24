@@ -32,8 +32,10 @@ enum class PositionState(
 
     companion object {
 
+        @Suppress("unused")
         @JvmStatic
-        fun valueOf(code: String, extent: Int): PositionState? {
+        @JvmName("valueOf")
+        fun nullable(code: String, extent: Int): PositionState? {
             return positionStateMap[code]?.get(if (extent <= 1) 0 else 1)
         }
 

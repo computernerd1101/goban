@@ -336,7 +336,7 @@ sealed class AbstractMutableGoban: AbstractGoban {
     }
 
     fun setAll(points: Set<GoPoint>, color: GoColor?): Boolean {
-        if (points is GoPointSet)
+        if (points is GoPointSet || points is GoRectangle)
             return GobanBulk.setAll(this, points, color)
         var changed = false
         for(p in points)
@@ -370,7 +370,7 @@ sealed class AbstractMutableGoban: AbstractGoban {
         val rows = InternalGoban.newRows(height, width > 32)
         val count = InternalGoban.copyRows(oldRows, rows)
         if (width == height && count == 0L) return FixedGoban(width)
-        return FixedGoban(width, height, rows, InternalGoban.copyRows(oldRows, rows))
+        return FixedGoban(width, height, rows, count)
     }
 
     /**
