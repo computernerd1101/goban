@@ -48,25 +48,25 @@ class TimeLimit(mainTime: Long, val overtime: Overtime?) {
 
         @JvmStatic
         fun parseSeconds(s: String): Long {
-            val m: Matcher = PATTERN.matcher(s)
-            if (!m.find()) throw NumberFormatException("For input string: \"$s\"")
-            var s1: String? = m.group(GROUP_INT)
-            val s2: String
-            val s3: String
+            val m = REGEX.find(s) ?: throw NumberFormatException("For input string: \"$s\"")
+            var s1: String? = m.groups[GROUP_INT]?.value
+            val s2: String?
             if (s1 != null) {
-                s2 = ""
-                s3 = "000" // 1 second = 1000 milliseconds
+                s2 = null
             } else {
-                s1 = m.group(GROUP_IPART)
-                s2 = m.group(GROUP_FPART)
-                s3 = when (s2.length) {
-                    1 -> "00"
-                    2 -> "0"
-                    else -> ""
-                }
+                s1 = m.groupValues[GROUP_IPART]
+                s2 = m.groupValues[GROUP_FPART]
             }
+            var pos = s1.length
+            val buf = s1.toCharArray(CharArray(pos + 3))
+            s2?.toCharArray(buf, pos)
+            if (s2 != null) {
+                s2.toCharArray(buf, pos)
+                pos += s2.length
+            }
+            while(pos < buf.size) buf[pos++] = '0'
             return try {
-                (s1 + s2 + s3).toLong()
+                String(buf).toLong()
             } catch (e: NumberFormatException) {
                 throw NumberFormatException("For input string: \"$s\"")
             }
@@ -76,8 +76,9 @@ class TimeLimit(mainTime: Long, val overtime: Overtime?) {
         const val GROUP_FPART = 2
         const val GROUP_INT = 3
         @JvmField val PATTERN: Pattern = Pattern.compile(
-            "([+\\-]?\\d*)\\.(\\d{1,3})|([+\\-]?\\d+)\\.?"
+            """([+\-]?\d*)\.(\d{1,3})|([+\-]?\d+)\.?"""
         )
+        @JvmField val REGEX = PATTERN.toRegex()
 
         private val timer = Timer(TimeLimit::class.java.name, true)
 
@@ -90,7 +91,13 @@ class TimeLimit(mainTime: Long, val overtime: Overtime?) {
     private val timeListeners = mutableListOf<TimeListener>()
 
     @get:Synchronized
-    var timeEvent = filterEvent(TimeEvent(this, mainTime)); private set
+    var timeEvent = TimeEvent(this, mainTime); private set
+
+    init {
+        // In case overtime?.filterEvent(timeEvent) accesses this
+        // through timeEvent.getSource() or timeEvent.timeLimit
+        timeEvent = filterEvent(timeEvent)
+    }
 
     // already synchronized in all callers
     private fun updateTimeEvent(e: TimeEvent, marker: InternalMarker) {

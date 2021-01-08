@@ -3,7 +3,6 @@ package com.computernerd1101.goban.time
 import com.computernerd1101.goban.annotations.*
 import com.computernerd1101.goban.resources.gobanResources
 import java.util.*
-import java.util.regex.Pattern
 
 @PropertyOrder("Seconds", "Moves")
 class CanadianOvertime(millis: Long, moves: Int): Overtime(), PropertyTranslator {
@@ -74,13 +73,12 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime(), PropertyTranslator
         fun parse(s: String): CanadianOvertime? = parse(s, null)
 
         private fun parse(s: String, value: CanadianOvertime?): CanadianOvertime? {
-            val m = Regex.PATTERN.matcher(s)
-            if (!m.find()) return null
+            val m = Regex.REGEX.matchEntire(s) ?: return null
             val time: Long
             val moves: Int
             try {
-                time = m.group(Regex.GROUP_TIME).secondsToMillis()
-                moves = m.group(Regex.GROUP_MOVES).toInt()
+                time = m.groupValues[Regex.GROUP_TIME].secondsToMillis()
+                moves = m.groupValues[Regex.GROUP_MOVES].toInt()
             } catch (e: NumberFormatException) {
                 return null
             }
@@ -98,10 +96,9 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime(), PropertyTranslator
         const val GROUP_MOVES = 2
 
         @JvmField
-        val PATTERN: Pattern = Pattern.compile(
-            """^\s*(0*\.0*[1-9]\d*|0*[1-9]\d*\.?\d*)\s*/\s*(0*[1-9]\d*)\s*canadian\s*$""",
-            Pattern.CASE_INSENSITIVE
-        )
+        val REGEX = """^\s*(0*\.0*[1-9]\d*|0*[1-9]\d*\.?\d*)\s*/\s*(0*[1-9]\d*)\s*canadian\s*$"""
+            .toRegex(RegexOption.IGNORE_CASE)
+
     }
 
 }

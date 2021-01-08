@@ -1,4 +1,4 @@
-@file:Suppress("FunctionName", "NOTHING_TO_INLINE")
+@file:Suppress("NOTHING_TO_INLINE")
 @file:JvmMultifileClass
 @file:JvmName("GobanKt")
 
@@ -11,7 +11,8 @@ import java.io.*
 inline fun GoPoint(x: Int, y: Int) = GoPoint.pointAt(x, y)
 
 @Suppress("unused")
-inline fun String.toGoPoint() = toGoPointOrNull() ?: throw IllegalArgumentException(this)
+inline fun String.toGoPoint() = GoPoint.parse(this) ?: throw IllegalArgumentException(this)
+@Suppress("unused")
 inline fun String.toGoPointOrNull() = GoPoint.parse(this)
 inline fun Int.toGoPointChar() = GoPoint.toChar(this)
 @Suppress("unused")
@@ -23,7 +24,8 @@ class GoPoint private constructor(
     @JvmField val x: Int,
     @JvmField val y: Int,
     buffer2: CharArray,
-    buffer4: CharArray
+    buffer4: CharArray,
+    cache: Cache
 ): Iterable<GoPoint>, Comparable<GoPoint>, Serializable {
 
     @Transient private val string: String
@@ -74,6 +76,7 @@ class GoPoint private constructor(
         buffer4[2] = cy
         string = String(buffer2).intern()
         selfRect = GoRectangle(this, this, String(buffer4).intern(), InternalMarker)
+        cache.points[x + y*52] = this
     }
 
     private object Cache {
@@ -91,7 +94,7 @@ class GoPoint private constructor(
             buffer4[3] = ']'
             for(y in 0..51) {
                 for(x in 0..51) {
-                    Cache.points[x + y*52] = GoPoint(x, y, buffer2, buffer4)
+                    GoPoint(x, y, buffer2, buffer4, Cache)
                 }
             }
         }

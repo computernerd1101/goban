@@ -4,13 +4,22 @@ package com.computernerd1101.goban
 
 import com.computernerd1101.goban.sgf.GoSGF
 import com.computernerd1101.goban.time.millisToStringSeconds
-import kotlinx.coroutines.*
 import kotlin.jvm.functions.FunctionN
 import kotlin.reflect.*
 import kotlin.reflect.full.memberProperties
 
 fun main() {
     println(' '.toInt().toString(8))
+}
+
+class TestCompanion {
+
+    companion object {
+
+        var myProp: Any = Any()
+
+    }
+
 }
 
 fun unitFunction(foo: Unit) {
@@ -74,6 +83,10 @@ class MyFun<P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P1
 
     val arity: Int get() = 23
 
+}
+
+fun testVarArgsLambda(vararg args: Any?, lambda: (Array<out Any?>) -> Any?): Any? {
+    return lambda(args)
 }
 
 object MyProperty {

@@ -5,7 +5,6 @@ import java.io.*
 import java.util.*
 import kotlin.ConcurrentModificationException
 import kotlin.NoSuchElementException
-import kotlin.addSuppressed as suppress
 import kotlin.collections.RandomAccess
 
 @Suppress("LeakingThis")
@@ -418,7 +417,7 @@ abstract class AbstractSGFList<E: Any>:
                     size = 1
                     val ex = emptyListException()
                     if (thrown == null) throw ex
-                    else thrown.suppress(ex)
+                    else thrown.addSuppressed(ex)
                 }
             }
         }
@@ -565,6 +564,7 @@ abstract class AbstractSGFList<E: Any>:
 
     }
 
+    @Suppress("unused")
     fun addPrivileged(itr: MutableListIterator<in E>, e: E) {
         (itr as? ListItr<in E>)?.addPrivileged(e) ?: itr.add(e)
     }

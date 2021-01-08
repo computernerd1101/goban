@@ -1,7 +1,6 @@
 package com.computernerd1101.goban.time
 
 import java.util.*
-import kotlin.addSuppressed as suppress
 
 abstract class Overtime: Cloneable {
 
@@ -36,7 +35,7 @@ abstract class Overtime: Cloneable {
                         try {
                             if (o.parseThis(s)) return o
                         } catch (x: Throwable) {
-                            e.suppress(x)
+                            e.addSuppressed(x)
                         }
                     }
                     throw e
@@ -55,7 +54,7 @@ abstract class Overtime: Cloneable {
 
     protected open fun onClone() = Unit
 
-    @Throws
+    @Throws(/* nothing */) // Overrides method that throws CloneNotSupportedException
     public final override fun clone(): Overtime {
         return (super.clone() as Overtime).apply { onClone() }
     }

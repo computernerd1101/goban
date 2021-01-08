@@ -1,7 +1,17 @@
+@file:JvmName("Util")
+@file:JvmMultifileClass
+
 package com.computernerd1101.sgf
 
 import com.computernerd1101.sgf.internal.*
 import java.io.*
+
+@Suppress("unused")
+inline fun SGFTree(node1: SGFNode, vararg nodes: SGFNode, subTrees: SGFTree.() -> Unit): SGFTree {
+    val tree = SGFTree(node1, *nodes)
+    tree.subTrees()
+    return tree
+}
 
 class SGFTree: RowColumn, Serializable {
 

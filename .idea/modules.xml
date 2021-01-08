@@ -4,6 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/goban.base/goban.base.iml" filepath="$PROJECT_DIR$/goban.base/goban.base.iml" />
       <module fileurl="file://$PROJECT_DIR$/goban.desktop/goban.desktop.iml" filepath="$PROJECT_DIR$/goban.desktop/goban.desktop.iml" />
+      <module fileurl="file://$PROJECT_DIR$/goban.poet/goban.poet.iml" filepath="$PROJECT_DIR$/goban.poet/goban.poet.iml" />
     </modules>
   </component>
 </project>

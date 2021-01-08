@@ -42,7 +42,7 @@ sealed class AbstractGoban(
         rows, InternalGoban.copyRows(other.rows, rows)
     )
 
-    constructor(other: AbstractGoban): this(other, InternalGoban.newRows(other.width, other.height > 32))
+    constructor(other: AbstractGoban): this(other, InternalGoban.newRows(other.height, other.width > 32))
 
     val blackCount: Int
         @JvmName("blackCount")
@@ -182,11 +182,6 @@ class FixedGoban: AbstractGoban {
 
     private val hash: Int
 
-    private constructor(width: Int, height: Int, marker: InternalMarker): super(width, height) {
-        marker.ignore()
-        hash = 0
-    }
-
     internal constructor(width: Int, height: Int, rows: GobanRows1, count: Long):
             super(width, height, rows, count) {
         var hash = 0
@@ -199,6 +194,12 @@ class FixedGoban: AbstractGoban {
         this.hash = hash
     }
 
+    private constructor(width: Int, height: Int, cache: Cache): super(width, height) {
+        hash = 0
+        if (width == height)
+            cache.squares[width - 1] = this
+    }
+
     private object Cache {
 
         @JvmField val squares = unsafeArrayOfNulls<FixedGoban>(52)
@@ -208,9 +209,7 @@ class FixedGoban: AbstractGoban {
     companion object {
 
         init {
-            for(size in 1..52) {
-                Cache.squares[size - 1] = FixedGoban(size, size, InternalMarker)
-            }
+            for(size in 1..52) FixedGoban(size, size, Cache)
         }
 
         @JvmStatic
@@ -219,7 +218,7 @@ class FixedGoban: AbstractGoban {
                 width !in 1..52 -> throw InternalGoban.illegalSizeException(width)
                 width == height -> Cache.squares[width - 1]
                 height !in 1..52 -> throw InternalGoban.illegalSizeException(height)
-                else -> FixedGoban(width, height, InternalMarker)
+                else -> FixedGoban(width, height, Cache)
             }
         }
 

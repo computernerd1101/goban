@@ -1,3 +1,4 @@
+@SuppressWarnings("JavaModuleNaming")
 module computernerd1101.goban.desktop {
 
     exports com.computernerd1101.goban.desktop;

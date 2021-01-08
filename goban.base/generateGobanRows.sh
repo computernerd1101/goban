@@ -16,14 +16,14 @@ package com.computernerd1101.goban.internal
 import java.util.concurrent.atomic.AtomicLongFieldUpdater
 
 internal object GobanRows {
-    @JvmField val init = arrayOf<() -> GobanRows1>(
+    @JvmField val init = arrayOf(
 EOT
   for n in {1..52}; do
     (( n2=2*n ))
     if [ $n -lt 52 ]; then
       n2=$n2,
     fi
-    echo "        ::GobanRows$n, ::GobanRows$n2"
+    echo "        GobanRows$n, GobanRows$n2"
   done
   cat <<EOT
     )
@@ -53,8 +53,9 @@ internal open class GobanRows1 {
     operator fun set(index: Int, value: Long) {
         GobanRows.updaters[index][this] = value
     }
-    companion object {
+    companion object: () -> GobanRows1 {
         @JvmField internal val update0 = atomicLongUpdater<GobanRows1>("row0")
+        override fun invoke() = GobanRows1()
     }
 }
 EOT
@@ -66,9 +67,10 @@ EOT
 internal open class GobanRows$n: GobanRows$i() {
     override val size: Int get() = $n
     @Volatile private var row$i: Long = 0L
-    companion object {
+    companion object: () -> GobanRows1 {
         @JvmField
         internal val update$i = atomicLongUpdater<GobanRows$n>("row$i") as AtomicLongFieldUpdater<GobanRows1>
+        override fun invoke() = GobanRows$n()
     }
 }
 EOT
@@ -87,11 +89,12 @@ internal$mod class GobanRows$n: GobanRows$i() {
     override val size: Int get() = $n
     @Volatile private var row$i: Long = 0L
     @Volatile private var row$j: Long = 0L
-    companion object {
+    companion object: () -> GobanRows1 {
         @JvmField
         internal val update$i = atomicLongUpdater<GobanRows$n>("row$i") as AtomicLongFieldUpdater<GobanRows1>
         @JvmField
         internal val update$j = atomicLongUpdater<GobanRows$n>("row$j") as AtomicLongFieldUpdater<GobanRows1>
+        override fun invoke() = GobanRows$n()
     }
 }
 EOT

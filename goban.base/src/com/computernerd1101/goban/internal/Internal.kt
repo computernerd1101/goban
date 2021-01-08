@@ -53,7 +53,7 @@ internal object InternalMarker {
     /*
      * internal fun expressionBody(marker: InternalMarker) = marker.access { <some expression> }
      */
-    inline fun <R> access(block: () -> R): R = block()
+    //inline fun <R> access(block: () -> R): R = block()
 
 }
 

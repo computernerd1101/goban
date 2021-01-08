@@ -203,11 +203,11 @@ open class SGFWarningList: Serializable {
 
     private fun writeObject(oos: ObjectOutputStream) {
         oos.defaultWriteObject()
-        warningList?.apply {
-            val n = size
+        warningList?.let { list ->
+            val n = list.size
             oos.writeInt(n)
             for(i in 0 until n) {
-                oos.writeObject(this[i])
+                oos.writeObject(list[i])
             }
         } ?: oos.writeInt(0)
     }

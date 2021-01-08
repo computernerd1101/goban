@@ -3,7 +3,6 @@ package com.computernerd1101.goban.time
 import com.computernerd1101.goban.annotations.*
 import com.computernerd1101.goban.resources.gobanResources
 import java.util.*
-import java.util.regex.Pattern
 
 @PropertyOrder("Periods", "Seconds")
 class ByoYomi(periods: Int, millis: Long): Overtime(), PropertyTranslator {
@@ -72,13 +71,12 @@ class ByoYomi(periods: Int, millis: Long): Overtime(), PropertyTranslator {
         fun parse(s: String): ByoYomi? = parse(s, null)
 
         private fun parse(s: String, value: ByoYomi?): ByoYomi? {
-            val m = Regex.PATTERN.matcher(s)
-            if (!m.find()) return null
+            val m = Regex.REGEX.matchEntire(s) ?: return null
             val periods: Int
             val time: Long
             try {
-                periods = m.group(Regex.GROUP_PERIODS).toInt()
-                time = m.group(Regex.GROUP_TIME).secondsToMillis()
+                periods = m.groupValues[Regex.GROUP_PERIODS].toInt()
+                time = m.groupValues[Regex.GROUP_TIME].secondsToMillis()
             } catch (e: NumberFormatException) {
                 return null
             }
@@ -96,10 +94,8 @@ class ByoYomi(periods: Int, millis: Long): Overtime(), PropertyTranslator {
         const val GROUP_TIME = 2
 
         @JvmField
-        val PATTERN: Pattern = Pattern.compile(
-            """^\s*(0*[1-9]\d*)\s*[*x]\s*(0*\.0*[1-9]\d*|0*[1-9]\d*\.?\d*)\s*byo\s*[\-_]?\s*yomi\s*$""",
-            Pattern.CASE_INSENSITIVE
-        )
+        val REGEX = """^\s*(0*[1-9]\d*)\s*[*x]\s*(0*\.0*[1-9]\d*|0*[1-9]\d*\.?\d*)\s*byo\s*[\-_]?\s*yomi\s*$"""
+            .toRegex(RegexOption.IGNORE_CASE)
 
     }
 

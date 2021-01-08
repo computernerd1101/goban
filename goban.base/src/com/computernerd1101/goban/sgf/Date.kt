@@ -636,6 +636,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                             true
                         }
                     }
+                    var modified = false
                     var mt = months[m - 1]
                     if (mt == null) {
                         val weak = weakMonths[m - 1]
@@ -651,10 +652,11 @@ class DateSet(): MutableIterable<Date>, Serializable {
                                 updateMonths.incrementAndGet(this)
                             if (updateWeak)
                                 weakMonths.compareAndSet(m - 1, weak, Weak(mt, weakMonths, m - 1))
-                            return true
+                            modified = true
                         }
                     }
-                    return mt.addDate(date)
+                    if (mt.addDate(date)) modified = true
+                    return modified
                 }
 
                 fun contains(date: Date, exact: Boolean): Boolean {

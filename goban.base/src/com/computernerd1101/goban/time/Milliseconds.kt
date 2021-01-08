@@ -4,26 +4,29 @@ package com.computernerd1101.goban.time
 
 import com.computernerd1101.goban.internal.unsafeArrayOfNulls
 import java.io.*
-import java.util.regex.*
 
 class Milliseconds private constructor(
     private val value: Long,
     private var extra: Int,
-    marker: Private
+    cache: Private
 ): Number(), Comparable<Milliseconds>, Serializable {
 
     init {
-        marker.ignore()
+        if (value == 0L) {
+            if (extra < 0)
+                cache.MINUS_ZERO[-1 - extra] = this
+            else
+                cache.PLUS_ZERO[extra] = this
+        }
     }
 
     @Suppress("SpellCheckingInspection", "UNCHECKED_CAST")
     private object Private {
 
-        const val GROUP_SIGN = 1
-        const val GROUP_IPART = 2
-        const val GROUP_FPART = 3
+        const val GROUP_IPART = 1
+        const val GROUP_FPART = 2
 
-        @JvmField val PATTERN: Pattern = Pattern.compile("([+\\-]?)(\\d*)(\\.\\d{0,3})?")
+        @JvmField val REGEX = """([+\-]?\d*)(\.\d{0,3})?""".toRegex()
 
         @JvmField val MINUS_ZERO = unsafeArrayOfNulls<Milliseconds>(4)
         @JvmField val  PLUS_ZERO = unsafeArrayOfNulls<Milliseconds>(4)
@@ -38,11 +41,9 @@ class Milliseconds private constructor(
         @JvmField val       ZERO = Milliseconds(0, 0, Private)
 
         init {
-            Private.MINUS_ZERO[0] = MINUS_SIGN
-            Private.PLUS_ZERO[0] = ZERO
             for(i in 1..3) {
-                Private.MINUS_ZERO[i] = Milliseconds(0, -1 - i, Private)
-                Private.PLUS_ZERO[i] = Milliseconds(0, i, Private)
+                Milliseconds(0, -1 - i, Private)
+                Milliseconds(0, i, Private)
             }
         }
 
@@ -90,14 +91,12 @@ class Milliseconds private constructor(
 
         @JvmStatic
         fun parse(s: String): Milliseconds {
-            val m: Matcher = Private.PATTERN.matcher(s)
-            if (!m.find()) throw NumberFormatException("For input string: \"$s\"")
-            val sign: String = m.group(Private.GROUP_SIGN)
+            val m = Private.REGEX.find(s) ?: throw NumberFormatException("For input string: \"$s\"")
+            val iPart: String = m.groupValues[Private.GROUP_IPART]
             val sb = StringBuilder()
-                .append(sign)
-                .append(m.group(Private.GROUP_IPART))
+                .append(iPart)
             var extra = 0
-            when (val fPart: String? = m.group(Private.GROUP_FPART)) {
+            when (val fPart: String? = m.groups[Private.GROUP_FPART]?.value) {
                 null -> sb.append("000")
                 "." -> {
                     extra = 1
@@ -131,7 +130,7 @@ class Milliseconds private constructor(
             } catch (e: NumberFormatException) {
                 throw NumberFormatException("For input string: \"$s\"")
             }
-            if (value == 0L && sign == "-") extra = -1 - extra
+            if (value == 0L && iPart.isNotEmpty() && iPart[0] == '-') extra = -1 - extra
             return Milliseconds(value, extra, Private)
         }
 
@@ -212,14 +211,14 @@ class Milliseconds private constructor(
 
     private var string: String? = null
 
-    override fun toString(): String = string ?: run lazy@{
+    override fun toString(): String = string ?: run {
         val withPoint: String
         val withoutPoint: String
         when (extra) {
-            -4 -> return@lazy "-0.00"
-            -3 -> return@lazy "-0.0"
-            -2 -> return@lazy "-0."
-            -1 -> return@lazy "-"
+            -4 -> return@run "-0.00"
+            -3 -> return@run "-0.0"
+            -2 -> return@run "-0."
+            -1 -> return@run "-"
             0 -> {
                 withPoint = ""
                 withoutPoint = ""

@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.computernerd1101.sgf
 
 import com.computernerd1101.sgf.internal.*
@@ -12,14 +14,14 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
 
     constructor() {
         size = 0
-        bytes = DEFAULT_CAPACITY_EMPTY
+        bytes = Private.DEFAULT_CAPACITY_EMPTY
     }
 
     constructor(initialCapacity: Int) {
         size = 0
         bytes = when {
-            initialCapacity < 0 -> DEFAULT_CAPACITY_EMPTY
-            initialCapacity == 0 -> EMPTY
+            initialCapacity < 0 -> Private.DEFAULT_CAPACITY_EMPTY
+            initialCapacity == 0 -> Private.EMPTY
             else -> ByteArray(initialCapacity)
         }
     }
@@ -27,7 +29,7 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
     constructor(bytes: ByteArray) {
         val size = bytes.size
         this.size = size
-        this.bytes = if (size == 0) EMPTY else bytes.clone()
+        this.bytes = if (size == 0) Private.EMPTY else bytes.clone()
     }
 
     constructor(bytes: ByteArray, start: Int, end: Int) {
@@ -44,7 +46,7 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
         this.size = size
         this.bytes = when {
             bytes.isEmpty() -> bytes
-            size == 0 -> EMPTY
+            size == 0 -> Private.EMPTY
             else -> bytes.copyOf(size)
         }
     }
@@ -60,19 +62,19 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
         this.size = size
         this.bytes = when {
             bytes.isEmpty() -> bytes
-            size == 0 -> EMPTY
+            size == 0 -> Private.EMPTY
             else -> bytes.copyOf(size)
         }
     }
 
     @JvmOverloads
     constructor(str: String, charset: Charset? = null) {
-        bytes = parse(str, charset)
+        bytes = Private.parse(str, charset)
         size = bytes.size
     }
 
     constructor(str: String, enc: String?) {
-        bytes = parseEncoding(str, enc)
+        bytes = Private.parseEncoding(str, enc)
         size = bytes.size
     }
 
@@ -178,6 +180,7 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
         else String(bytes, 0, size, charset)
     }
 
+    @Throws(/* nothing */)
     public override fun clone(): SGFBytes {
         return try {
             val clone = super.clone() as SGFBytes
@@ -185,7 +188,7 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
             val bytes = clone.bytes
             clone.bytes = when {
                 bytes.isNotEmpty() -> bytes.clone()
-                size == 0 -> EMPTY
+                size == 0 -> Private.EMPTY
                 else -> bytes.copyOf(size)
             }
             clone
@@ -199,7 +202,7 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
         val newSize = size + 1
         var bytes = bytes
         if (bytes.size < newSize) {
-            bytes = grow(bytes, newSize)
+            bytes = Private.grow(bytes, newSize)
         }
         bytes[size] = b
         this.bytes = bytes
@@ -236,7 +239,7 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
         val total = size + more
         var bytes = this.bytes
         if (bytes.size < total) {
-            bytes = grow(bytes, total)
+            bytes = Private.grow(bytes, total)
         }
         b.copyInto(bytes, size, start, end)
         this.bytes = bytes
@@ -267,7 +270,7 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
     fun insert(index: Int, bs: SGFBytes): SGFBytes {
         val size = size
         if (index != size) checkPositionIndex(index, size)
-        if (this == bs) {
+        if (this === bs) {
             if (size != 0) insertSelf(size, index, 0, size)
             return this
         } else {
@@ -292,7 +295,7 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
         val newSize = size + 1
         var bytes = bytes
         if (bytes.size < newSize)
-            bytes = grow(bytes, newSize)
+            bytes = Private.grow(bytes, newSize)
         if (index < size)
             bytes.copyInto(bytes, index  + 1, index, size)
         bytes[index] = b
@@ -305,7 +308,7 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
         val total = size + more
         var bytes = bytes
         if (bytes.size < total) {
-            bytes = grow(bytes, total)
+            bytes = Private.grow(bytes, total)
         }
         insertBytes(size, index, start, more, total, bytes, src)
     }
@@ -319,7 +322,7 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
             size, index,
             when {
                 bytes.size < total -> {
-                    bytes = grow(bytes, total)
+                    bytes = Private.grow(bytes, total)
                     start
                 }
                 index < end -> {
@@ -419,7 +422,7 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
         val total = size + shiftTo - to
         var bytes = bytes
         if (total > bytes.size) {
-            bytes = grow(bytes, total)
+            bytes = Private.grow(bytes, total)
         }
         if (shiftTo != to)
             bytes.copyInto(bytes, shiftTo, to, size)
@@ -449,7 +452,7 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
                 var src: ByteArray = bytes
                 var start = srcStart
                 if (newSize > bytes.size) {
-                    bytes = grow(bytes, newSize)
+                    bytes = Private.grow(bytes, newSize)
                 } else if (dstStart < srcEnd) {
                     src = bytes.copyOfRange(srcStart, srcEnd)
                     start = 0
@@ -467,25 +470,25 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
         val size = size
         val bytes = bytes
         if (size < bytes.size) {
-            this.bytes = if (size == 0) EMPTY else bytes.copyOf(size)
+            this.bytes = if (size == 0) Private.EMPTY else bytes.copyOf(size)
         }
     }
 
     fun ensureCapacity(minCapacity: Int) {
         val bytes = bytes
         if (minCapacity >= bytes.size &&
-            !(bytes === DEFAULT_CAPACITY_EMPTY && minCapacity <= DEFAULT_CAPACITY)) {
-            this.bytes = grow(bytes, minCapacity)
+            !(bytes === Private.DEFAULT_CAPACITY_EMPTY && minCapacity <= Private.DEFAULT_CAPACITY)) {
+            this.bytes = Private.grow(bytes, minCapacity)
         }
     }
 
-    companion object {
+    private object Private {
 
-        private val EMPTY = ByteArray(0)
-        private val DEFAULT_CAPACITY_EMPTY = ByteArray(0)
-        private const val DEFAULT_CAPACITY = 10
+        @JvmField val EMPTY = ByteArray(0)
+        @JvmField val DEFAULT_CAPACITY_EMPTY = ByteArray(0)
+        const val DEFAULT_CAPACITY = 10
 
-        private fun parseEncoding(str: String, enc: String?): ByteArray {
+        fun parseEncoding(str: String, enc: String?): ByteArray {
             return parse(str, enc?.let {
                 try {
                     Charset.forName(it)
@@ -495,18 +498,18 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
             })
         }
 
-        private fun parse(str: String, charset: Charset?): ByteArray {
+        fun parse(str: String, charset: Charset?): ByteArray {
             val bytes = str.toByteArray(charset ?: Charset.defaultCharset())
             return if (bytes.isEmpty()) EMPTY else bytes
         }
 
-        private const val MAX_ARRAY_SIZE = Int.MAX_VALUE - 8
+        const val MAX_ARRAY_SIZE = Int.MAX_VALUE - 8
 
-        private fun grow(bytes: ByteArray, min: Int): ByteArray {
+        fun grow(bytes: ByteArray, min: Int): ByteArray {
             return bytes.copyOf(newCapacity(bytes, min))
         }
 
-        private fun newCapacity(bytes: ByteArray, min: Int): Int {
+        fun newCapacity(bytes: ByteArray, min: Int): Int {
             val old = bytes.size
             val cap = old + (old shr 1)
             if (cap - min <= 0) {
@@ -518,10 +521,14 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
             return if (cap - MAX_ARRAY_SIZE <= 0) cap else hugeCapacity(min)
         }
 
-        private fun hugeCapacity(min: Int): Int {
+        fun hugeCapacity(min: Int): Int {
             if (min < 0) throw OutOfMemoryError()
             return if (min > MAX_ARRAY_SIZE) Int.MAX_VALUE else MAX_ARRAY_SIZE
         }
+
+    }
+
+    companion object {
 
         private const val serialVersionUID = 1L
         private val serialPersistentFields = arrayOf(
@@ -539,7 +546,7 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
         fields.put("column", column)
         val size = this.size
         val bytes = this.bytes
-        val capacity = if (bytes === DEFAULT_CAPACITY_EMPTY) -1 else bytes.size
+        val capacity = if (bytes === Private.DEFAULT_CAPACITY_EMPTY) -1 else bytes.size
         fields.put("capacity", capacity)
         fields.put("size", size)
         oos.writeFields()
@@ -556,14 +563,14 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
         this.size = size
         this.bytes = when {
             size > 0 -> {
-                if (capacity < 0) capacity = DEFAULT_CAPACITY
+                if (capacity < 0) capacity = Private.DEFAULT_CAPACITY
                 if (capacity < size) capacity = size
                 val bytes = ByteArray(capacity)
                 ois.readFully(bytes, 0, size)
                 bytes
             }
-            capacity < 0 -> DEFAULT_CAPACITY_EMPTY
-            capacity == 0 -> EMPTY
+            capacity < 0 -> Private.DEFAULT_CAPACITY_EMPTY
+            capacity == 0 -> Private.EMPTY
             else -> ByteArray(capacity)
         }
     }

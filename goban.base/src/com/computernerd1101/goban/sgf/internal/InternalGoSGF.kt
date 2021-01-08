@@ -4,6 +4,7 @@ import com.computernerd1101.goban.*
 import com.computernerd1101.goban.sgf.*
 import com.computernerd1101.goban.time.*
 import com.computernerd1101.sgf.*
+import java.io.ObjectInputStream
 import java.nio.charset.Charset
 
 internal object InternalGoSGF {
@@ -111,4 +112,12 @@ internal fun GoSGFMoveNode.PlayerTime.writeSGFTime(
         map[timeProp] = SGFProperty(SGFValue(SGFBytes(time.millisToStringSeconds())))
     if (hasOvertime)
         map[overtimeProp] = SGFProperty(SGFValue(SGFBytes(overtime.toString())))
+}
+
+internal fun ObjectInputStream.GetField.getString(name: String): String {
+    return try {
+        this[name, null]?.toString()
+    } catch(e: Exception) {
+        null
+    } ?: ""
 }

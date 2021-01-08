@@ -6,7 +6,6 @@ import com.computernerd1101.goban.time.*
 import com.computernerd1101.sgf.*
 import java.io.*
 import java.nio.charset.Charset
-import java.util.regex.Pattern
 import kotlin.contracts.*
 
 @Suppress("NOTHING_TO_INLINE", "EXPERIMENTAL_FEATURE_WARNING")
@@ -121,20 +120,20 @@ class GameInfo: Serializable {
     fun parseKomi(prop: SGFProperty, warnings: SGFWarningList?): Double {
         val bytes: SGFBytes = prop.list[0].list[0]
         val s = bytes.toString()
-        val m = ParseKomi.PATTERN.matcher(s)
-        return if (m.find()) {
-            val negative = m.group(ParseKomi.SIGN)?.get(0) == '-'
-            val iKomi: String = m.group(ParseKomi.IPART) ?: m.group(ParseKomi.INT)
-            val fKomi: String? = m.group(ParseKomi.FPART)
+        val m = ParseKomi.REGEX.find(s)
+        return if (m != null) {
+            val negative = m.groups[ParseKomi.SIGN]?.value?.get(0) == '-'
+            val iKomi = m.groups[ParseKomi.IPART] ?: m.groups[ParseKomi.INT]
+            val fKomi = m.groups[ParseKomi.FPART]
             var lKomi = 0L
-            for(ch in iKomi) {
+            if (iKomi != null) for(ch in iKomi.value) {
                 lKomi = lKomi*10L + (ch - '0')*2L
                 if (lKomi > Int.MAX_VALUE + 1L) {
                     lKomi = Int.MAX_VALUE + 1L
                     break
                 }
             }
-            if (fKomi != null && fKomi[0] != '0') lKomi++
+            if (fKomi != null && fKomi.value[0] != '0') lKomi++
             if (negative) lKomi = -lKomi
             val komi2 = when {
                 lKomi < Int.MIN_VALUE -> Int.MIN_VALUE
@@ -161,7 +160,7 @@ class GameInfo: Serializable {
         const val IPART = 3
         const val FPART = 4
         const val INT = 5
-        val PATTERN: Pattern = Pattern.compile("""([+\-])?((\d*)\.(\d)|(\d+)\.?)""")
+        @JvmField val REGEX = """([+\-])?((\d*)\.(\d)|(\d+)\.?)""".toRegex()
 
     }
 
@@ -210,8 +209,7 @@ class GameInfo: Serializable {
         }
         if (!isMalformed && time < 0L) {
             if (warnings != null) {
-                val match = TimeLimit.PATTERN.matcher(s)
-                val str = if (match.find()) match.group() else s
+                val str = TimeLimit.REGEX.find(s)?.value ?: s
                 warnings.addWarning(SGFWarning(bytes.row, bytes.column,
                     "Unable to parse time limit TM[$str]"))
             }

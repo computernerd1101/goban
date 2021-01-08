@@ -18,8 +18,19 @@ open class GoPointSet internal constructor(marker: InternalMarker): Set<GoPoint>
         init {
             InternalGoPointSet.sizeAndHash = atomicLongUpdater("sizeAndHash")
             val rowUpdaters = InternalGoPointSet.rowUpdaters
-            for(i in 0..51)
-                rowUpdaters[i] = atomicLongUpdater("row$i")
+            val buffer = CharArray(5)
+            buffer[0] = 'r'
+            buffer[1] = 'o'
+            buffer[2] = 'w'
+            for(i in 0..9) {
+                buffer[3] = '0' + i
+                rowUpdaters[i] = atomicLongUpdater(String(buffer, 0, 4))
+            }
+            for(i in 10..51) {
+                buffer[3] = '0' + i / 10
+                buffer[4] = '0' + i % 10
+                rowUpdaters[i] = atomicLongUpdater(String(buffer))
+            }
         }
 
         @JvmField
@@ -273,7 +284,7 @@ open class GoPointSet internal constructor(marker: InternalMarker): Set<GoPoint>
         set.row49 = row49
         set.row50 = row50
         set.row51 = row51
-        set.sizeAndHash = InternalGoPointSet.sizeAndHash(copy)
+        set.sizeAndHash = InternalGoPointSet.sizeAndHash(set)
         return copy
     }
 
@@ -385,7 +396,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
 
     override fun readOnly(): GoPointSet {
         if (isEmpty()) return emptyGoPointSet
-        val copy = GoPointSet()
+        val copy = GoPointSet(InternalMarker)
         for(updater in InternalGoPointSet.rowUpdaters)
             updater[copy] = updater[this]
         val sizeAndHash = InternalGoPointSet.sizeAndHash(copy)

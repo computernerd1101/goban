@@ -2,7 +2,6 @@ package com.computernerd1101.sgf.internal
 
 import com.computernerd1101.sgf.*
 import java.io.InputStream
-import kotlin.addSuppressed as suppress
 
 sealed class SGFReader(val warnings: SGFWarningList) {
 
@@ -152,7 +151,7 @@ sealed class SGFReader(val warnings: SGFWarningList) {
         override fun newException(message: String, eof: Boolean): SGFException {
             val e = super.newException(message, eof)
             val s = suppressed
-            if (s != null) e.suppress(s)
+            if (s != null) e.addSuppressed(s)
             return e
         }
 

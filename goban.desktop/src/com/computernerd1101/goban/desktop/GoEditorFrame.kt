@@ -1104,7 +1104,7 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
             listGameDates.setSelectedValue(date, true)
         }
         buttonRemoveDate.addActionListener {
-            datesModel.remove(listGameDates.selectedIndices, node.gameInfo?.dates)
+            datesModel.remove(listGameDates.selectionModel, node.gameInfo?.dates)
             listGameDates.clearSelection()
         }
         listGameDates.addListSelectionListener {
@@ -2348,7 +2348,7 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
 
     }
 
-    object YearLimit {
+    private object YearLimit {
 
         val min: Int? = Date.MIN_YEAR
         val max: Int? = Date.MAX_YEAR
@@ -2567,7 +2567,7 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
                         end = index
                         while(end < dateList.size) {
                             other = dateList[end]
-                            if (date.month != other.month)
+                            if (date.year != other.year || date.month != other.month)
                                 break
                             end++
                         }
@@ -2591,15 +2591,32 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
             listGameDates.selectedIndex = index
         }
 
-        fun remove(indices: IntArray, dates: DateSet?) {
-            indices.sort()
-            for(i in (indices.size - 1) downTo 0) {
-                val index = indices[i]
-                if (index < dateList.size) {
-                    val date = dateList.removeAt(index)
-                    dates?.remove(date)
+        fun remove(selection: ListSelectionModel, dates: DateSet?) {
+            val min = selection.minSelectionIndex
+            val max = selection.maxSelectionIndex
+            if (min < 0 || max < 0) return
+            // TODO test changes
+            var from = dateList.size
+            var until = from
+            for(i in max downTo min) if (selection.isSelectedIndex(i)) {
+                if (from != until && i != from - 1) {
+                    if (dates != null) for(d in from until until) dates.remove(dateList[d])
+                    dateList.subList(from, until).clear()
+                    until = i
                 }
+                from = i
             }
+            if (from != until) {
+                if (dates != null) for (d in from until until) dates.remove(dateList[d])
+                dateList.subList(from, until).clear()
+            }
+//            for(i in (indices.size - 1) downTo 0) {
+//                val index = indices[i]
+//                if (index < dateList.size) {
+//                    val date = dateList.removeAt(index)
+//                    dates?.remove(date)
+//                }
+//            }
             listGameDates.updateUI()
         }
 
