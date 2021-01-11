@@ -82,15 +82,14 @@ annotation class IntProperty(
 
 }
 
-@Suppress("FunctionName", "NOTHING_TO_INLINE")
-inline fun <T: Any> PropertyFactory(type: KClass<out T>) = PropertyFactory.propertyFactory(type)
+fun <T: Any> PropertyFactory(type: KClass<out T>) = PropertyFactory.propertyFactory(type)
 
-@Suppress("FunctionName", "unused")
+@Suppress("unused")
 inline fun <reified T: Any> PropertyFactory() = PropertyFactory.propertyFactory(T::class)
 
 class PropertyFactory<T: Any> private constructor(
     @Suppress("CanBeParameter") val type: KClass<out T>,
-    marker: InternalMarker
+    cache: Cache
 ): Iterable<PropertyFactory.Entry<T>> {
 
 
@@ -104,10 +103,10 @@ class PropertyFactory<T: Any> private constructor(
 
         @Suppress("UNCHECKED_CAST")
         fun <T: Any> propertyFactory(type: KClass<out T>): PropertyFactory<T> {
-            var factory = Private.FACTORY_MAP[type] as PropertyFactory<T>?
+            var factory = Cache.FACTORY_MAP[type] as PropertyFactory<T>?
             if (factory == null) {
-                factory = PropertyFactory(type, InternalMarker)
-                Private.FACTORY_MAP[type] = factory
+                factory = PropertyFactory(type, Cache)
+                Cache.FACTORY_MAP[type] = factory
             }
             return factory
         }
@@ -203,14 +202,13 @@ class PropertyFactory<T: Any> private constructor(
     private val entryArray: Array<Entry<T>>
 
     init {
-        marker.ignore()
         val entries = mutableMapOf<String, EntryBuilder<T, *>>()
         for(property in type.memberProperties) {
             @Suppress("UNCHECKED_CAST")
             val prop = property as? KMutableProperty1<T, Comparable<Any>>
             if (prop?.visibility == KVisibility.PUBLIC &&
                 prop.setter.visibility == KVisibility.PUBLIC)
-                Private.getEntryAnnotation(entries, prop)
+                cache.getEntryAnnotation(entries, prop)
         }
         val list = mutableListOf<Entry<T>>()
         type.findAnnotation<PropertyOrder>()?.let { order ->
@@ -236,7 +234,7 @@ class PropertyFactory<T: Any> private constructor(
 
     override fun iterator() = entryArray.iterator()
 
-    private object Private {
+    private object Cache {
 
         @JvmField val FACTORY_MAP = WeakHashMap<KClass<*>, PropertyFactory<*>>()
         @JvmField val PROP_MAP = WeakHashMap<KClass<out Annotation>, PropertyManagerMaker<*>?>()

@@ -895,7 +895,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                         day29 = null
                     }
 
-                    constructor(other: MonthTable) {
+                    protected constructor(other: MonthTable) {
                         month = other.month
                         dayCount = other.dayCount
                         day0 = accountFor(other.day0)
@@ -1079,7 +1079,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                         day30 = null
                     }
 
-                    constructor(other: MonthTable30): super(other) {
+                    protected constructor(other: MonthTable30): super(other) {
                         day30 = accountFor(other.day30)
                     }
 
@@ -1097,7 +1097,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                         day31 = null
                     }
 
-                    constructor(other: MonthTable31): super(other) {
+                    private constructor(other: MonthTable31): super(other) {
                         day31 = accountFor(other.day31)
                     }
 
