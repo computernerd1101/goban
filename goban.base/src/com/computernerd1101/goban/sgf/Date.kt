@@ -3,12 +3,15 @@
 package com.computernerd1101.goban.sgf
 
 import com.computernerd1101.goban.internal.*
-import com.computernerd1101.goban.sgf.internal.InternalDate
+import com.computernerd1101.goban.sgf.internal.*
+import com.computernerd1101.goban.sgf.internal.DateTable12.Companion.strongUpdater
+import com.computernerd1101.goban.sgf.internal.DateTable12.Companion.weakUpdater
 import java.io.InvalidObjectException
 import java.io.*
 import java.lang.ref.*
 import java.util.*
-import java.util.concurrent.atomic.AtomicReferenceArray
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater
 import kotlin.contracts.*
 
 class Date private constructor(private val value: Int): Comparable<Date>, Serializable {
@@ -186,12 +189,13 @@ class DateSet(): MutableIterable<Date>, Serializable {
             return _count
         }
 
-    private var table2d = AtomicReferenceArray<Table2d?>(0x80)
-    private var weak2d = AtomicReferenceArray<Weak<Table2d>?>(0x80)
+//    private var table2d = AtomicReferenceArray<Table2d?>(0x80)
+//    private var weak2d = AtomicReferenceArray<Weak<Table2d>?>(0x80)
     private var queue: ReferenceQueue<*> = ReferenceQueue<Any>()
+    private var table2d = DateTable128<Table2d>(queue)
 
     constructor(string: String): this() {
-        val split = string.split(",".toRegex()).toTypedArray()
+        val split = string.split(Private.SPLIT_COMMA).toTypedArray()
         var date: Date? = null
         for (s in split) {
             date = date.parseNext(s)
@@ -201,12 +205,15 @@ class DateSet(): MutableIterable<Date>, Serializable {
 
     fun copy(): DateSet {
         val copy = DateSet()
-        for(i in 0..0x7F)
-            table2d[i]?.let {
-                val t = Table2d(it)
-                copy.table2d[i] = t
-                copy.weak2d[i] = Weak(t, copy.weak2d, i)
+        val copyTable = copy.table2d
+        for(i in 0..0x7F) {
+            val strongUpdater = strongUpdater<Table2d>(i)
+            strongUpdater[table2d]?.let {
+                val t = Table2d(queue, it)
+                strongUpdater[copyTable] = t
+                weakUpdater<Table2d>(i)[copyTable] = Weak(t, copyTable, i)
             }
+        }
         return copy
     }
 
@@ -223,7 +230,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
         return buildString {
             var hasPrev = false
             for(i in 0..0x7F) {
-                table2d[i]?.let { t ->
+                strongUpdater<Table2d>(i)[table2d]?.let { t ->
                     hasPrev = t.writeString(this, hasPrev)
                 }
             }
@@ -233,8 +240,10 @@ class DateSet(): MutableIterable<Date>, Serializable {
     infix fun contentEquals(other: DateSet): Boolean {
         val count = this.count
         if (other.count != count) return false
-        for(i in 0..0x7F)
-            if (table2d[i] contentNotEqual other.table2d[i]) return false
+        for(i in 0..0x7F) {
+            val strongUpdater = strongUpdater<Table2d>(i)
+            if (Private.contentNotEqual(strongUpdater[table2d], strongUpdater[other.table2d])) return false
+        }
         return true
     }
 
@@ -243,18 +252,18 @@ class DateSet(): MutableIterable<Date>, Serializable {
 
     fun contentHashCode(): Int {
         var totalHash = 0
-        for(i2d in 0..0x7F) table2d[i2d]?.let { t2d ->
-            for(i1d in 0..0xFF) t2d.table1d[i1d]?.let { t1d ->
-                for(i in 0..0xFF) t1d.years[i]?.let { yt ->
+        for(i2d in 0..0x7F) strongUpdater<Table2d>(i2d)[table2d]?.let { t2d ->
+            for(i1d in 0..0xFF) strongUpdater<Table2d.Table1d>(i1d)[t2d]?.let { t1d ->
+                for(i in 0..0xFF) strongUpdater<Table2d.Table1d.YearTable>(i)[t1d]?.let { yt ->
                     var hash = yt.year.year
                     for(m in 0..11) {
                         hash *= 31
-                        yt.months[m]?.let { mt ->
-                            if (mt.days[0] != null) hash++
+                        strongUpdater<Table2d.Table1d.YearTable.MonthTable>(m)[yt]?.let { mt ->
+                            if (mt.day0 != null) hash++
                             else {
                                 var bit = 2
-                                for (d in 1 until mt.days.length()) {
-                                    if (mt.days[d] != null) hash += bit
+                                for (d in 1..mt.lastDay) {
+                                    if (Private.updateDays[d][mt] != null) hash += bit
                                     bit = bit shl 1
                                 }
                             }
@@ -267,103 +276,23 @@ class DateSet(): MutableIterable<Date>, Serializable {
         return totalHash
     }
 
-    companion object {
-
-        private fun writeYear(sb: StringBuilder, year: Int) {
-            if (year !in -999..999) {
-                sb.append(year)
-                return
-            }
-            val abs = if (year < 0) {
-                sb.append('-')
-                -year
-            } else year
-            if (abs < 10) sb.append('0')
-            if (abs < 100) sb.append('0')
-            sb.append('0')
-            sb.append(abs)
-        }
-
-        private fun writeMonthOrDay(sb: StringBuilder, i: Int) {
-            if (i < 10) sb.append('0')
-            sb.append(i)
-        }
-
-        private const val WRITE_START = 0
-        private const val WRITE_YEAR = 1
-        private const val WRITE_MONTH = 2
-        private const val WRITE_DAY = 3
-
-        private const val YEAR_OFFSET = -Date.MIN_YEAR
-
-        /** Updates [DateSet._count] */
-        private val updateCount = atomicIntUpdater<DateSet>("_count")
-        /** Updates [DateSet.Table2d.count1d] */
-        private val update1d = atomicIntUpdater<Table2d>("count1d")
-        /** Updates [DateSet.Table2d.Table1d.yearCount] */
-        private val updateYears =
-            atomicIntUpdater<Table2d.Table1d>("yearCount")
-        /** Updates [DateSet.Table2d.Table1d.YearTable.monthCount] */
-        private val updateMonths =
-            atomicIntUpdater<Table2d.Table1d.YearTable>("monthCount")
-        /** Updates [DateSet.Table2d.Table1d.YearTable.MonthTable.dayCount] */
-        private val updateDays =
-            atomicIntUpdater<Table2d.Table1d.YearTable.MonthTable>("dayCount")
-
-        @JvmStatic
-        fun contentEquals(a: DateSet?, b: DateSet?) = when {
-            a == null -> b == null
-            b == null -> false
-            else -> a contentEquals b
-        }
-
-        private infix fun Table2d?.contentNotEqual(other: Table2d?) = when {
-            this == null -> other != null
-            other == null -> true
-            else -> !contentEquals(other)
-        }
-
-        private infix fun Table2d.Table1d?.contentNotEqual(other: Table2d.Table1d?) = when {
-            this == null -> other != null
-            other == null -> true
-            else -> !contentEquals(other)
-        }
-
-        private infix fun Table2d.Table1d.YearTable?.contentNotEqual(
-            other: Table2d.Table1d.YearTable?
-        ) = when {
-            this == null -> other != null
-            other == null -> true
-            else -> !contentEquals(other)
-        }
-
-        private infix fun Table2d.Table1d.YearTable.MonthTable?.contentNotEqual(
-            other: Table2d.Table1d.YearTable.MonthTable?
-        ) = when {
-            this == null -> other != null
-            other == null -> true
-            else -> !contentEquals(other)
-        }
-
-        private const val serialVersionUID = 1L
-
-    }
-
     fun addDate(date: Date): Boolean {
         return try {
             val i = (date.year + YEAR_OFFSET) shr 16
-            var t = table2d[i]
+            val strongUpdater = strongUpdater<Table2d>(i)
+            var t = strongUpdater[table2d]
             if (t == null) {
-                val weak = weak2d[i]
+                val weakUpdater = weakUpdater<Table2d>(i)
+                val weak = weakUpdater[table2d]
                 if (weak != null) t = weak.get()
                 val updateWeak = if (t == null) {
-                    t = Table2d(i)
+                    t = Table2d(queue, i)
                     true
                 } else false
-                val tmp = table2d.compareAndExchange(i, null, t)
+                val tmp = strongUpdater.compareAndExchange(table2d, null, t)
                 if (tmp != null) t = tmp
                 if (updateWeak)
-                    weak2d.compareAndSet(i, weak, Weak(t, weak2d, i))
+                    weakUpdater.compareAndSet(table2d, weak, Weak(t, table2d, i))
             }
             t.addDate(date)
         } finally {
@@ -373,43 +302,141 @@ class DateSet(): MutableIterable<Date>, Serializable {
 
     operator fun contains(date: Date): Boolean {
         expungeStaleReferences()
-        return table2d[(date.year + YEAR_OFFSET) shr 16]?.contains(date, false) == true
+        return strongUpdater<Table2d>(
+            (date.year + YEAR_OFFSET) shr 16
+        )[table2d]?.contains(date, false) == true
     }
 
     @Suppress("unused")
     fun containsExact(date: Date): Boolean {
         expungeStaleReferences()
-        return table2d[(date.year + YEAR_OFFSET) shr 16]?.contains(date, true) == true
+        return strongUpdater<Table2d>(
+            (date.year + YEAR_OFFSET) shr 16
+        )[table2d]?.contains(date, true) == true
     }
 
     fun remove(date: Date): Boolean {
         expungeStaleReferences()
-        return table2d[(date.year + YEAR_OFFSET) shr 16]?.remove(date) == true
+        return strongUpdater<Table2d>(
+                (date.year + YEAR_OFFSET) shr 16
+        )[table2d]?.remove(date) == true
     }
 
     override fun iterator(): MutableIterator<Date> {
         return MetaItr(table2d)
     }
 
-    @Suppress("UNCHECKED_CAST")
-    inner class Weak<T>(referent: T, val array: AtomicReferenceArray<Weak<T>?>, val index: Int):
-        WeakReference<T>(referent, queue as ReferenceQueue<in T>) {
+    companion object {
 
-        fun expunge() {
-            array.compareAndSet(index, this, null)
+        private const val WRITE_START = 0
+        private const val WRITE_YEAR = 1
+        private const val WRITE_MONTH = 2
+        private const val WRITE_DAY = 3
+
+        private const val YEAR_OFFSET = -Date.MIN_YEAR
+
+        init {
+            Private.updateCount = atomicIntUpdater("_count")
+        }
+
+        @JvmStatic
+        fun contentEquals(a: DateSet?, b: DateSet?) = when {
+            a == null -> b == null
+            b == null -> false
+            else -> a contentEquals b
+        }
+
+        private const val serialVersionUID = 1L
+
+    }
+
+    private object Private {
+
+        fun contentNotEqual(a: Table2d?, b: Table2d?) = when {
+            a == null -> b != null
+            b == null -> true
+            else -> !a.contentEquals(b)
+        }
+
+        val SPLIT_COMMA = ",".toRegex()
+
+        /** Updates [DateSet._count] */
+        lateinit var updateCount: AtomicIntegerFieldUpdater<DateSet>
+        /** Updates [DateSet.Table2d.count1d] */
+        @JvmField val updateCount1d = atomicIntUpdater<Table2d>("count1d")
+        /** Updates [DateSet.Table2d.Table1d.yearCount] */
+        @JvmField val updateYearCount =
+            atomicIntUpdater<Table2d.Table1d>("yearCount")
+        /** Updates [DateSet.Table2d.Table1d.YearTable.monthCount] */
+        @JvmField val updateMonthCount =
+            atomicIntUpdater<Table2d.Table1d.YearTable>("monthCount")
+        /** Updates [DateSet.Table2d.Table1d.YearTable.MonthTable.dayCount] */
+        @JvmField val updateDayCount =
+            atomicIntUpdater<Table2d.Table1d.YearTable.MonthTable>("dayCount")
+        @JvmField val updateDays = CharArray(5).let { buf ->
+            buf[0] = 'd'
+            buf[1] = 'a'
+            buf[2] = 'y'
+            // The true type of updateDays
+            Array<AtomicReferenceFieldUpdater<Table2d.Table1d.YearTable.MonthTable, Date>>(32) { index ->
+                val nBuf = if (index < 10) {
+                    buf[3] = '0' + index
+                    4
+                } else {
+                    buf[3] = '0' + index / 10
+                    buf[4] = '0' + index % 10
+                    5
+                }
+                @Suppress("UNCHECKED_CAST")
+                val type = when(index) {
+                    30 -> Table2d.Table1d.YearTable.MonthTable30::class.java
+                    31 -> Table2d.Table1d.YearTable.MonthTable31::class.java
+                    else -> Table2d.Table1d.YearTable.MonthTable::class.java
+                } as Class<Table2d.Table1d.YearTable.MonthTable>
+                AtomicReferenceFieldUpdater.newUpdater(type, Date::class.java, String(buf, 0, nBuf))
+            }
+        }
+
+        @JvmField val monthTableFactories = arrayOf(
+            MonthTableFactory.THIRTY_ONE, // January
+            MonthTableFactory.FEBRUARY,   // Exactly what it says on the tin
+            MonthTableFactory.THIRTY_ONE, // March
+            MonthTableFactory.THIRTY,     // April
+            MonthTableFactory.THIRTY_ONE, // May
+            MonthTableFactory.THIRTY,     // June
+            MonthTableFactory.THIRTY_ONE, // July
+            MonthTableFactory.THIRTY_ONE, // August
+            MonthTableFactory.THIRTY,     // September
+            MonthTableFactory.THIRTY_ONE, // October
+            MonthTableFactory.THIRTY,     // November
+            MonthTableFactory.THIRTY_ONE  // December
+        )
+
+    }
+
+    private enum class MonthTableFactory: (Table2d.Table1d.YearTable, Date) -> Table2d.Table1d.YearTable.MonthTable {
+
+        FEBRUARY {
+            override fun invoke(yt: Table2d.Table1d.YearTable, month: Date) = yt.MonthTable(month)
+        },
+        THIRTY {
+            override fun invoke(yt: Table2d.Table1d.YearTable, month: Date) = yt.MonthTable30(month)
+        },
+        THIRTY_ONE {
+            override fun invoke(yt: Table2d.Table1d.YearTable, month: Date) = yt.MonthTable31(month)
         }
 
     }
 
-    class MetaItr<T : MutableIterable<Date>>(val array: AtomicReferenceArray<T?>): MutableIterator<Date> {
+    private class MetaItr<T : MutableIterable<Date>>(val array: DateTable12<T>): MutableIterator<Date> {
 
         var index: Int = 0
         var itr: MutableIterator<Date>? = null
 
         override fun hasNext(): Boolean {
             if (itr?.hasNext() == true) return true
-            for(i in (index + 1) until array.length()) {
-                array[i]?.let { t: T ->
+            for(i in (index + 1) until array.size) {
+                strongUpdater<T>(i)[array]?.let { t: T ->
                     val itr = t.iterator()
                     if (itr.hasNext()) {
                         this.itr = itr
@@ -425,8 +452,8 @@ class DateSet(): MutableIterable<Date>, Serializable {
             val itr1 = itr
             if (itr1 != null && itr1.hasNext())
                 return itr1.next()
-            for(i in (index + 1) until array.length()) {
-                array[i]?.let { t: T ->
+            for(i in (index + 1) until array.size) {
+                strongUpdater<T>(i)[array]?.let { t: T ->
                     val itr2 = t.iterator()
                     if (itr2.hasNext()) {
                         itr = itr2
@@ -445,103 +472,123 @@ class DateSet(): MutableIterable<Date>, Serializable {
 
     }
 
-    private inner class Table2d(val index2d: Int): MutableIterable<Date> {
+    private inner class Table2d(queue: ReferenceQueue<*>, val index2d: Int):
+        DateTable256<Table2d.Table1d>(queue), MutableIterable<Date> {
 
         @Volatile @JvmField var count1d: Int = 0
-        val table1d = AtomicReferenceArray<Table1d?>(0x100)
-        val weak1d = AtomicReferenceArray<Weak<Table1d>?>(0x100)
 
-        constructor(other: Table2d): this(other.index2d) {
-            for(i in 0..0xFF)
-                other.table1d[i]?.let {
-                    update1d.incrementAndGet(this)
+        constructor(queue: ReferenceQueue<*>, other: Table2d): this(queue, other.index2d) {
+            for(i in 0..0xFF) {
+                val strongUpdater = strongUpdater<Table1d>(i)
+                strongUpdater[other]?.let {
+                    Private.updateCount1d.incrementAndGet(this)
                     val t = Table1d(it)
-                    table1d[i] = t
-                    weak1d[i] = Weak(t, weak1d, i)
+                    strongUpdater[this] = t
+                    weakUpdater<Table1d>(i)[this] = Weak(t, this, i)
                 }
+            }
         }
 
         fun addDate(date: Date): Boolean {
             val i = (date.year shr 8) and 0xFF
-            var t = table1d[i]
+            val strongUpdater = strongUpdater<Table1d>(i)
+            val weakUpdater = weakUpdater<Table1d>(i)
+            var t = strongUpdater[this]
             if (t == null) {
-                val weak = weak1d[i]
+                val weak = weakUpdater[this]
                 if (weak != null) t = weak.get()
                 val updateWeak = if (t == null) {
                     t = Table1d(i)
                     true
                 } else false
-                val tmp = table1d.compareAndExchange(i, null, t)
-                if (tmp == null) update1d.incrementAndGet(this)
+                if (strongUpdater.compareAndSet(this, null, t)) {
+                    Private.updateCount1d.incrementAndGet(this)
+                }
+                val tmp = strongUpdater.compareAndExchange(this, null, t)
+                if (tmp == null) Private.updateCount1d.incrementAndGet(this)
                 else t = tmp
                 if (updateWeak)
-                    weak1d.compareAndSet(i, weak, Weak(t, weak1d, i))
+                    weakUpdater.compareAndSet(this, weak, Weak(t, this, i))
             }
             return t.addDate(date)
         }
 
         fun contains(date: Date, exact: Boolean): Boolean {
-            return table1d[(date.year shr 8) and 0xFF]?.contains(date, exact) == true
+            return strongUpdater<Table1d>(
+                (date.year shr 8) and 0xFF
+            )[this]?.contains(date, exact) == true
         }
 
         fun remove(date: Date): Boolean {
-            return table1d[(date.year shr 8) and 0xFF]?.remove(date) == true
+            return strongUpdater<Table1d>(
+                (date.year shr 8) and 0xFF
+            )[this]?.remove(date) == true
         }
 
         fun remove2d() {
-            table2d.compareAndSet(index2d, this, null)
+            strongUpdater<Table2d>(index2d).compareAndSet(table2d, this, null)
         }
 
         fun writeString(sb: StringBuilder, hasPrev: Boolean): Boolean {
             var prev = hasPrev
             for(i in 0..0xFF)
-                table1d[i]?.let { t ->
+                strongUpdater<Table1d>(i)[this]?.let { t ->
                     prev = t.writeString(sb, prev)
                 }
             return prev
         }
 
-        override fun iterator(): MutableIterator<Date> = MetaItr(table1d)
+        override fun iterator(): MutableIterator<Date> = MetaItr(this)
 
         fun contentEquals(other: Table2d): Boolean {
             val count = count1d
             if (other.count1d != count) return false
-            for(i in 0..0xFF)
-                if (table1d[i] contentNotEqual other.table1d[i]) return false
+            for(i in 0..0xFF) {
+                val strongUpdater = strongUpdater<Table1d>(i)
+                if (strongUpdater[this] contentNotEqual strongUpdater[other]) return false
+            }
             return true
         }
 
-        inner class Table1d(val index1d: Int): MutableIterable<Date> {
+        infix fun Table1d?.contentNotEqual(other: Table1d?) = when {
+            this == null -> other != null
+            other == null -> true
+            else -> !contentEquals(other)
+        }
+
+        inner class Table1d(val index1d: Int): DateTable256<Table1d.YearTable>(queue), MutableIterable<Date> {
 
             @Volatile @JvmField var yearCount: Int = 0
-            val years = AtomicReferenceArray<YearTable?>(0x100)
-            val weakYears = AtomicReferenceArray<Weak<YearTable>?>(0x100)
 
             constructor(other: Table1d): this(other.index1d) {
-                for(i in 0..0xFF)
-                    other.years[i]?.let {
-                        updateYears.incrementAndGet(this)
+                for(i in 0..0xFF) {
+                    val strongUpdater = strongUpdater<YearTable>(i)
+                    strongUpdater[other]?.let {
+                        Private.updateYearCount.incrementAndGet(this)
                         val yt = YearTable(it)
-                        years[i] = yt
-                        weakYears[i] = Weak(yt, weakYears, i)
+                        strongUpdater[this] = yt
+                        weakUpdater<YearTable>(i)[this] = Weak(yt, this, i)
                     }
+                }
             }
 
             fun addDate(date: Date): Boolean {
                 val i = date.year and 0xFF
-                var yt = years[i]
+                val strongUpdater = strongUpdater<YearTable>(i)
+                var yt = strongUpdater[this]
                 if (yt == null) {
-                    val weak = weakYears[i]
+                    val weakUpdater = weakUpdater<YearTable>(i)
+                    val weak = weakUpdater[this]
                     if (weak != null) yt = weak.get()
                     val updateWeak = if (yt == null) {
                         yt = YearTable(date)
                         true
                     } else false
-                    val tmp = years.compareAndExchange(i, null, yt)
-                    if (tmp == null) updateYears.incrementAndGet(this)
+                    val tmp = strongUpdater.compareAndExchange(this, null, yt)
+                    if (tmp == null) Private.updateYearCount.incrementAndGet(this)
                     else yt = tmp
                     if (updateWeak)
-                        weakYears.compareAndSet(i, weak, Weak(yt, weakYears, i))
+                        weakUpdater.compareAndSet(this, weak, Weak(yt, this, i))
                     if (tmp == null && date.month == 0)
                         return true
                 }
@@ -549,109 +596,122 @@ class DateSet(): MutableIterable<Date>, Serializable {
             }
 
             fun contains(date: Date, exact: Boolean): Boolean {
-                return years[date.year and 0xFF]?.contains(date, exact) == true
+                return strongUpdater<YearTable>(
+                    date.year and 0xFF
+                )[this]?.contains(date, exact) == true
             }
 
             fun remove(date: Date): Boolean {
-                return years[date.year and 0xFF]?.remove(date) == true
+                return strongUpdater<YearTable>(
+                    date.year and 0xFF
+                )[this]?.remove(date) == true
             }
 
             fun remove1d() {
-                if (table1d.compareAndSet(index1d, this, null) &&
-                    update1d.decrementAndGet(this@Table2d) == 0)
+                if (strongUpdater<Table1d>(index1d).compareAndSet(this@Table2d, this, null) &&
+                        Private.updateCount1d.decrementAndGet(this@Table2d) == 0)
                     remove2d()
             }
 
             fun writeString(sb: StringBuilder, hasPrev: Boolean): Boolean {
                 var prev = hasPrev
                 for(i in 0..0xFF)
-                    years[i]?.let { yt ->
+                    strongUpdater<YearTable>(i)[this]?.let { yt ->
                         prev = yt.writeString(sb, prev)
                     }
                 return prev
             }
 
-            override fun iterator(): MutableIterator<Date> = MetaItr(years)
+            override fun iterator(): MutableIterator<Date> = MetaItr(this)
 
             fun contentEquals(other: Table1d): Boolean {
                 val count = yearCount
                 if (other.yearCount != count) return false
-                for(i in 0..0xFF)
-                    if (years[i] contentNotEqual other.years[i]) return false
+                for(i in 0..0xFF) {
+                    val strongUpdater = strongUpdater<YearTable>(i)
+                    if (strongUpdater[this] contentNotEqual strongUpdater[other]) return false
+                }
                 return true
             }
 
-            inner class YearTable: MutableIterable<Date> {
+            private infix fun YearTable?.contentNotEqual(other: YearTable?) = when {
+                this == null -> other != null
+                other == null -> true
+                else -> !contentEquals(other)
+            }
+
+            inner class YearTable: DateTable12<YearTable.MonthTable>, MutableIterable<Date> {
 
                 val year: Date
                 @Volatile @JvmField var monthCount: Int = 0
-                val months = AtomicReferenceArray<MonthTable?>(12)
-                val weakMonths = AtomicReferenceArray<Weak<MonthTable>?>(12)
 
-                constructor(year: Int) {
+                constructor(year: Int): super(this@Table1d.queue) {
                     this.year = Date(year, 0, 0)
                 }
 
-                constructor(date: Date) {
+                constructor(date: Date): super(this@Table1d.queue) {
                     val m = date.month
                     if (m == 0) {
                         year = date
                         monthCount = -1
-                        updateCount.incrementAndGet(this@DateSet)
+                        Private.updateCount.incrementAndGet(this@DateSet)
                     } else {
                         year = Date(date.hashCode() and -0x20000, InternalMarker)
                     }
                 }
 
-                constructor(other: YearTable) {
+                constructor(other: YearTable): super(this@Table1d.queue) {
                     year = other.year
                     if (other.monthCount == -1) {
                         monthCount = -1
-                        updateCount.incrementAndGet(this@DateSet)
+                        Private.updateCount.incrementAndGet(this@DateSet)
                     } else
                         for(i in 0..11) {
-                            other.months[i]?.let {
-                                val mt = MonthTable(it)
-                                months[i] = mt
-                                weakMonths[i] = Weak(mt, weakMonths, i)
+                            val strongUpdater = strongUpdater<MonthTable>(i)
+                            strongUpdater[other]?.let {
+                                val mt = it.copy(this)
+                                strongUpdater[this] = mt
+                                weakUpdater<MonthTable>(i)[this] = Weak(mt, this, i)
                             }
                         }
                 }
 
                 fun addDate(date: Date): Boolean {
                     val m = date.month
-                    if (m == 0) return when(updateMonths.getAndSet(this, -1)) {
+                    if (m == 0) return when(Private.updateMonthCount.getAndSet(this, -1)) {
                         -1 -> false
                         0 -> {
-                            updateCount.incrementAndGet(this@DateSet)
+                            Private.updateCount.incrementAndGet(this@DateSet)
                             true
                         }
                         else -> {
                             var delta = 1
                             for (i in 0..11)
-                                months.getAndSet(i, null)?.let {
+                                strongUpdater<MonthTable>(i).getAndSet(this, null)?.let {
                                     delta -= it.dayCount
                                 }
-                            if (delta != 0) updateCount.addAndGet(this@DateSet, delta)
+                            if (delta != 0) Private.updateCount.addAndGet(this@DateSet, delta)
                             true
                         }
                     }
+                    val strongUpdater = strongUpdater<MonthTable>(m - 1)
                     var modified = false
-                    var mt = months[m - 1]
+                    var mt = strongUpdater[this]
                     if (mt == null) {
-                        val weak = weakMonths[m - 1]
+                        val weakUpdater = weakUpdater<MonthTable>(m - 1)
+                        val weak = weakUpdater[this]
                         if (weak != null) mt = weak.get()
                         val updateWeak = if (mt == null) {
-                            mt = MonthTable(date)
+                            mt = Private.monthTableFactories[m - 1](this, date)
                             true
                         } else false
-                        val tmp = months.compareAndExchange(m - 1, null, mt)
+                        val tmp = strongUpdater.compareAndExchange(this, null, mt)
                         if (tmp != null) mt = tmp
                         else {
-                            if (!updateMonths.compareAndSet(this, -1, 1))
-                                updateMonths.incrementAndGet(this)
+                            if (!Private.updateMonthCount.compareAndSet(this, -1, 1))
+                                Private.updateMonthCount.incrementAndGet(this)
                             if (updateWeak)
-                                weakMonths.compareAndSet(m - 1, weak, Weak(mt, weakMonths, m - 1))
+                                weakUpdater.compareAndSet(this, weak, Weak(mt, this, m - 1))
                             modified = true
                         }
                     }
@@ -666,7 +726,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                         return if (exact) n == -1 else n != 0
                     }
                     return (!exact && monthCount == -1) ||
-                            months[m - 1]?.contains(date, exact) == true
+                            strongUpdater<MonthTable>(m - 1)[this]?.contains(date, exact) == true
                 }
 
                 fun remove(date: Date): Boolean {
@@ -674,17 +734,18 @@ class DateSet(): MutableIterable<Date>, Serializable {
                     return if (m == 0) {
                         var n = 0
                         for(i in 0..11)
-                            months.getAndSet(i, null)?.apply {
+                            strongUpdater<MonthTable>(i).getAndSet(this, null)?.apply {
                                 n += dayCount
                             }
                         removeYear()
-                        updateMonths.getAndSet(this, 0) == -1 || n > 0
-                    } else months[m - 1]?.remove(date) == true
+                        Private.updateMonthCount.getAndSet(this, 0) == -1 || n > 0
+                    } else strongUpdater<MonthTable>(m - 1)[this]?.remove(date) == true
                 }
 
                 fun removeYear() {
-                    if (years.compareAndSet(year.year and 0xFF, this, null) &&
-                            updateYears.decrementAndGet(this@Table1d) == 0)
+                    if (strongUpdater<YearTable>(year.year and 0xFF)
+                            .compareAndSet(this@Table1d, this, null) &&
+                        Private.updateYearCount.decrementAndGet(this@Table1d) == 0)
                         remove1d()
                 }
 
@@ -699,15 +760,30 @@ class DateSet(): MutableIterable<Date>, Serializable {
                     }
                     var progress = if (hasPrev) WRITE_YEAR else WRITE_START
                     for(i in 0..11)
-                        months[i]?.let { mt ->
+                        strongUpdater<MonthTable>(i)[this]?.let { mt ->
                             progress = mt.writeString(sb, progress)
                         }
                     return progress > WRITE_START
                 }
 
+                fun writeYear(sb: StringBuilder, year: Int) {
+                    if (year !in -999..999) {
+                        sb.append(year)
+                        return
+                    }
+                    val abs = if (year < 0) {
+                        sb.append('-')
+                        -year
+                    } else year
+                    if (abs < 10) sb.append('0')
+                    if (abs < 100) sb.append('0')
+                    sb.append('0')
+                    sb.append(abs)
+                }
+
                 override fun iterator(): MutableIterator<Date> {
                     val count = monthCount
-                    return if (count > 0) MetaItr(months)
+                    return if (count > 0) MetaItr(this)
                     else object : MutableIterator<Date> {
 
                         var stage = if (count == -1) 0 else 2
@@ -723,7 +799,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                         override fun remove() {
                             if (stage != 1) throw IllegalStateException()
                             stage = 2
-                            if (!updateMonths.compareAndSet(this@YearTable, -1, 0))
+                            if (!Private.updateMonthCount.compareAndSet(this@YearTable, -1, 0))
                                 throw ConcurrentModificationException()
                             removeYear()
                         }
@@ -735,88 +811,187 @@ class DateSet(): MutableIterable<Date>, Serializable {
                     val count = monthCount
                     if (other.monthCount != count) return false
                     for(i in 0..11) {
-                        if (months[i] contentNotEqual other.months[i]) return false
+                        val strongUpdater = strongUpdater<MonthTable>(i)
+                        if (strongUpdater[this] contentNotEqual strongUpdater[other]) return false
                     }
                     return true
                 }
 
-                inner class MonthTable: MutableIterable<Date> {
+                private infix fun MonthTable?.contentNotEqual(other: MonthTable?) = when {
+                    this == null -> other != null
+                    other == null -> true
+                    else -> !contentEquals(other)
+                }
+
+                open inner class MonthTable: MutableIterable<Date> {
 
                     val month: Date
                     @Volatile @JvmField var dayCount: Int = 0
-                    val days: AtomicReferenceArray<Date?>
+                    @Volatile @JvmField var day0: Date?
+                    @Volatile @JvmField var day1: Date?
+                    @Volatile @JvmField var day2: Date?
+                    @Volatile @JvmField var day3: Date?
+                    @Volatile @JvmField var day4: Date?
+                    @Volatile @JvmField var day5: Date?
+                    @Volatile @JvmField var day6: Date?
+                    @Volatile @JvmField var day7: Date?
+                    @Volatile @JvmField var day8: Date?
+                    @Volatile @JvmField var day9: Date?
+                    @Volatile @JvmField var day10: Date?
+                    @Volatile @JvmField var day11: Date?
+                    @Volatile @JvmField var day12: Date?
+                    @Volatile @JvmField var day13: Date?
+                    @Volatile @JvmField var day14: Date?
+                    @Volatile @JvmField var day15: Date?
+                    @Volatile @JvmField var day16: Date?
+                    @Volatile @JvmField var day17: Date?
+                    @Volatile @JvmField var day18: Date?
+                    @Volatile @JvmField var day19: Date?
+                    @Volatile @JvmField var day20: Date?
+                    @Volatile @JvmField var day21: Date?
+                    @Volatile @JvmField var day22: Date?
+                    @Volatile @JvmField var day23: Date?
+                    @Volatile @JvmField var day24: Date?
+                    @Volatile @JvmField var day25: Date?
+                    @Volatile @JvmField var day26: Date?
+                    @Volatile @JvmField var day27: Date?
+                    @Volatile @JvmField var day28: Date?
+                    @Volatile @JvmField var day29: Date?
 
                     constructor(date: Date) {
                         month = if (date.day == 0) date
                         else {
                             Date(date.hashCode() and -0x20, InternalMarker)
                         }
-                        days = AtomicReferenceArray(Date.daysInMonth(date.month) + 1)
+                        day0 = null
+                        day1 = null
+                        day2 = null
+                        day3 = null
+                        day4 = null
+                        day5 = null
+                        day6 = null
+                        day7 = null
+                        day8 = null
+                        day9 = null
+                        day10 = null
+                        day11 = null
+                        day12 = null
+                        day13 = null
+                        day14 = null
+                        day15 = null
+                        day16 = null
+                        day17 = null
+                        day18 = null
+                        day19 = null
+                        day20 = null
+                        day21 = null
+                        day22 = null
+                        day23 = null
+                        day24 = null
+                        day25 = null
+                        day26 = null
+                        day27 = null
+                        day28 = null
+                        day29 = null
                     }
 
                     constructor(other: MonthTable) {
                         month = other.month
                         dayCount = other.dayCount
-                        val cap = other.days.length()
-                        days = AtomicReferenceArray(cap)
-                        for(i in 0 until cap) {
-                            other.days[i]?.let { d ->
-                                days[i] = d
-                                updateDays.incrementAndGet(this)
-                                updateCount.incrementAndGet(this@DateSet)
-                            }
-                        }
+                        day0 = accountFor(other.day0)
+                        day1 = accountFor(other.day1)
+                        day2 = accountFor(other.day2)
+                        day3 = accountFor(other.day3)
+                        day4 = accountFor(other.day4)
+                        day5 = accountFor(other.day5)
+                        day6 = accountFor(other.day6)
+                        day7 = accountFor(other.day7)
+                        day8 = accountFor(other.day8)
+                        day9 = accountFor(other.day9)
+                        day10 = accountFor(other.day10)
+                        day11 = accountFor(other.day11)
+                        day12 = accountFor(other.day12)
+                        day13 = accountFor(other.day13)
+                        day14 = accountFor(other.day14)
+                        day15 = accountFor(other.day15)
+                        day16 = accountFor(other.day16)
+                        day17 = accountFor(other.day17)
+                        day18 = accountFor(other.day18)
+                        day19 = accountFor(other.day19)
+                        day20 = accountFor(other.day20)
+                        day21 = accountFor(other.day21)
+                        day22 = accountFor(other.day22)
+                        day23 = accountFor(other.day23)
+                        day24 = accountFor(other.day24)
+                        day25 = accountFor(other.day25)
+                        day26 = accountFor(other.day26)
+                        day27 = accountFor(other.day27)
+                        day28 = accountFor(other.day28)
+                        day29 = accountFor(other.day29)
                     }
+
+                    open fun copy(yt: YearTable): MonthTable = yt.MonthTable(this)
+
+                    fun accountFor(date: Date?): Date? {
+                        if (date != null) {
+                            Private.updateDayCount.incrementAndGet(this)
+                            Private.updateCount.incrementAndGet(this@DateSet)
+                        }
+                        return date
+                    }
+
+                    open val lastDay: Int get() = 29
 
                     fun addDate(date: Date): Boolean {
                         val d = date.day
                         var delta: Int
                         if (d == 0) {
-                            if (!days.compareAndSet(0, null, month)) return false
+                            if (!Private.updateDays[0].compareAndSet(this, null, month)) return false
                             delta = 1
-                            for(i in 1 until days.length()) {
-                                if (days.getAndSet(i, null) != null) delta--
+                            for(i in 1..lastDay) {
+                                if (Private.updateDays[i].getAndSet(this, null) != null) delta--
                             }
                         } else {
-                            delta = if (days.getAndSet(d, date) == null) 1 else 0
-                            if (days.getAndSet(0, null) != null) delta--
+                            delta = if (Private.updateDays[d].getAndSet(this, date) == null) 1 else 0
+                            if (Private.updateDays[0].getAndSet(this, null) != null) delta--
                         }
                         return if (delta != 0) {
-                            updateDays.addAndGet(this, delta)
-                            updateCount.addAndGet(this@DateSet, delta)
+                            Private.updateDayCount.addAndGet(this, delta)
+                            Private.updateCount.addAndGet(this@DateSet, delta)
                             true
                         } else false
                     }
 
                     fun contains(date: Date, exact: Boolean): Boolean {
                         val d = date.day
-                        return days[d] != null ||
-                                (!exact && if (d == 0) dayCount > 0 else days[0] != null)
+                        return Private.updateDays[d][this] != null ||
+                                (!exact && if (d == 0) dayCount > 0 else Private.updateDays[0][this] != null)
                     }
 
                     fun remove(date: Date): Boolean {
                         val d = date.day
                         if (d == 0) {
                             removeMonth()
-                            for(i in 0 until days.length()) days[i] = null
-                            return updateDays.getAndSet(this, 0) != 0
+                            for(i in 0..lastDay) Private.updateDays[i][this] = null
+                            return Private.updateDayCount.getAndSet(this, 0) != 0
                         }
-                        if (days.getAndSet(d, null) == null) return false
-                        updateCount.decrementAndGet(this@DateSet)
-                        if (updateDays.decrementAndGet(this) == 0) removeMonth()
+                        if (Private.updateDays[d].getAndSet(this, null) == null) return false
+                        Private.updateCount.decrementAndGet(this@DateSet)
+                        if (Private.updateDayCount.decrementAndGet(this) == 0) removeMonth()
                         return true
                     }
 
                     fun removeMonth() {
-                        if (months.compareAndSet(month.month - 1, this, null) &&
-                                updateMonths.decrementAndGet(this@YearTable) == 0)
+                        if (strongUpdater<MonthTable>(month.month - 1)
+                                .compareAndSet(this@YearTable, this, null) &&
+                            Private.updateMonthCount.decrementAndGet(this@YearTable) == 0)
                             removeYear()
                     }
 
                     fun writeString(sb: StringBuilder, startProgress: Int): Int {
                         var progress = startProgress
-                        for(day in 0 until days.length()) {
-                            val date: Date = days[day] ?: continue
+                        for(day in 0..lastDay) {
+                            val date: Date = Private.updateDays[day][this] ?: continue
                             if (progress > WRITE_START)
                                 sb.append(',')
                             if (progress == WRITE_DAY && day == 0)
@@ -836,14 +1011,19 @@ class DateSet(): MutableIterable<Date>, Serializable {
                         return progress
                     }
 
+                    private fun writeMonthOrDay(sb: StringBuilder, i: Int) {
+                        if (i < 10) sb.append('0')
+                        sb.append(i)
+                    }
+
                     override fun iterator() = object : MutableIterator<Date> {
 
                         var index: Int = 0
                         var lastReturned: Int = -1
 
                         override fun hasNext(): Boolean {
-                            for(i in index until days.length()) {
-                                if (days[i] != null) {
+                            for(i in index..lastDay) {
+                                if (Private.updateDays[i][this@MonthTable] != null) {
                                     index = i
                                     return true
                                 }
@@ -852,10 +1032,10 @@ class DateSet(): MutableIterable<Date>, Serializable {
                         }
 
                         override fun next(): Date {
-                            val length = days.length()
-                            for(i in index until length) {
-                                val date: Date = days[i] ?: continue
-                                index = if (i == 0) length else i + 1
+                            val last = lastDay
+                            for(i in index..last) {
+                                val date: Date = Private.updateDays[i][this@MonthTable] ?: continue
+                                index = 1 + if (i == 0) last else i
                                 lastReturned = i
                                 return date
                             }
@@ -866,10 +1046,10 @@ class DateSet(): MutableIterable<Date>, Serializable {
                             val i = lastReturned
                             if (i < 0) throw IllegalStateException()
                             lastReturned = -1
-                            if (days.getAndSet(i, null) == null)
+                            if (Private.updateDays[i].getAndSet(this@MonthTable, null) == null)
                                 throw ConcurrentModificationException()
-                            updateCount.decrementAndGet(this@DateSet)
-                            if (updateDays.decrementAndGet(this@MonthTable) == 0)
+                            Private.updateCount.decrementAndGet(this@DateSet)
+                            if (Private.updateDayCount.decrementAndGet(this@MonthTable) == 0)
                                 removeMonth()
                         }
 
@@ -877,15 +1057,53 @@ class DateSet(): MutableIterable<Date>, Serializable {
 
                     fun contentEquals(other: MonthTable): Boolean {
                         return when {
-                            days[0] != null -> other.days[0] != null
-                            other.days[0] != null || days.length() != other.days.length() -> false
+                            day0 != null -> other.day0 != null
+                            other.day0 != null || lastDay != other.lastDay -> false
                             else -> {
-                                for(i in 1 until days.length())
-                                    if ((days[i] == null) xor (other.days[i] == null)) return false
+                                for(i in 1..lastDay) {
+                                    val updateDay = Private.updateDays[i]
+                                    if ((updateDay[this] == null) xor (updateDay[other] == null)) return false
+                                }
                                 true
                             }
                         }
                     }
+
+                }
+
+                open inner class MonthTable30: MonthTable {
+
+                    @Volatile @JvmField var day30: Date?
+
+                    constructor(date: Date): super(date) {
+                        day30 = null
+                    }
+
+                    constructor(other: MonthTable30): super(other) {
+                        day30 = accountFor(other.day30)
+                    }
+
+                    override fun copy(yt: YearTable): MonthTable = yt.MonthTable30(this)
+
+                    override val lastDay: Int get() = 30
+
+                }
+
+                inner class MonthTable31: MonthTable30 {
+
+                    @Volatile @JvmField var day31: Date?
+
+                    constructor(date: Date): super(date) {
+                        day31 = null
+                    }
+
+                    constructor(other: MonthTable31): super(other) {
+                        day31 = accountFor(other.day31)
+                    }
+
+                    override fun copy(yt: YearTable): MonthTable = yt.MonthTable31(this)
+
+                    override val lastDay: Int get() = 31
 
                 }
 
@@ -898,11 +1116,11 @@ class DateSet(): MutableIterable<Date>, Serializable {
     private fun writeObject(oos: ObjectOutputStream) {
         val yearList = mutableListOf<Table2d.Table1d.YearTable>()
         for(i2d in 0..0x7F) {
-            val t2d = table2d[i2d]
+            val t2d = strongUpdater<Table2d>(i2d)[table2d]
             if (t2d != null) for(i1d in 0..0xFF) {
-                val t1d = t2d.table1d[i1d]
+                val t1d = strongUpdater<Table2d.Table1d>(i1d)[t2d]
                 if (t1d != null) for(i in 0..0xFF) {
-                    val yt = t1d.years[i]
+                    val yt = strongUpdater<Table2d.Table1d.YearTable>(i)[t1d]
                     if (yt != null) yearList.add(yt)
                 }
             }
@@ -912,10 +1130,10 @@ class DateSet(): MutableIterable<Date>, Serializable {
             oos.writeInt(yt.year.year)
             if (yt.monthCount > 0) for(m in 0..11) {
                 var bits = 0
-                yt.months[m]?.days?.let { days ->
+                strongUpdater<Table2d.Table1d.YearTable.MonthTable>(m)[yt]?.let { mt ->
                     var bit = 1
-                    for(d in 0 until days.length()) {
-                        if (days[d] != null) bits = bits or bit
+                    for(d in 0..mt.lastDay) {
+                        if (Private.updateDays[d][mt] != null) bits = bits or bit
                         bit = bit shl 1
                     }
                 }
@@ -925,39 +1143,41 @@ class DateSet(): MutableIterable<Date>, Serializable {
     }
 
     private fun readObject(ois: ObjectInputStream) {
-        table2d = AtomicReferenceArray(0x80)
-        weak2d = AtomicReferenceArray(0x80)
         queue = ReferenceQueue<Any>()
+        table2d = DateTable128(queue)
         val yearCount = ois.readInt()
         repeat(yearCount) {
             val y = ois.readInt()
             val i2d = (y + YEAR_OFFSET) shr 16
-            val t2d = table2d[i2d] ?: Table2d(i2d).apply {
-                table2d[i2d] = this
-                weak2d[i2d] = Weak(this, weak2d, i2d)
+            val strong2d = strongUpdater<Table2d>(i2d)
+            val t2d = strong2d[table2d] ?: Table2d(queue, i2d).apply {
+                strong2d[table2d] = this
+                weakUpdater<Table2d>(i2d)[table2d] = Weak(this, table2d, i2d)
             }
             val i1d = (y shr 8) and 0xFF
-            val t1d = t2d.table1d[i1d] ?: t2d.Table1d(i1d).apply {
-                t2d.table1d[i1d] = this
-                t2d.weak1d[i1d] = Weak(this, t2d.weak1d, i1d)
-                update1d.incrementAndGet(t2d)
+            val strong1d = strongUpdater<Table2d.Table1d>(i1d)
+            val t1d = strong1d[t2d] ?: t2d.Table1d(i1d).apply {
+                strong1d[t2d] = this
+                weakUpdater<Table2d.Table1d>(i1d)[t2d] = Weak(this, t2d, i1d)
+                Private.updateCount1d.incrementAndGet(t2d)
             }
             val i = y and 0xFF
-            if (t1d.years[i] != null)
+            val strongYear = strongUpdater<Table2d.Table1d.YearTable>(i)
+            if (strongYear[t1d] != null)
                 throw InvalidObjectException("Duplicate year $y")
             val yt = t1d.YearTable(y)
-            t1d.years[i] = yt
-            t1d.weakYears[i] = Weak(yt, t1d.weakYears, i)
-            updateYears.incrementAndGet(t1d)
+            strongYear[t1d] = yt
+            weakUpdater<Table2d.Table1d.YearTable>(i)[t1d] = Weak(yt, t1d, i)
+            Private.updateYearCount.incrementAndGet(t1d)
             var daysInYear = 0
             for(m in 1..12) {
                 var bits = ois.readInt().and(1.shl(Date.daysInMonth(m) + 1) - 1)
                 if (bits != 0) {
-                    val mt = yt.MonthTable(Date(y, m, 0))
+                    val mt = Private.monthTableFactories[m - 1](yt, Date(y, m, 0))
                     if (bits == 1) {
                         mt.dayCount = 1
                         daysInYear++
-                        mt.days[0] = mt.month
+                        mt.day0 = mt.month
                     } else {
                         bits = bits and -2
                         val dayCount = bits.countOneBits()
@@ -967,17 +1187,17 @@ class DateSet(): MutableIterable<Date>, Serializable {
                             val bit = bits and -bits
                             bits -= bit
                             val d = trailingZerosPow2(bit)
-                            mt.days[d] = Date(y, m, d)
+                            Private.updateDays[d][mt] = Date(y, m, d)
                         }
                     }
-                    yt.months[m - 1] = mt
-                    yt.weakMonths[m - 1] = Weak(mt, yt.weakMonths, m - 1)
-                    updateMonths.incrementAndGet(yt)
+                    strongUpdater<Table2d.Table1d.YearTable.MonthTable>(m - 1)[yt] = mt
+                    weakUpdater<Table2d.Table1d.YearTable.MonthTable>(m - 1)[yt] = Weak(mt, yt, m - 1)
+                    Private.updateMonthCount.incrementAndGet(yt)
                 }
             }
-            if (updateMonths.compareAndSet(yt, 0, -1))
+            if (Private.updateMonthCount.compareAndSet(yt, 0, -1))
                 daysInYear++
-            updateCount.addAndGet(this, daysInYear)
+            Private.updateCount.addAndGet(this, daysInYear)
         }
     }
 

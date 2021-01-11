@@ -100,4 +100,11 @@ internal object InternalDate {
         return Date(y, m, d)
     }
 
+//    @Suppress("UNCHECKED_CAST")
+//    fun <T> strongTableUpdater(index: Int) =
+//        DateTable256.strongUpdaters[index] as AtomicReferenceFieldUpdater<DateTable128<T>, T?>
+//    @Suppress("UNCHECKED_CAST")
+//    fun <T> weakTableUpdater(index: Int) =
+//        DateTable256.weakUpdaters[index] as AtomicReferenceFieldUpdater<DateTable128<T>, Weak<T>?>
+
 }

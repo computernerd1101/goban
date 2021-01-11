@@ -128,9 +128,13 @@ inline fun <reified T: Any, reified V> atomicUpdater(name: String): AtomicRefere
 }
 
 fun <T: Any, V: Any> AtomicReferenceFieldUpdater<T, V?>.getOrDefault(target: T, default: V): V {
-    while(!compareAndSet(target, null, default)) {
-        val value: V? = get(target)
-        if (value != null) return value
+    return compareAndExchange(target, null, default) ?: default
+}
+
+fun <T: Any, V> AtomicReferenceFieldUpdater<T, V>.compareAndExchange(target: T, expect: V, update: V): V {
+    while(!compareAndSet(target, expect, update)) {
+        val value: V = get(target)
+        if (value !== expect) return value
     }
-    return default
+    return expect
 }

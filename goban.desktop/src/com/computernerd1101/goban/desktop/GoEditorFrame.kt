@@ -2595,28 +2595,20 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
             val min = selection.minSelectionIndex
             val max = selection.maxSelectionIndex
             if (min < 0 || max < 0) return
-            // TODO test changes
-            var from = dateList.size
-            var until = from
-            for(i in max downTo min) if (selection.isSelectedIndex(i)) {
-                if (from != until && i != from - 1) {
-                    if (dates != null) for(d in from until until) dates.remove(dateList[d])
-                    dateList.subList(from, until).clear()
-                    until = i
+            var until = -1
+            for(i in max downTo min) {
+                if (selection.isSelectedIndex(i)) {
+                    if (until < 0) until = i + 1
+                } else if (until >= 0) {
+                    if (dates != null) for(d in (i + 1) until until) dates.remove(dateList[d])
+                    dateList.subList(i + 1, until).clear()
+                    until = -1
                 }
-                from = i
             }
-            if (from != until) {
-                if (dates != null) for (d in from until until) dates.remove(dateList[d])
-                dateList.subList(from, until).clear()
+            if (until >= 0) {
+                if (dates != null) for(d in 0 until until) dates.remove(dateList[d])
+                dateList.subList(0, until).clear()
             }
-//            for(i in (indices.size - 1) downTo 0) {
-//                val index = indices[i]
-//                if (index < dateList.size) {
-//                    val date = dateList.removeAt(index)
-//                    dates?.remove(date)
-//                }
-//            }
             listGameDates.updateUI()
         }
 
