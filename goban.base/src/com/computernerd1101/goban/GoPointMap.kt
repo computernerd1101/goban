@@ -7,11 +7,11 @@ package com.computernerd1101.goban
 import com.computernerd1101.goban.internal.*
 import java.util.AbstractMap.SimpleImmutableEntry
 
-inline fun <V> GoPointMap() = GoPointMap.empty<V>()
+fun <V> GoPointMap() = GoPointMap.empty<V>()
 
-inline fun <V> GoPointMap(vararg entries: Map.Entry<GoPoint, V>) = GoPointMap.readOnly(*entries)
+fun <V> GoPointMap(vararg entries: Map.Entry<GoPoint, V>) = GoPointMap.readOnly(*entries)
 
-inline fun <V> GoPointMap(vararg entries: Pair<GoPoint, V>) = GoPointMap.readOnly(*entries)
+fun <V> GoPointMap(vararg entries: Pair<GoPoint, V>) = GoPointMap.readOnly(*entries)
 
 @Suppress("LeakingThis")
 open class GoPointMap<out V> internal constructor(entries: Array<out Any>?, marker: InternalMarker):

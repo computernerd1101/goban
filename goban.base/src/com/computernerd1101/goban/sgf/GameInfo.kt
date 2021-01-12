@@ -1,6 +1,7 @@
 package com.computernerd1101.goban.sgf
 
 import com.computernerd1101.goban.*
+import com.computernerd1101.goban.internal.InternalMarker
 import com.computernerd1101.goban.sgf.internal.*
 import com.computernerd1101.goban.time.*
 import com.computernerd1101.sgf.*
@@ -8,24 +9,9 @@ import java.io.*
 import java.nio.charset.Charset
 import kotlin.contracts.*
 
-@Suppress("NOTHING_TO_INLINE", "EXPERIMENTAL_FEATURE_WARNING")
-inline class InlineGameInfoPlayer(val info: GameInfo) {
-
-    inline operator fun get(color: GoColor): GameInfo.Player {
-        // return info.player[color]
-        return info.getPlayer(color)
-    }
-
-    inline operator fun set(color: GoColor, player: GameInfo.Player) {
-        // info.player[color] = player
-        info.setPlayer(color, player)
-    }
-
-}
-
-@Suppress("unused", "NOTHING_TO_INLINE")
+@Suppress("unused")
 @OptIn(ExperimentalContracts::class)
-inline fun GameInfo.Player?.isNullOrEmpty(): Boolean {
+fun GameInfo.Player?.isNullOrEmpty(): Boolean {
     contract {
         returns(false) implies (this@isNullOrEmpty != null)
     }
@@ -34,8 +20,24 @@ inline fun GameInfo.Player?.isNullOrEmpty(): Boolean {
 
 class GameInfo: Serializable {
 
-    inline val player: InlineGameInfoPlayer
-        get() = InlineGameInfoPlayer(this)
+    @get:JvmName("players")
+    var player: Players = Players(InternalMarker); private set
+
+    inner class Players internal constructor(marker: InternalMarker) {
+
+        init {
+            marker.ignore()
+        }
+
+        operator fun get(color: GoColor): Player {
+            return getPlayer(color)
+        }
+
+        operator fun set(color: GoColor, player: Player) {
+            setPlayer(color, player)
+        }
+
+    }
 
     fun getPlayer(color: GoColor): Player {
         return if (color == GoColor.BLACK) blackPlayer else whitePlayer
@@ -539,6 +541,7 @@ class GameInfo: Serializable {
     }
     
     private fun readObject(ois: ObjectInputStream) {
+        player = Players(InternalMarker)
         val fields: ObjectInputStream.GetField = ois.readFields()
         black = fields["black", null] as? Player ?: Player()
         white = fields["white", null] as? Player ?: Player()

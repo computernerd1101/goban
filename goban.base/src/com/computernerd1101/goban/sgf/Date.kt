@@ -1,4 +1,4 @@
-@file:Suppress("EXPERIMENTAL_FEATURE_WARNING", "NOTHING_TO_INLINE")
+@file:Suppress("EXPERIMENTAL_FEATURE_WARNING")
 
 package com.computernerd1101.goban.sgf
 
@@ -76,6 +76,7 @@ class Date private constructor(private val value: Int): Comparable<Date>, Serial
         @JvmStatic
         fun daysInMonth(month: Int): Int = if (month in 1..12) Private.daysInMonth[month] else 0
 
+        @JvmStatic
         fun parse(s: String): Date? = InternalDate.parse(null, s)
 
         private const val serialVersionUID = 1L
@@ -158,15 +159,15 @@ fun Date?.parseNext(s: String): Date? {
 }
 
 @Suppress("unused")
-inline infix fun DateSet?.contentEquals(other: DateSet?) = DateSet.contentEquals(this, other)
+infix fun DateSet?.contentEquals(other: DateSet?) = DateSet.contentEquals(this, other)
 @Suppress("unused")
-inline infix fun DateSet?.contentNotEqual(other: DateSet?) = !DateSet.contentEquals(this, other)
+infix fun DateSet?.contentNotEqual(other: DateSet?) = !DateSet.contentEquals(this, other)
 @Suppress("unused")
-inline fun DateSet?.contentHashCode() = this?.contentHashCode() ?: 0
+fun DateSet?.contentHashCode() = this?.contentHashCode() ?: 0
 
 @OptIn(ExperimentalContracts::class)
 @Suppress("unused")
-inline fun DateSet?.isNullOrEmpty(): Boolean {
+fun DateSet?.isNullOrEmpty(): Boolean {
     contract {
         returns(false) implies (this@isNullOrEmpty != null)
     }
@@ -177,7 +178,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
 
     fun isEmpty() = count == 0
 
-    inline fun isNotEmpty() = !isEmpty()
+    fun isNotEmpty() = !isEmpty()
 
     @Volatile
     private var _count: Int = 0
@@ -248,7 +249,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
     }
 
     @Suppress("unused")
-    inline infix fun contentNotEqual(other: DateSet) = !contentEquals(other)
+    infix fun contentNotEqual(other: DateSet) = !contentEquals(other)
 
     fun contentHashCode(): Int {
         var totalHash = 0

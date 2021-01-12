@@ -1,4 +1,4 @@
-@file:Suppress("FunctionName", "NOTHING_TO_INLINE")
+@file:Suppress("FunctionName")
 @file:JvmMultifileClass
 @file:JvmName("GobanKt")
 
@@ -9,7 +9,7 @@ import com.computernerd1101.sgf.*
 
 inline val emptyGoPointSet get() = GoPointSet.EMPTY
 
-inline fun GoPointSet(vararg points: Iterable<GoPoint>) = GoPointSet.readOnly(*points)
+fun GoPointSet(vararg points: Iterable<GoPoint>) = GoPointSet.readOnly(*points)
 
 open class GoPointSet internal constructor(marker: InternalMarker): Set<GoPoint> {
 
@@ -735,5 +735,4 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
 
 }
 
-@Suppress("NOTHING_TO_INLINE")
-inline fun removeClashingGoPoints(vararg sets: MutableGoPointSet?) = MutableGoPointSet.removeClashingPoints(*sets)
+fun removeClashingGoPoints(vararg sets: MutableGoPointSet?) = MutableGoPointSet.removeClashingPoints(*sets)

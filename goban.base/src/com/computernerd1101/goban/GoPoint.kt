@@ -1,4 +1,3 @@
-@file:Suppress("NOTHING_TO_INLINE")
 @file:JvmMultifileClass
 @file:JvmName("GobanKt")
 
@@ -8,15 +7,15 @@ import com.computernerd1101.goban.internal.*
 import com.computernerd1101.sgf.SGFBytes
 import java.io.*
 
-inline fun GoPoint(x: Int, y: Int) = GoPoint.pointAt(x, y)
+fun GoPoint(x: Int, y: Int) = GoPoint.pointAt(x, y)
 
 @Suppress("unused")
-inline fun String.toGoPoint() = GoPoint.parse(this) ?: throw IllegalArgumentException(this)
+fun String.toGoPoint() = GoPoint.parse(this) ?: throw IllegalArgumentException(this)
 @Suppress("unused")
-inline fun String.toGoPointOrNull() = GoPoint.parse(this)
-inline fun Int.toGoPointChar() = GoPoint.toChar(this)
+fun String.toGoPointOrNull() = GoPoint.parse(this)
+fun Int.toGoPointChar() = GoPoint.toChar(this)
 @Suppress("unused")
-inline fun Char.toGoPointInt() = GoPoint.parseChar(this)
+fun Char.toGoPointInt() = GoPoint.parseChar(this)
 
 // Implement all the same methods as a data class, with the same behavior,
 // except that all instances are cached.

@@ -1,4 +1,3 @@
-@file:Suppress("FunctionName", "NOTHING_TO_INLINE")
 @file:JvmMultifileClass
 @file:JvmName("GobanKt")
 
@@ -7,7 +6,7 @@ package com.computernerd1101.goban
 import com.computernerd1101.goban.internal.*
 import java.io.Serializable
 
-inline fun GoRectangle(x1: Int, y1: Int, x2: Int, y2: Int) = GoRectangle.rect(x1, x2, y1, y2)
+fun GoRectangle(x1: Int, y1: Int, x2: Int, y2: Int) = GoRectangle.rect(x1, x2, y1, y2)
 
 class GoRectangle internal constructor(
     @JvmField val start: GoPoint,

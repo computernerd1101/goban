@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalStdlibApi::class)
-
 package com.computernerd1101.goban.internal
 
 import com.computernerd1101.goban.*

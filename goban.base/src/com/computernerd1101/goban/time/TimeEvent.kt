@@ -24,7 +24,7 @@ class TimeEvent(
 
     override fun getSource(): TimeLimit = super.getSource() as TimeLimit
 
-    inline val timeLimit: TimeLimit get() = getSource()
+    val timeLimit: TimeLimit get() = getSource()
 
     val overtimeCode: Int = if (flags and FLAG_OVERTIME == 0) 0 else overtimeCode
 

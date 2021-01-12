@@ -1,14 +1,11 @@
 package com.computernerd1101.goban.time
 
-import com.computernerd1101.goban.internal.InternalMarker
 import java.util.*
 import java.util.regex.*
 import kotlin.concurrent.scheduleAtFixedRate
 
-@Suppress("NOTHING_TO_INLINE")
-inline fun Long.millisToStringSeconds(): String = TimeLimit.millisToStringSeconds(this)
-@Suppress("NOTHING_TO_INLINE")
-inline fun String.secondsToMillis(): Long = TimeLimit.parseSeconds(this)
+fun Long.millisToStringSeconds(): String = TimeLimit.millisToStringSeconds(this)
+fun String.secondsToMillis(): Long = TimeLimit.parseSeconds(this)
 
 class TimeLimit(mainTime: Long, val overtime: Overtime?) {
 
@@ -94,24 +91,20 @@ class TimeLimit(mainTime: Long, val overtime: Overtime?) {
     var timeEvent = TimeEvent(this, mainTime); private set
 
     init {
+        Events.filterInitialEvent()
+    }
+
+    private fun Events.filterInitialEvent() {
         // In case overtime?.filterEvent(timeEvent) accesses this
-        // through timeEvent.getSource() or timeEvent.timeLimit
+        // through timeEvent.getSource() or timeEvent.timeLimit,
+        // this.timeEvent will already be non-null.
         timeEvent = filterEvent(timeEvent)
     }
 
-    // already synchronized in all callers
-    private fun updateTimeEvent(e: TimeEvent, marker: InternalMarker) {
-        marker.ignore()
-        timeEvent = e
-        for(i in (timeListeners.size - 1) downTo 0)
-            timeListeners[i].timeElapsed(e)
-    }
-
     @Suppress("unused")
-    inline fun addTimeListener(crossinline l: (TimeEvent) -> Unit): TimeListener {
-        val listener = TimeListener { e -> l(e) }
-        addTimeListener(listener)
-        return listener
+    fun addNewTimeListener(l: TimeListener): TimeListener {
+        synchronized(this) { timeListeners.add(l) }
+        return l
     }
 
     fun addTimeListener(l: TimeListener?) {
@@ -133,13 +126,13 @@ class TimeLimit(mainTime: Long, val overtime: Overtime?) {
                 ticking -> if (e.flags and TimeEvent.FLAGS_EXPIRED_TICKING == 0) {
                     prevSystemTime = System.currentTimeMillis()
                     var time = e.timeRemaining
-                    updateTimeEvent(
+                    Events.updateTimeEvent(
                         TimeEvent(
                             this,
                             time,
                             e.overtimeCode,
                             e.flags or TimeEvent.FLAG_TICKING
-                        ), InternalMarker
+                        ), filter=false
                     )
                     time %= 1000L
                     if (time <= 0) time += 1000L
@@ -151,15 +144,14 @@ class TimeLimit(mainTime: Long, val overtime: Overtime?) {
                             if (r <= 0L)
                                 r += 1000L
                             prevSystemTime = System.currentTimeMillis()
-                            event = filterEvent(
+                            event = Events.updateTimeEvent(
                                 TimeEvent(
                                     this@TimeLimit,
                                     timeRemaining - r,
                                     event.overtimeCode,
                                     event.flags or TimeEvent.FLAG_TICKING
-                                )
+                                ), filter=true
                             )
-                            updateTimeEvent(event, InternalMarker)
                             if (event.isExpired) {
                                 cancel()
                                 task = null
@@ -173,41 +165,59 @@ class TimeLimit(mainTime: Long, val overtime: Overtime?) {
                     val now = System.currentTimeMillis()
                     val diff = now - prevSystemTime
                     prevSystemTime = now
-                    updateTimeEvent(
-                        filterEvent(
-                            TimeEvent(
-                                this,
-                                e.timeRemaining - diff,
-                                e.overtimeCode,
-                                e.flags and (TimeEvent.FLAG_TICKING xor TimeEvent.FLAG_MASK)
-                            )
-                        ), InternalMarker
+                    Events.updateTimeEvent(
+                        TimeEvent(
+                            this,
+                            e.timeRemaining - diff,
+                            e.overtimeCode,
+                            e.flags and (TimeEvent.FLAG_TICKING xor TimeEvent.FLAG_MASK)
+                        ), filter=true
                     )
                 }
             }
         }
 
-    private fun filterEvent(e: TimeEvent): TimeEvent {
-        val e2 = overtime?.filterEvent(e) ?: e
-        val timeRemaining = e2.timeRemaining
-        val overtimeCode = e2.overtimeCode
-        var flags = e2.flags
-        when {
-            flags and (TimeEvent.FLAG_EXPIRED or TimeEvent.FLAG_OVERTIME) == 0 && timeRemaining <= 0L ->
-                flags = (flags and (TimeEvent.FLAG_MASK xor TimeEvent.FLAG_TICKING)) or TimeEvent.FLAG_EXPIRED
-            !e.isTicking -> flags = flags and (TimeEvent.FLAG_MASK xor TimeEvent.FLAG_TICKING)
-            flags and TimeEvent.FLAG_EXPIRED == 0 -> flags = flags or TimeEvent.FLAG_TICKING
+    // already synchronized in all callers
+    private fun Events.updateTimeEvent(e: TimeEvent, filter: Boolean): TimeEvent {
+        // even synthetic public method access$updateTimeEvent,
+        // which is called by a TimerTask lambda,
+        // cannot be called without access to receiver of private type Events.
+        val event = if (filter) filterEvent(e) else e
+        // The owner of this method is the same as that of the private setter for property timeEvent,
+        // so a public synthetic accessor will not be generated for that setter.
+        timeEvent = event
+        for(i in (timeListeners.size - 1) downTo 0)
+            timeListeners[i].timeElapsed(event)
+        return event
+    }
+
+    private object Events {
+
+        // public member of private nested class prevents
+        // synthetic public method access$filterEvent from being generated
+        fun TimeLimit.filterEvent(e: TimeEvent): TimeEvent {
+            val e2 = overtime?.filterEvent(e) ?: e
+            val timeRemaining = e2.timeRemaining
+            val overtimeCode = e2.overtimeCode
+            var flags = e2.flags
+            when {
+                flags and (TimeEvent.FLAG_EXPIRED or TimeEvent.FLAG_OVERTIME) == 0 && timeRemaining <= 0L ->
+                    flags = (flags and (TimeEvent.FLAG_MASK xor TimeEvent.FLAG_TICKING)) or TimeEvent.FLAG_EXPIRED
+                !e.isTicking -> flags = flags and (TimeEvent.FLAG_MASK xor TimeEvent.FLAG_TICKING)
+                flags and TimeEvent.FLAG_EXPIRED == 0 -> flags = flags or TimeEvent.FLAG_TICKING
+            }
+            return when {
+                timeRemaining == e.timeRemaining &&
+                        overtimeCode == e.overtimeCode &&
+                        flags == e.flags -> e
+                e !== e2 && e2.timeLimit == this &&
+                        timeRemaining == e2.timeRemaining &&
+                        overtimeCode == e2.overtimeCode &&
+                        flags == e2.flags -> e2
+                else -> TimeEvent(this, timeRemaining, overtimeCode, flags)
+            }
         }
-        return when {
-            timeRemaining == e.timeRemaining &&
-                    overtimeCode == e.overtimeCode &&
-                    flags == e.flags -> e
-            e !== e2 && e2.timeLimit == this &&
-                    timeRemaining == e2.timeRemaining &&
-                    overtimeCode == e2.overtimeCode &&
-                    flags == e2.flags -> e2
-            else -> TimeEvent(this, timeRemaining, overtimeCode, flags)
-        }
+
     }
 
 }

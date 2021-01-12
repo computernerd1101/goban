@@ -5,7 +5,6 @@ package com.computernerd1101.goban.markup
 
 import com.computernerd1101.goban.GoPoint
 import com.computernerd1101.goban.MutableGoPointMap
-import com.computernerd1101.goban.internal.InternalMarker
 import java.io.*
 
 class PointMarkup: Comparable<PointMarkup>, Serializable {
@@ -13,7 +12,7 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
     companion object {
 
         @JvmField
-        val EMPTY_LABEL = PointMarkup("", InternalMarker)
+        val EMPTY_LABEL = PointMarkup("", Private)
         @JvmField
         val SELECT = PointMarkup(MarkupEnum.SL)
         @JvmField
@@ -27,13 +26,11 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
 
         const val TYPES = 6
 
-        private val sharedValues = arrayOf(EMPTY_LABEL, SELECT, X, TRIANGLE, CIRCLE, SQUARE)
-
         @JvmStatic
         @Suppress("unused")
         val VALUES: Array<PointMarkup>
             @JvmName("values")
-            get() = sharedValues.clone()
+            get() = Private.VALUES.clone()
 
         @JvmStatic
         fun label(label: String): PointMarkup {
@@ -41,7 +38,7 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
             val lineEnd = label.indexOf('\n')
             if (lineEnd > 0)
                 trim = trim.substring(0, lineEnd).trim()
-            return if (trim.isEmpty()) EMPTY_LABEL else PointMarkup(trim, InternalMarker)
+            return if (trim.isEmpty()) EMPTY_LABEL else PointMarkup(trim, Private)
         }
 
         @JvmStatic
@@ -56,10 +53,18 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
 
         @JvmStatic
         fun ordinal(ordinal: Int): PointMarkup {
-            return sharedValues[ordinal]
+            return Private.VALUES[ordinal]
         }
 
         private const val serialVersionUID: Long = 1L
+
+    }
+
+    private object Private {
+
+        fun ignore() = Unit
+
+        @JvmField val VALUES = arrayOf(EMPTY_LABEL, SELECT, X, TRIANGLE, CIRCLE, SQUARE)
 
     }
 
@@ -87,8 +92,8 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
         type.value = this
     }
 
-    private constructor(label: String, marker: InternalMarker) {
-        marker.ignore();
+    private constructor(label: String, marker: Private) {
+        marker.ignore()
         enumType = null
         this.label = label
     }

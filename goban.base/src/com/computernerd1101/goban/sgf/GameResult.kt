@@ -4,14 +4,13 @@ import com.computernerd1101.goban.GoColor
 import com.computernerd1101.goban.internal.InternalMarker
 import java.io.*
 
-@Suppress("NOTHING_TO_INLINE")
-inline fun GameResult(winner: GoColor?, score: Float): GameResult {
+fun GameResult(winner: GoColor?, score: Float): GameResult {
     return GameResult.result(winner, score)
 }
 
 
-@Suppress("unused", "NOTHING_TO_INLINE")
-inline fun GameResult(s: String): GameResult {
+@Suppress("unused")
+fun GameResult(s: String): GameResult {
     return GameResult.parse(s)
 }
 

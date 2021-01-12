@@ -1,4 +1,4 @@
-@file:Suppress("unused", "FunctionName", "NOTHING_TO_INLINE")
+@file:Suppress("unused")
 @file:JvmMultifileClass
 @file:JvmName("GobanKt")
 
@@ -22,22 +22,22 @@ enum class Superko {
 
 }
 
-inline fun GoRules(string: String) = GoRules.parse(string)
+fun GoRules(string: String) = GoRules.parse(string)
 
-inline fun GoRules(superko: Superko) = GoRules.valueOf(superko)
+fun GoRules(superko: Superko) = GoRules.valueOf(superko)
 
-inline fun GoRules(
+fun GoRules(
     superko: Superko,
     territoryScore: Boolean
 ) = GoRules.valueOf(superko, territoryScore)
 
-inline fun GoRules(
+fun GoRules(
     superko: Superko,
     territoryScore: Boolean,
     allowSuicide: Boolean
 ) = GoRules.valueOf(superko, territoryScore, allowSuicide)
 
-inline fun GoRules() = GoRules.DEFAULT
+fun GoRules() = GoRules.DEFAULT
 
 enum class GoRules(
     @get:JvmName("superko")

@@ -1,4 +1,3 @@
-@file:Suppress("NOTHING_TO_INLINE")
 @file:JvmMultifileClass
 @file:JvmName("GobanKt")
 
@@ -162,7 +161,7 @@ sealed class AbstractGoban(
 
 @Suppress("unused")
 @OptIn(ExperimentalContracts::class)
-inline fun AbstractGoban?.isNullOrEmpty(): Boolean {
+fun AbstractGoban?.isNullOrEmpty(): Boolean {
     contract {
         returns(false) implies (this@isNullOrEmpty != null)
     }
@@ -170,13 +169,10 @@ inline fun AbstractGoban?.isNullOrEmpty(): Boolean {
 }
 
 @Suppress("unused")
-inline infix fun AbstractGoban?.contentEquals(other: AbstractGoban?) = AbstractGoban.contentEquals(this, other)
-@Suppress("FunctionName")
-inline fun FixedGoban(width: Int, height: Int) = FixedGoban.empty(width, height)
-@Suppress("FunctionName")
-inline fun FixedGoban(size: Int) = FixedGoban.empty(size)
-@Suppress("FunctionName")
-inline fun FixedGoban() = FixedGoban.EMPTY
+infix fun AbstractGoban?.contentEquals(other: AbstractGoban?) = AbstractGoban.contentEquals(this, other)
+fun FixedGoban(width: Int, height: Int) = FixedGoban.empty(width, height)
+fun FixedGoban(size: Int) = FixedGoban.empty(size)
+fun FixedGoban() = FixedGoban.EMPTY
 
 class FixedGoban: AbstractGoban {
 

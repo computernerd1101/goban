@@ -1,6 +1,5 @@
 @file:JvmName("MarkupKt")
 @file:JvmMultifileClass
-@file:Suppress("NOTHING_TO_INLINE")
 
 package com.computernerd1101.goban.markup
 
@@ -12,14 +11,14 @@ import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
 @Suppress("unused")
-inline fun lineMarkup(x1: Int, x2: Int, y1: Int, y2: Int) = LineMarkup.lineMarkup(x1, x2, y1, y2)
+fun lineMarkup(x1: Int, x2: Int, y1: Int, y2: Int) = LineMarkup.lineMarkup(x1, x2, y1, y2)
 
-inline infix fun GoPoint.lineMarkup(other: GoPoint) = LineMarkup.lineMarkup(this, other)
+infix fun GoPoint.lineMarkup(other: GoPoint) = LineMarkup.lineMarkup(this, other)
 
 @Suppress("unused")
-inline fun arrowMarkup(x1: Int, x2: Int, y1: Int, y2: Int) = LineMarkup.arrowMarkup(x1, x2, y1, y2)
+fun arrowMarkup(x1: Int, x2: Int, y1: Int, y2: Int) = LineMarkup.arrowMarkup(x1, x2, y1, y2)
 
-inline infix fun GoPoint.arrowMarkup(other: GoPoint) = LineMarkup.arrowMarkup(this, other)
+infix fun GoPoint.arrowMarkup(other: GoPoint) = LineMarkup.arrowMarkup(this, other)
 
 
 class LineMarkup private constructor(
@@ -165,7 +164,7 @@ class LineMarkupSet: MutableIterable<LineMarkup> {
 
     fun isEmpty() = count == 0
 
-    inline fun isNotEmpty() = !isEmpty()
+    fun isNotEmpty() = !isEmpty()
 
     override fun iterator(): MutableIterator<LineMarkup> {
         return object: MutableIterator<LineMarkup> {
