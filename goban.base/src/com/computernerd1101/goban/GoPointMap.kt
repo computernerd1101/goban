@@ -5,7 +5,6 @@
 package com.computernerd1101.goban
 
 import com.computernerd1101.goban.internal.*
-import java.util.AbstractMap.SimpleImmutableEntry
 
 fun <V> GoPointMap() = GoPointMap.empty<V>()
 
@@ -83,8 +82,8 @@ open class GoPointMap<out V> internal constructor(entries: Array<out Any>?, mark
                 @Suppress("UNCHECKED_CAST")
                 row[x] = when {
                     this is MutableGoPointMap<V> -> MutableGoPointEntry(this, key, value)
-                    entry is SimpleImmutableEntry<*, *> -> entry as SimpleImmutableEntry<GoPoint, V>
-                    else -> SimpleImmutableEntry(key, value)
+                    entry is ImmutableEntry<*, *> -> entry as ImmutableEntry<GoPoint, V>
+                    else -> ImmutableEntry(key, value)
                 }
             }
         }

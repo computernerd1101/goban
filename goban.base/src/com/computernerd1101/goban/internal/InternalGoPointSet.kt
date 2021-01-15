@@ -10,6 +10,13 @@ internal object InternalGoPointSet {
 
     @JvmField val rowUpdaters = unsafeArrayOfNulls<AtomicLongFieldUpdater<GoPointSet>>(52)
 
+    fun checkType(klass: Class<out GoPointSet>) {
+        if (klass != GoPointSet::class.java && klass != MutableGoPointSet::class.java)
+            throw IllegalAccessError(
+                "${klass.name} does not have permission to inherit from com.computernerd1101.goban.GoPointSet"
+            )
+    }
+
     fun init(set: GoPointSet, elements: Array<out Iterable<GoPoint>>) {
         for(element in elements) when(element) {
             is GoPoint -> {

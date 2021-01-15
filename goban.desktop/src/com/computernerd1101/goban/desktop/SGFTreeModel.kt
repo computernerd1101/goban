@@ -2,10 +2,14 @@ package com.computernerd1101.goban.desktop
 
 import com.computernerd1101.goban.*
 import com.computernerd1101.goban.desktop.internal.GameInfoTransferHandler
+import com.computernerd1101.goban.desktop.resources.GoPointFormatter
+import com.computernerd1101.goban.desktop.resources.SGFNodeFormatter
+import com.computernerd1101.goban.desktop.resources.gobanDesktopResources
 import com.computernerd1101.goban.sgf.*
 import java.awt.Component
 import java.awt.datatransfer.*
 import java.io.IOException
+import java.util.*
 import javax.swing.*
 import javax.swing.event.TreeModelEvent
 import javax.swing.event.TreeModelListener
@@ -35,6 +39,15 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
 //        return String(s)
 //    }
 
+    private val pointFormatter: GoPointFormatter
+    private val nodeFormatter: SGFNodeFormatter
+
+    init {
+        val resources = gobanDesktopResources(Locale.getDefault())
+        pointFormatter = resources.getObject("SGF.Point.Format") as GoPointFormatter
+        nodeFormatter = resources.getObject("SGF.Node.Format") as SGFNodeFormatter
+    }
+
     override fun getTreeCellRendererComponent(
         tree: JTree,
         value: Any?,
@@ -46,49 +59,31 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
     ): Component {
         val cmp = renderer.getTreeCellRendererComponent(tree, value, selected, expanded, leaf, row, hasFocus)
         val sgf = root ?: return cmp
-        val txt: String
+        val move: String?
         val icon: Icon
         val node: GoSGFNode
         when(value) {
             sgf -> {
-                txt = "SGF"
+                move = null
                 icon = if (sgf.rootNode.turnPlayer == GoColor.WHITE) iconSetupWhite
                 else iconSetupBlack
                 node = sgf.rootNode
             }
             is GoSGFMoveNode -> {
                 node = value
-                val point = value.playStoneAt
-                val index = value.index
-                txt = index.toString() + if (point == null) ": Pass"
-                else ": ${xToChar(point.x)}${sgf.height - point.y}"
+                move = pointFormatter.format(value.playStoneAt, sgf.width, sgf.height)
                 icon = if (value.turnPlayer == GoColor.BLACK) iconPlayBlack
                 else iconPlayWhite
             }
             is GoSGFSetupNode -> {
                 node = value
-                txt = node.index.toString()
+                move = null
                 icon = if (getNextPlayer(node) == GoColor.BLACK) iconSetupBlack
                 else iconSetupWhite
             }
             else -> return cmp
         }
-        var hotspot = when(node.hotspot) {
-            1 -> " (Hotspot"
-            2 -> " (Major hotspot"
-            else -> ""
-        }
-        var sep = ""
-        val gameInfo = when {
-            node.gameInfoNode === node -> {
-                if (hotspot.isEmpty()) hotspot = " ("
-                else sep = ", "
-                "Game Info)"
-            }
-            hotspot.isNotEmpty() -> ")"
-            else -> ""
-        }
-        renderer.text = "$txt$hotspot$sep$gameInfo"
+        renderer.text = nodeFormatter.format(node.index, move, node.hotspot, node.gameInfoNode === node)
         renderer.icon = icon
         return cmp
     }
@@ -298,17 +293,20 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
             val warning = when {
                 oldGameInfo == null ->
                     if (dstNode.hasGameInfoExcluding(gameInfo))
-                        "Selected node has children with game info set. Overwrite?"
+                        "GameInfo.Warning.Children"
                     else null
                 oldGameInfo == gameInfo -> null
                 dstNode.gameInfoNode == dstNode ->
-                    "Selected node has game info set. Overwrite?"
-                else -> "Selected node has a parent with game info set. Overwrite?"
+                    "GameInfo.Warning.Selected"
+                else -> "GameInfo.Warning.Parent"
             }
             val tree = support.component as JTree
             if (warning != null) SwingUtilities.invokeLater {
+                val resources = gobanDesktopResources(Locale.getDefault())
                 if (JOptionPane.showConfirmDialog(
-                        tree, warning, "Overwrite game info?",
+                        tree,
+                        resources.getString(warning),
+                        resources.getString("GameInfo.Warning.Title"),
                         JOptionPane.YES_NO_OPTION,
                         JOptionPane.WARNING_MESSAGE
                     ) == JOptionPane.YES_OPTION)
@@ -381,19 +379,6 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
                 return current.turnPlayer.opponent
             val goban = node.goban
             return (goban.whiteCount != 0 || goban.blackCount == 0).goBlackOrWhite()
-        }
-
-        @JvmStatic
-        fun xToChar(x: Int): Char {
-            return when(x) {
-                in 0..7 -> 'A' + x
-                in 8..24 -> 'B' + x
-                in 25..32 -> ('a' - 25) + x
-                in 33..49 -> ('a' - 24) + x
-                50 -> 'I'
-                51 -> 'i'
-                else -> '\u0000'
-            }
         }
 
 //        @JvmStatic

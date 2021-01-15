@@ -30,10 +30,10 @@ sealed class AbstractGoban(
 
     }
 
-    constructor() : this(19, 19, InternalGoban.newRows(19, false), 0L)
+    constructor() : this(19, 19, InternalGoban.newRows(false, 19), 0L)
 
     constructor(width: Int, height: Int): this(
-        width, height, InternalGoban.newRows(height, width > 32), 0L
+        width, height, InternalGoban.newRows(width > 32, height), 0L
     )
 
     constructor(other: AbstractGoban, rows: GobanRows1): this(
@@ -41,7 +41,7 @@ sealed class AbstractGoban(
         rows, InternalGoban.copyRows(other.rows, rows)
     )
 
-    constructor(other: AbstractGoban): this(other, InternalGoban.newRows(other.height, other.width > 32))
+    constructor(other: AbstractGoban): this(other, other.rows.newInstance())
 
     val blackCount: Int
         @JvmName("blackCount")
@@ -111,7 +111,7 @@ sealed class AbstractGoban(
     abstract fun editable(): AbstractMutableGoban
 
     fun toPointSet(color: GoColor?): GoPointSet {
-        val points = GoPointSet()
+        val points = GoPointSet(InternalGoPointSet) // creates a separate instance from GoPointSet.EMPTY
         initPointSet(points, color)
         val words = InternalGoPointSet.sizeAndHash(points)
         if (words == 0L) return GoPointSet.EMPTY
@@ -190,7 +190,8 @@ class FixedGoban: AbstractGoban {
         this.hash = hash
     }
 
-    private constructor(width: Int, height: Int, cache: Cache): super(width, height) {
+    private constructor(width: Int, height: Int, cache: Cache):
+            super(width, height, InternalGoban.emptyRows(width > 32, height), 0L) {
         hash = 0
         if (width == height)
             cache.squares[width - 1] = this
@@ -263,7 +264,7 @@ class FixedGoban: AbstractGoban {
         val width = this.width
         val height = this.height
         val oldRows = this.rows
-        val rows = InternalGoban.newRows(height, width > 32)
+        val rows = InternalGoban.newRows(width > 32, height)
         val count = InternalGoban.copyRows(oldRows, rows)
         GobanBulk.threadLocalGoban(width, height, rows)
         val arrays: Array<LongArray> = GobanThreadLocals.arrays()
@@ -360,11 +361,11 @@ sealed class AbstractMutableGoban: AbstractGoban {
     override fun readOnly(): FixedGoban {
         val width = this.width
         val height = this.height
-        if (width == height && isEmpty()) return FixedGoban(width)
+        if (width == height && isEmpty()) return FixedGoban(width) // cached instance
         val oldRows = this.rows
-        val rows = InternalGoban.newRows(height, width > 32)
+        val rows = InternalGoban.newRows(width > 32, height)
         val count = InternalGoban.copyRows(oldRows, rows)
-        if (width == height && count == 0L) return FixedGoban(width)
+        if (width == height && count == 0L) return FixedGoban(width) // cached instance
         return FixedGoban(width, height, rows, count)
     }
 

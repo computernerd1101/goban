@@ -8,11 +8,16 @@ internal object InternalGoban: LongBinaryOperator {
 
     lateinit var count: AtomicLongFieldUpdater<AbstractGoban>
 
-    fun newRows(size: Int, wide: Boolean): GobanRows1 {
-        var index = 2*(size - 1)
-        if (wide) index++
-        return GobanRows.init[index]()
+    fun emptyRows(wide: Boolean, height: Int): GobanRows1 {
+        val index = when {
+            !wide -> height - 1
+            height <= 26 -> height*2 - 1
+            else -> height + 25
+        }
+        return GobanRows.empty[index]
     }
+
+    fun newRows(wide: Boolean, height: Int): GobanRows1 = emptyRows(wide, height).newInstance()
 
     fun copyRows(src: GobanRows1, dst: GobanRows1): Long {
         var count = 0L

@@ -119,7 +119,7 @@ class GoGameSetupView private constructor(resources: ResourceBundle): JComponent
         add(comboSuperko, gbc2)
         gbc1.gridy = ++row
         gbc1.fill = GridBagConstraints.NONE
-        add(JLabel(resources.getString("TimeLimit")), gbc1)
+        add(JLabel(resources.getString("TimeLimit.Prompt")), gbc1)
         gbc2.gridx = 1
         gbc2.gridy = row
         gbc2.gridwidth = 1

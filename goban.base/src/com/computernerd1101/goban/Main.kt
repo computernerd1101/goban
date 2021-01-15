@@ -2,14 +2,13 @@
 
 package com.computernerd1101.goban
 
-import com.computernerd1101.goban.sgf.GoSGF
-import com.computernerd1101.goban.time.millisToStringSeconds
-import kotlin.jvm.functions.FunctionN
+import com.computernerd1101.goban.internal.InternalGoban
 import kotlin.reflect.*
-import kotlin.reflect.full.memberProperties
 
 fun main() {
-    println(' '.toInt().toString(8))
+    for(h in 1..52) {
+        println("$h => ${InternalGoban.newRows(false, h).javaClass}, ${InternalGoban.newRows(true, h).javaClass}")
+    }
 }
 
 class TestCompanion {

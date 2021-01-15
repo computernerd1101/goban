@@ -190,8 +190,6 @@ class DateSet(): MutableIterable<Date>, Serializable {
             return _count
         }
 
-//    private var table2d = AtomicReferenceArray<Table2d?>(0x80)
-//    private var weak2d = AtomicReferenceArray<Weak<Table2d>?>(0x80)
     private var queue: ReferenceQueue<*> = ReferenceQueue<Any>()
     private var table2d = DateTable128<Table2d>(queue)
 

@@ -11,13 +11,11 @@ fun GoRectangle(x1: Int, y1: Int, x2: Int, y2: Int) = GoRectangle.rect(x1, x2, y
 class GoRectangle internal constructor(
     @JvmField val start: GoPoint,
     @JvmField val end: GoPoint,
-    @Transient private var string: String,
-    marker: InternalMarker
+    string: String?,
+    intern: InternalGoRectangle
 ): Set<GoPoint>, Comparable<GoRectangle>, Serializable {
 
-    init {
-        marker.ignore()
-    }
+    @Transient private var string: String = string ?: intern.toString(start, end)
 
     companion object {
 
@@ -44,7 +42,7 @@ class GoRectangle internal constructor(
             }
             val start = GoPoint(startX, startY)
             val end = GoPoint(endX, endY)
-            return GoRectangle(start, end, InternalGoRectangle.toString(start, end), InternalMarker)
+            return GoRectangle(start, end, null, InternalGoRectangle)
         }
 
         private const val serialVersionUID = 1L
@@ -208,7 +206,7 @@ class GoRectangle internal constructor(
         return when {
             start == end -> start.selfRect
             start == this.start && end == this.end -> this
-            else -> GoRectangle(start, end, InternalGoRectangle.toString(start, end), InternalMarker)
+            else -> GoRectangle(start, end, null, InternalGoRectangle)
         }
     }
 
@@ -236,7 +234,7 @@ class GoRectangle internal constructor(
                 end = this.start
             }
         }
-        return GoRectangle(start, end, InternalGoRectangle.toString(start, end), InternalMarker)
+        return GoRectangle(start, end, null, InternalGoRectangle)
     }
 
 }

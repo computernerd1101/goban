@@ -11,7 +11,7 @@ inline val emptyGoPointSet get() = GoPointSet.EMPTY
 
 fun GoPointSet(vararg points: Iterable<GoPoint>) = GoPointSet.readOnly(*points)
 
-open class GoPointSet internal constructor(marker: InternalMarker): Set<GoPoint> {
+open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPoint> {
 
     companion object {
 
@@ -34,11 +34,11 @@ open class GoPointSet internal constructor(marker: InternalMarker): Set<GoPoint>
         }
 
         @JvmField
-        val EMPTY = GoPointSet(InternalMarker)
+        val EMPTY = GoPointSet(InternalGoPointSet)
 
         @JvmStatic
         fun readOnly(vararg points: Iterable<GoPoint>): GoPointSet {
-            val set = GoPointSet(InternalMarker)
+            val set = GoPointSet(InternalGoPointSet)
             InternalGoPointSet.init(set, points)
             return if (set.sizeAndHash == 0L) EMPTY
             else set
@@ -47,13 +47,7 @@ open class GoPointSet internal constructor(marker: InternalMarker): Set<GoPoint>
     }
 
     init {
-        marker.ignore()
-        @Suppress("SpellCheckingInspection")
-        val klass = javaClass
-        if (klass != GoPointSet::class.java && klass != MutableGoPointSet::class.java)
-            throw IllegalAccessError(
-                "${klass.name} does not have permission to inherit from com.computernerd1101.goban.GoPointSet"
-            )
+        intern.checkType(javaClass)
     }
 
     @Volatile private var sizeAndHash: Long = 0L
@@ -387,16 +381,16 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
 //    internal constructor(rows: AtomicLongArray, marker: InternalMarker):
 //            super(rows, InternalGoPointSet.sizeAndHash(rows), marker)
 
-    constructor(): super(InternalMarker)
+    constructor(): super(InternalGoPointSet)
 
     @Suppress("unused")
-    constructor(vararg points: Iterable<GoPoint>): super(InternalMarker) {
+    constructor(vararg points: Iterable<GoPoint>): super(InternalGoPointSet) {
         InternalGoPointSet.init(this, points)
     }
 
     override fun readOnly(): GoPointSet {
         if (isEmpty()) return emptyGoPointSet
-        val copy = GoPointSet(InternalMarker)
+        val copy = GoPointSet(InternalGoPointSet)
         for(updater in InternalGoPointSet.rowUpdaters)
             updater[copy] = updater[this]
         val sizeAndHash = InternalGoPointSet.sizeAndHash(copy)

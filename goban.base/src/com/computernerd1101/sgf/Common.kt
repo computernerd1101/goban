@@ -10,16 +10,18 @@ import java.util.*
 private const val sgfChars = "\n\r ()-.0123456789:;ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]abcdefghijklmnopqrstuvwxyz"
 private val sgfBytes = sgfChars.toByteArray()
 
-private val sgfCharsets = WeakHashMap<Charset, Boolean>()
+private val sgfCharsets: MutableMap<Charset, Boolean> = WeakHashMap()
 
 val Charset.isValidSGF: Boolean
     @JvmName("isValidSGFCharset")
-    get() = sgfCharsets[this] ?: try {
-        sgfChars.toByteArray(this) contentEquals sgfBytes &&
-                sgfChars == String(sgfBytes, this)
-    } catch(e: Exception) {
-        false
-    }.also { valid -> sgfCharsets[this] = valid }
+    get() = sgfCharsets.getOrPut(this) {
+        try {
+            sgfChars.toByteArray(this) contentEquals sgfBytes &&
+                    sgfChars == String(sgfBytes, this)
+        } catch(e: Exception) {
+            false
+        }
+    }
 
 fun SGFBytes.escape(copy: Boolean): SGFBytes {
     val ba = toByteArray()

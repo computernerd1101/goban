@@ -22,8 +22,7 @@ fun Char.toGoPointInt() = GoPoint.parseChar(this)
 class GoPoint private constructor(
     @JvmField val x: Int,
     @JvmField val y: Int,
-    buffer2: CharArray,
-    buffer4: CharArray,
+    buffer: CharArray,
     cache: Cache
 ): Iterable<GoPoint>, Comparable<GoPoint>, Serializable {
 
@@ -63,18 +62,16 @@ class GoPoint private constructor(
                 end   = this
             }
         }
-        return GoRectangle(start, end, InternalGoRectangle.toString(start, end), InternalMarker)
+        return GoRectangle(start, end, null, InternalGoRectangle)
     }
 
     init {
         val cx = toChar(x)
         val cy = toChar(y)
-        buffer2[0] = cx
-        buffer2[1] = cy
-        buffer4[1] = cx
-        buffer4[2] = cy
-        string = String(buffer2).intern()
-        selfRect = GoRectangle(this, this, String(buffer4).intern(), InternalMarker)
+        buffer[1] = cx
+        buffer[2] = cy
+        string = String(buffer, 1, 2).intern()
+        selfRect = GoRectangle(this, this, String(buffer).intern(), InternalGoRectangle)
         cache.points[x + y*52] = this
     }
 
@@ -87,13 +84,12 @@ class GoPoint private constructor(
     companion object {
 
         init {
-            val buffer2 = CharArray(2)
-            val buffer4 = CharArray(4)
-            buffer4[0] = '['
-            buffer4[3] = ']'
+            val buffer = CharArray(4)
+            buffer[0] = '['
+            buffer[3] = ']'
             for(y in 0..51) {
                 for(x in 0..51) {
-                    GoPoint(x, y, buffer2, buffer4, Cache)
+                    GoPoint(x, y, buffer, Cache)
                 }
             }
         }
@@ -157,17 +153,20 @@ class GoPoint private constructor(
         return (x - other.x) + (y - other.y)*52
     }
 
-    override fun iterator(): Iterator<GoPoint> = object: Iterator<GoPoint> {
+    override fun iterator(): Iterator<GoPoint> = Itr(this)
 
-        private var hasNext = true
+    private class Itr(point: GoPoint): Iterator<GoPoint> {
 
-        override fun hasNext() = hasNext
+        private var next: GoPoint? = point
+
+        override fun hasNext() = next != null
 
         override fun next(): GoPoint {
-            if (!hasNext) throw NoSuchElementException()
-            hasNext = false
-            return this@GoPoint
+            val point = next ?: throw NoSuchElementException()
+            next = null
+            return point
         }
+
     }
 
     fun toSGFBytes(): SGFBytes {

@@ -76,11 +76,28 @@ class GameInfoTransferHandler(
     companion object {
 
         @JvmField
+        val gameInfoFlavor = Flavors.gameInfoFlavor
+
+        @JvmField
+        val serializedGameInfoFlavor = Flavors.serializedGameInfoFlavor
+
+    }
+
+    private object Flavors {
+
+        fun dataFlavor(mimeType: String) = try {
+            DataFlavor(mimeType)
+        } catch(e: ClassNotFoundException) {
+            throw NoClassDefFoundError(e.message)
+        }
+
+        @JvmField
         val gameInfoFlavor =
             dataFlavor(
                 DataFlavor.javaJVMLocalObjectMimeType +
                         ";class=\"com.computernerd1101.goban.sgf.GameInfo\""
             )
+
         @JvmField
         val serializedGameInfoFlavor =
             dataFlavor(
@@ -88,13 +105,7 @@ class GameInfoTransferHandler(
                         ";class=\"com.computernerd1101.goban.sgf.GameInfo\""
             )
 
-        private fun dataFlavor(mimeType: String) = try {
-            DataFlavor(mimeType)
-        } catch(e: ClassNotFoundException) {
-            throw NoClassDefFoundError(e.message)
-        }
-
-        private val repClasses = arrayOf(
+        @JvmField val repClasses = arrayOf(
             Serializable::class.java,
             GameInfo::class.java,
             Any::class.java,
@@ -111,7 +122,7 @@ class GameInfoTransferHandler(
             StringBuffer::class.java
         )
 
-        private val flavors = arrayOf(
+        @JvmField val flavors = arrayOf(
             gameInfoFlavor,
             serializedGameInfoFlavor,
             dataFlavor(
@@ -238,8 +249,8 @@ class GameInfoTransferHandler(
             props["AP"] = SGFProperty(SGFValue("CN13 Goban", charset))
         }
 
-        override fun getTransferDataFlavors() = Array(flavors.size) { index ->
-            when(val flavor = flavors[index]) {
+        override fun getTransferDataFlavors() = Array(Flavors.flavors.size) { index ->
+            when(val flavor = Flavors.flavors[index]) {
                 is DataFlavor -> flavor
                 else -> DataFlavor(
                     "$flavor;charset=${charset?.name() ?: "UTF-8"}"
@@ -247,7 +258,7 @@ class GameInfoTransferHandler(
             }
         }
 
-        override fun isDataFlavorSupported(flavor: DataFlavor) = flavor.representationClass in repClasses
+        override fun isDataFlavorSupported(flavor: DataFlavor) = flavor.representationClass in Flavors.repClasses
 
     }
 

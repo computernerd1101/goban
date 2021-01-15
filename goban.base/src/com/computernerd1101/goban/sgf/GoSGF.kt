@@ -520,7 +520,8 @@ sealed class GoSGFNode {
         var current = this
         while(true) {
             val node = current.gameInfoNode
-            if (node != null && node.gameInfo != exclude) return true
+            // TODO test
+            if (node != null) return node.gameInfo != exclude
             if (current.childCount != 1) break
             current = current.fastChild(0)
         }
@@ -1096,12 +1097,12 @@ sealed class GoSGFNode {
                     var nextPlayer: GoColor? = null
                     val bytes: SGFBytes = propPL.list[0].list[0]
                     loopPL@ for (b in bytes) {
-                        when (b) {
-                            'B'.toByte(), 'b'.toByte() -> {
+                        when (b.toInt()) {
+                            'B'.toInt(), 'b'.toInt() -> {
                                 nextPlayer = GoColor.BLACK
                                 break@loopPL
                             }
-                            'W'.toByte(), 'w'.toByte() -> {
+                            'W'.toInt(), 'w'.toInt() -> {
                                 nextPlayer = GoColor.WHITE
                                 break@loopPL
                             }
@@ -1383,19 +1384,19 @@ sealed class GoSGFNode {
 
     private object Parse {
 
-        val LABELS: Array<String> = CharArray(1).let { buffer ->
+        @JvmField val LABELS: Array<String> = CharArray(1).let { buffer ->
             Array(52) {
                 buffer[0] = ((if (it < 26) 'A' else ('a' - 26)) + it)
                 String(buffer)
             }
         }
 
-        val WARNING_REQUIRE_2_POINTS = arrayOf(
+        @JvmField val WARNING_REQUIRE_2_POINTS = arrayOf(
             "Two points are required to draw a line between them",
             "Two points are required to draw an arrow between them"
         )
 
-        val WARNING_CONNECT_POINT_TO_SELF_PREFIX = arrayOf(
+        @JvmField val WARNING_CONNECT_POINT_TO_SELF_PREFIX = arrayOf(
             "Cannot draw a line between point [",
             "Cannot draw an arrow between point ["
         )

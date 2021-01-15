@@ -4,6 +4,8 @@ package com.computernerd1101.goban.desktop
 
 import com.computernerd1101.goban.*
 import com.computernerd1101.goban.desktop.internal.*
+import com.computernerd1101.goban.desktop.resources.GobanSizeFormatter
+import com.computernerd1101.goban.desktop.resources.gobanDesktopResources
 import com.computernerd1101.goban.markup.*
 import com.computernerd1101.goban.sgf.*
 import com.computernerd1101.goban.sgf.Date
@@ -13,6 +15,7 @@ import java.awt.*
 import java.awt.event.*
 import java.io.FileInputStream
 import java.io.IOException
+import java.net.URL
 import java.nio.charset.Charset
 import java.text.*
 import java.util.*
@@ -42,7 +45,11 @@ fun readSGF(file: String): GoSGF? {
     }
 }
 
-class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode): JFrame() {
+class GoEditorFrame private constructor(
+    sgf: GoSGF,
+    private var node: GoSGFNode,
+    resources: ResourceBundle = gobanDesktopResources(Locale.getDefault())
+): JFrame() {
 
     constructor(sgf: GoSGF): this(sgf, sgf.rootNode)
 
@@ -57,6 +64,8 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         setLocationRelativeTo(null)
     }
 
+    private val sizeFormat = resources.getObject("Size.Format") as GobanSizeFormatter
+
     var sgf: GoSGF = sgf
         set(sgf) {
             val old = field
@@ -65,7 +74,7 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
             val height = sgf.height
             if (old.width != width || old.height != height) {
                 allPoints = GoPoint(0, 0).rect(width - 1, height - 1)
-                labelSize.text = "Size: ${width}x$height"
+                labelSize.text = sizeFormat.format(width, height)
             }
             val variationFlags = sgf.variationView
             if (variationFlags and GoSGF.CURRENT_VARIATION == 0)
@@ -99,12 +108,16 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
     }
 
     private fun <B: AbstractButton> toolBarAbstractButton(
+        resources: ResourceBundle,
         iconName: String,
-        toolTip: String,
+        toolTip: String?,
         altText: String,
-        button: B): B {
-        val iconURL = GoEditorFrame::class.java.getResource("icons/toolbar/$iconName.png")
-        button.toolTipText = toolTip
+        button: B
+    ): B {
+        val iconURL: URL? = GoEditorFrame::class.java.getResource("icons/toolbar/$iconName.png")
+        button.toolTipText = resources.getString(
+            toolTip ?: "ToolBar.$altText"
+        )
         if (iconURL != null)
             button.icon = ImageIcon(iconURL, altText)
         else button.text = altText
@@ -112,53 +125,54 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
     }
 
     private fun toolBarButton(
+        resources: ResourceBundle,
         iconName: String,
-        toolTip: String,
         altText: String
-    ) = toolBarAbstractButton(iconName, toolTip, altText, JButton())
+    ) = toolBarAbstractButton(resources, iconName, null, altText, JButton())
 
     private fun toolBarToggleButton(
+        resources: ResourceBundle,
         iconName: String,
-        toolTip: String,
+        toolTip: String?,
         altText: String
-    ) = toolBarAbstractButton(iconName, toolTip, altText, JToggleButton())
+    ) = toolBarAbstractButton(resources, iconName, toolTip, altText, JToggleButton())
 
     private val buttonBlack =
-        toolBarToggleButton("Black", "Black to play", "B")
+        toolBarToggleButton(resources, "Black", null, "B")
     private val buttonWhite =
-        toolBarToggleButton("White", "White to play" , "W")
+        toolBarToggleButton(resources, "White", null, "W")
     private val buttonLabelMarkup =
-        toolBarToggleButton("LabelMarkup", "Label markup", "LB")
+        toolBarToggleButton(resources, "LabelMarkup", null, "LB")
     private val buttonSelectMarkup =
-        toolBarToggleButton("SelectMarkup", "Select markup", "SL")
+        toolBarToggleButton(resources, "SelectMarkup", null, "SL")
     private val buttonXMarkup =
-        toolBarToggleButton("XMarkup", "X markup", "MA")
+        toolBarToggleButton(resources, "XMarkup", null, "MA")
     private val buttonTriangleMarkup =
-        toolBarToggleButton("TriangleMarkup", "Triangle markup", "TR")
+        toolBarToggleButton(resources, "TriangleMarkup", null, "TR")
     private val buttonCircleMarkup =
-        toolBarToggleButton("CircleMarkup", "Circle markup", "CR")
+        toolBarToggleButton(resources, "CircleMarkup", null, "CR")
     private val buttonSquareMarkup =
-        toolBarToggleButton("SquareMarkup", "Square markup", "SQ")
+        toolBarToggleButton(resources, "SquareMarkup", null, "SQ")
     private val buttonDeletePointMarkup =
-        toolBarToggleButton("DeletePointMarkup", "Delete point markup", "X")
+        toolBarToggleButton(resources, "DeletePointMarkup", null, "X")
     private val buttonLineMarkup =
-        toolBarToggleButton("LineMarkup", "Line markup", "LN")
+        toolBarToggleButton(resources, "LineMarkup", null, "LN")
     private val buttonArrowMarkup =
-        toolBarToggleButton("ArrowMarkup", "Arrow markup", "AR")
+        toolBarToggleButton(resources, "ArrowMarkup", null, "AR")
     private val buttonDeleteLineMarkup =
-        toolBarToggleButton("DeleteLineMarkup", "Delete line markup", "XLN")
+        toolBarToggleButton(resources, "DeleteLineMarkup", null, "XLN")
     private val buttonDim =
-        toolBarToggleButton("Dim", "Dim part of board", "DD")
+        toolBarToggleButton(resources, "Dim", null, "DD")
     private val buttonResetDim =
-        toolBarButton("ResetDim", "Un-dim entire board", "XDD")
+        toolBarButton(resources, "ResetDim", "XDD")
     private val buttonInheritDim =
-        toolBarToggleButton("InheritDim", "Inherit dim part of board", "<DD")
+        toolBarToggleButton(resources, "InheritDim", "ToolBar.DD.Inherit", "<DD")
     private val buttonVisible =
-        toolBarToggleButton("Visible", "Visible part of board", "VW")
+        toolBarToggleButton(resources, "Visible", null, "VW")
     private val buttonResetVisible =
-        toolBarButton("ResetVisible", "Reset visibility of entire board", "XVW")
+        toolBarButton(resources, "ResetVisible", "XVW")
     private val buttonInheritVisible =
-        toolBarToggleButton("InheritVisible", "Inherit visible part of board", "<VW")
+        toolBarToggleButton(resources, "InheritVisible", "ToolBar.VW.Inherit", "<VW")
     private val markupButtons = arrayOf<AbstractButton>(
         buttonLabelMarkup,
         buttonSelectMarkup,
@@ -473,10 +487,10 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
 
     private val sgfTreeModel = SGFTreeModel()
     private val sgfTreeView = JTree(sgfTreeModel)
-    private val buttonSGFUp = JButton("Up")
-    private val buttonSGFDown = JButton("Down")
-    private val buttonSGFSetup = JToggleButton("Setup")
-    private val buttonSGFDelete = JButton("Delete")
+    private val buttonSGFUp = JButton(resources.getString("Up"))
+    private val buttonSGFDown = JButton(resources.getString("Down"))
+    private val buttonSGFSetup = JToggleButton(resources.getString("Setup"))
+    private val buttonSGFDelete = JButton(resources.getString("Delete"))
 
     private val tabs = JTabbedPane()
 
@@ -484,7 +498,7 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         sgfTreeModel.root = sgf
         sgfTreeModel.addTreeModelListener(object: TreeModelListener {
             override fun treeNodesChanged(e: TreeModelEvent?) {
-                selectGameInfo(node.gameInfo)
+                selectGameInfo(node.gameInfo, resources)
             }
             override fun treeNodesInserted(e: TreeModelEvent?) = Unit
             override fun treeNodesRemoved(e: TreeModelEvent?) = Unit
@@ -554,11 +568,12 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         buttonSGFUp.addActionListener(actionListener)
         buttonSGFDown.addActionListener(actionListener)
         buttonSGFSetup.addActionListener {
+            val resources = gobanDesktopResources(Locale.getDefault())
             if (buttonSGFSetup.isSelected) {
                 sgfTreeView.isEnabled = false
                 buttonSGFUp.isEnabled = false
                 buttonSGFDown.isEnabled = false
-                buttonSGFDelete.text = "Create"
+                buttonSGFDelete.text = resources.getString("Create")
                 buttonSGFDelete.isEnabled = true
                 gobanView.pointMarkup = null
                 gobanView.lineMarkup = null
@@ -571,8 +586,8 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
                     button.isEnabled = false
             } else {
                 if (!(goban contentEquals node.goban) &&
-                        JOptionPane.showConfirmDialog(this, "Cancel setup?",
-                            "Setup", JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
+                        JOptionPane.showConfirmDialog(this, resources.getString("Setup.Cancel"),
+                            resources.getString("Setup"), JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
                     buttonSGFSetup.isSelected = true
                     return@addActionListener
                 }
@@ -621,12 +636,12 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         textComment.lineWrap = true
         textComment.wrapStyleWord = true
         textComment.addKeyListener(TextListener.Node(textComment, GoSGFNode::comment, this::node))
-        tabs.add("Comment", JScrollPane(textComment))
+        tabs.add(resources.getString("Comment"), JScrollPane(textComment))
     }
 
     private val cardMoveSetup = CardLayout()
     private val panelMoveSetup = JPanel(cardMoveSetup)
-    private val checkMoveForced = JCheckBox("Forced?")
+    private val checkMoveForced = JCheckBox(resources.getString("Move.Forced"))
     private val comboMoveAnnotation = JComboBox(moveAnnotations)
     private val spinMoveNumber = CN13Spinner()
     private val spinBlackTime = CN13Spinner()
@@ -663,7 +678,7 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         gbc.gridy = ++row
         gbc.gridwidth = 1
         gbc.weightx = 0.0
-        panel2.add(JLabel("Move Number: "), gbc)
+        panel2.add(JLabel(resources.getString("Move.Number.Prompt")), gbc)
         val gbc1 = GridBagConstraints()
         gbc1.fill = GridBagConstraints.HORIZONTAL
         gbc1.anchor = GridBagConstraints.WEST
@@ -678,9 +693,9 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         gbc2.gridx = 1
         gbc2.gridy = ++row
         gbc2.weightx = 0.0
-        panel2.add(JLabel("Black"), gbc2)
+        panel2.add(JLabel(resources.getString("Black")), gbc2)
         gbc2.gridx = 2
-        panel2.add(JLabel("White"), gbc2)
+        panel2.add(JLabel(resources.getString("White")), gbc2)
         gbc.gridy = ++row
         gbc1.gridy = row
         gbc1.gridwidth = 1
@@ -688,13 +703,13 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         gbc2.fill = GridBagConstraints.HORIZONTAL
         gbc2.anchor = GridBagConstraints.WEST
         gbc2.weightx = 1.0
-        panel2.add(JLabel("Time: "), gbc)
+        panel2.add(JLabel(resources.getString("Time.Prompt")), gbc)
         panel2.add(spinBlackTime, gbc1)
         panel2.add(spinWhiteTime, gbc2)
         gbc.gridy = ++row
         gbc1.gridy = row
         gbc2.gridy = row
-        panel2.add(JLabel("Overtime: "), gbc)
+        panel2.add(JLabel(resources.getString("Overtime.Prompt")), gbc)
         panel2.add(spinBlackOvertime, gbc1)
         panel2.add(spinWhiteOvertime, gbc2)
         val panel = JPanel(BorderLayout())
@@ -702,9 +717,9 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         panelMoveSetup.add(panel, "Move")
     }
 
-    private val radioSetupDefaultPlayer = JRadioButton("Default")
-    private val radioSetupBlackPlayer = JRadioButton("Black")
-    private val radioSetupWhitePlayer = JRadioButton("White")
+    private val radioSetupDefaultPlayer = JRadioButton(resources.getString("Default"))
+    private val radioSetupBlackPlayer = JRadioButton(resources.getString("Black"))
+    private val radioSetupWhitePlayer = JRadioButton(resources.getString("White"))
 
     init {
         val actionListener = ActionListener { e: ActionEvent ->
@@ -728,7 +743,7 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         radioSetupDefaultPlayer.addActionListener(actionListener)
         val panel = JPanel(BorderLayout())
         val panel2 = JPanel(GridLayout(0, 1))
-        panel2.add(JLabel("Next player:"))
+        panel2.add(JLabel(resources.getString("Setup.NextPlayer.Prompt")))
         panel2.add(radioSetupDefaultPlayer)
         panel2.add(radioSetupBlackPlayer)
         panel2.add(radioSetupWhitePlayer)
@@ -738,24 +753,24 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         val str: String
         if (node is GoSGFMoveNode) {
             str = "Move"
-            comboMoveAnnotation.selectedItem = node.moveAnnotation ?: MOVE_ANNOTATION
+            comboMoveAnnotation.selectedItem = node.moveAnnotation ?: MoveAnnotationHeader
             spinMoveNumber.value = node.moveNumber
         } else {
             str = "Setup"
             spinMoveNumber.value = 0
         }
         cardMoveSetup.show(panelMoveSetup, str)
-        tabs.add(str, JScrollPane(panelMoveSetup))
+        tabs.add(resources.getString(str), JScrollPane(panelMoveSetup))
     }
 
     private val textNodeName = JTextField()
     private val spinNodeValue = CN13Spinner()
     private val comboNodePosition = JComboBox(positionStates)
     private val comboHotspot = JComboBox<Any>(HOTSPOTS)
-    private val defaultPrintMethod: Any = object {
-        override fun toString(): String {
-            return "${node.parent?.printMethod ?: PrintMethod.PRINT_ALL} (Default)"
-        }
+    private val defaultPrintMethod: Any = localeToString { resources ->
+        resources.getString("PrintMethod.Default.Prefix") +
+                (node.parent?.printMethod ?: PrintMethod.PRINT_ALL) +
+                resources.getString("PrintMethod.Default.Suffix")
     }
     private val comboPrintMethod = JComboBox(Array(1 + PRINT_METHODS.size) {
         when(it) {
@@ -764,14 +779,14 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         }
     })
     private val comboFigure = JComboBox(FIGURE_MODES)
-    private val labelFigureName = JLabel("Diagram: ")
+    private val labelFigureName = JLabel(resources.getString("Figure.Name.Prompt"))
     private val textFigureName = JTextField()
-    private val checkFigureDefault = JCheckBox("Default figure settings")
-    private val checkFigureHideCoordinates = JCheckBox("Hide coordinates")
-    private val checkFigureHideName = JCheckBox("Hide figure name")
-    private val checkFigureIgnoreUnshownMoves = JCheckBox("Ignore unshown moves")
-    private val checkFigureKeepCapturedStones = JCheckBox("Show captured stones")
-    private val checkFigureHideHoshiDots = JCheckBox("Hide hoshi dots")
+    private val checkFigureDefault = JCheckBox(resources.getString("Figure.Default"))
+    private val checkFigureHideCoordinates = JCheckBox(resources.getString("Figure.Coordinates.Hide"))
+    private val checkFigureHideName = JCheckBox(resources.getString("Figure.Name.Hide"))
+    private val checkFigureIgnoreUnshownMoves = JCheckBox(resources.getString("Figure.Moves.Unshown"))
+    private val checkFigureKeepCapturedStones = JCheckBox(resources.getString("Figure.Captured.Show"))
+    private val checkFigureHideHoshiDots = JCheckBox(resources.getString("Figure.Hoshi.Hide"))
 
     init {
         textNodeName.addKeyListener(TextListener.Node(textNodeName, GoSGFNode::nodeName, this::node))
@@ -824,7 +839,7 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         gbc1.anchor = GridBagConstraints.EAST
         gbc1.weightx = 0.0
         gbc1.gridy = row
-        panel2.add(JLabel("Node name: "), gbc1)
+        panel2.add(JLabel(resources.getString("Node.Name.Prompt")), gbc1)
         val gbc2 = GridBagConstraints()
         gbc2.fill = GridBagConstraints.HORIZONTAL
         gbc2.anchor = GridBagConstraints.WEST
@@ -833,7 +848,7 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         gbc2.gridy = row
         panel2.add(textNodeName, gbc2)
         gbc1.gridy = ++row
-        panel2.add(JLabel("Value: "), gbc1)
+        panel2.add(JLabel(resources.getString("Node.Value.Prompt")), gbc1)
         gbc2.gridy = row
         panel2.add(spinNodeValue, gbc2)
         gbc2.gridx = 0
@@ -866,18 +881,18 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         panel2.add(checkFigureKeepCapturedStones, gbc2)
         gbc2.gridy = ++row
         panel2.add(checkFigureHideHoshiDots, gbc2)
-        tabs.addTab("Node", JScrollPane(panel))
+        tabs.addTab(resources.getString("Node"), JScrollPane(panel))
     }
 
     private val gameInfoTransferHandler = GameInfoTransferHandler(tabs, sgf.charset) {
         (it as? JTabbedPane)?.selectedIndex == 3
     }
-    private val buttonCopyGameInfo = JButton("Copy")
-    private val buttonPasteGameInfo = JButton("Paste")
-    private val buttonDeleteGameInfo = JButton("Delete")
-    private val buttonPreviousGameInfoNode = JButton("Previous")
+    private val buttonCopyGameInfo = JButton(resources.getString("Copy"))
+    private val buttonPasteGameInfo = JButton(resources.getString("Paste"))
+    private val buttonDeleteGameInfo = JButton(resources.getString("Delete"))
+    private val buttonPreviousGameInfoNode = JButton(resources.getString("Previous"))
     private val buttonGameInfoNode = JButton()
-    private val buttonNextGameInfoNode = JButton("Next")
+    private val buttonNextGameInfoNode = JButton(resources.getString("Next"))
     private val panelGameInfo = JPanel(BorderLayout())
     private val textBlackName = JTextField()
     private val textWhiteName = JTextField()
@@ -912,9 +927,9 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
     private val gameYearModel = YearFormatter()
     private val gameMonthModel = MonthFormatter()
     private val gameDayModel = MonthDayFormatter(31)
-    private val buttonToday = JButton("Today")
-    private val buttonAddDate = JButton("Add")
-    private val buttonRemoveDate = JButton("Remove")
+    private val buttonToday = JButton(resources.getString("Date.Today"))
+    private val buttonAddDate = JButton(resources.getString("Add"))
+    private val buttonRemoveDate = JButton(resources.getString("Remove"))
     private val datesModel = DateListModel()
     private val listGameDates = JList(datesModel)
     private val textGameComment = JTextArea()
@@ -931,36 +946,39 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
             val warning = when {
                 old == null ->
                     if (node.hasGameInfoExcluding(info))
-                        "Selected node has children with game info set. Overwrite?"
+                        "GameInfo.Warning.Children"
                     else null
                 old == info -> return@addActionListener
                 node.gameInfoNode == node ->
-                    "Selected node has game info set. Overwrite?"
-                else -> "Selected node has a parent with game info set. Overwrite?"
+                    "GameInfo.Warning.Selected"
+                else -> "GameInfo.Warning.Parent"
             }
+            val resources = gobanDesktopResources(Locale.getDefault())
             if (warning == null || JOptionPane.showConfirmDialog(
-                    this, warning, "Overwrite game info?",
+                    this, resources.getString(warning),
+                    resources.getString("GameInfo.Warning.Title"),
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.WARNING_MESSAGE
                 ) == JOptionPane.YES_OPTION
             ) {
                 info = info.copy()
                 node.gameInfo = info
-                selectGameInfo(info)
+                selectGameInfo(info, resources)
                 sgfTreeView.updateUI()
             }
         }
         buttonDeleteGameInfo.addActionListener {
+            val resources = gobanDesktopResources(Locale.getDefault())
             if (JOptionPane.showConfirmDialog(
                     this,
-                    "Are you sure you want to delete the game info from this node?",
-                    "Delete game info?",
+                    resources.getString("GameInfo.Delete.Confirm"),
+                    resources.getString("GameInfo.Delete.Title"),
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.QUESTION_MESSAGE
                 ) == JOptionPane.YES_OPTION
             ) {
                 node.gameInfo = null
-                selectGameInfo(null)
+                selectGameInfo(null, resources)
                 sgfTreeView.updateUI()
             }
         }
@@ -973,18 +991,19 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
             val gameInfoNode = node.gameInfoNode
             when {
                 gameInfoNode == null -> {
-                    if (!node.hasGameInfoChildren ||
-                        JOptionPane.showConfirmDialog(
-                            this,
-                            "Selected node has children with game info set. Overwrite?",
-                            "Overwrite game info?",
-                            JOptionPane.YES_NO_OPTION,
-                            JOptionPane.WARNING_MESSAGE
-                        ) == JOptionPane.YES_OPTION
+                    if (!node.hasGameInfoChildren || gobanDesktopResources(Locale.getDefault()).let { resources ->
+                            JOptionPane.showConfirmDialog(
+                                this,
+                                resources.getString("GameInfo.Warning.Children"),
+                                resources.getString("GameInfo.Warning.Title"),
+                                JOptionPane.YES_NO_OPTION,
+                                JOptionPane.WARNING_MESSAGE
+                            ) == JOptionPane.YES_OPTION
+                        }
                     ) {
                         val info = GameInfo()
                         node.gameInfo = info
-                        selectGameInfo(info)
+                        selectGameInfo(info, resources)
                         sgfTreeView.updateUI()
                     }
                 }
@@ -1137,32 +1156,32 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         gbc3.weightx = 0.0
         gbc3.fill = GridBagConstraints.NONE
         gbc3.anchor = GridBagConstraints.CENTER
-        panel.add(JLabel("Black"), gbc3)
+        panel.add(JLabel(resources.getString("Black")), gbc3)
         gbc3.gridx = 2
-        panel.add(JLabel("White"), gbc3)
+        panel.add(JLabel(resources.getString("White")), gbc3)
         gbc1.gridy = ++row
-        panel.add(JLabel("Player: "), gbc1)
+        panel.add(JLabel(resources.getString("GameInfo.Player.Prompt")), gbc1)
         gbc2.gridx = 1
         gbc2.gridy = row
         panel.add(textBlackName, gbc2)
         gbc2.gridx = 2
         panel.add(textWhiteName, gbc2)
         gbc1.gridy = ++row
-        panel.add(JLabel("Team: "), gbc1)
+        panel.add(JLabel(resources.getString("GameInfo.Team.Prompt")), gbc1)
         gbc2.gridx = 1
         gbc2.gridy = row
         panel.add(textBlackTeam, gbc2)
         gbc2.gridx = 2
         panel.add(textWhiteTeam, gbc2)
         gbc1.gridy = ++row
-        panel.add(JLabel("Rank: "), gbc1)
+        panel.add(JLabel(resources.getString("GameInfo.Rank.Prompt")), gbc1)
         gbc2.gridx = 1
         gbc2.gridy = row
         panel.add(comboBlackRank, gbc2)
         gbc2.gridx = 2
         panel.add(comboWhiteRank, gbc2)
         gbc1.gridy = ++row
-        panel.add(JLabel("Handicap: "), gbc1)
+        panel.add(JLabel(resources.getString("GameInfo.Handicap.Prompt")), gbc1)
         gbc2.gridx = 1
         gbc2.gridy = row
         gbc2.gridwidth = 2
@@ -1174,7 +1193,7 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         panel.add(spinKomi, gbc2)
         gbc1.gridy = ++row
         gbc1.fill = GridBagConstraints.NONE
-        panel.add(JLabel("Time Limit: "), gbc1)
+        panel.add(JLabel(resources.getString("TimeLimit.Prompt")), gbc1)
         gbc2.gridy = row
         panel.add(spinTimeLimit, gbc2)
         gbc2.gridx = 0
@@ -1190,55 +1209,55 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         gbc2.gridy = ++row
         panel.add(panel2, gbc2)
         gbc1.gridy = ++row
-        panel.add(JLabel("Game name: "), gbc1)
+        panel.add(JLabel(resources.getString("GameInfo.Name.Prompt")), gbc1)
         gbc2.gridx = 1
         gbc2.gridy = row
         gbc2.gridwidth = 2
         panel.add(textGameName, gbc2)
         gbc1.gridy = ++row
-        panel.add(JLabel("Game source: "), gbc1)
+        panel.add(JLabel(resources.getString("GameInfo.Source.Prompt")), gbc1)
         gbc2.gridy = row
         panel.add(textGameSource, gbc2)
         gbc1.gridy = ++row
-        panel.add(JLabel("Game user: "), gbc1)
+        panel.add(JLabel(resources.getString("GameInfo.User.Prompt")), gbc1)
         gbc2.gridy = row
         panel.add(textGameUser, gbc2)
         gbc1.gridy = ++row
-        panel.add(JLabel("Copyright: "), gbc1)
+        panel.add(JLabel(resources.getString("GameInfo.Copyright.Prompt")), gbc1)
         gbc2.gridy = row
         panel.add(textCopyright, gbc2)
         gbc1.gridy = ++row
-        panel.add(JLabel("Game location: "), gbc1)
+        panel.add(JLabel(resources.getString("GameInfo.Location.Prompt")), gbc1)
         gbc2.gridy = row
         panel.add(textGameLocation, gbc2)
         gbc1.gridy = ++row
-        panel.add(JLabel("Event name: "), gbc1)
+        panel.add(JLabel(resources.getString("GameInfo.Event.Name.Prompt")), gbc1)
         gbc2.gridy = row
         panel.add(textEventName, gbc2)
         gbc1.gridy = ++row
-        panel.add(JLabel("Round type: "), gbc1)
+        panel.add(JLabel(resources.getString("GameInfo.Round.Type.Prompt")), gbc1)
         gbc2.gridy = row
         panel.add(textRoundType, gbc2)
         gbc1.gridy = ++row
-        panel.add(JLabel("Annotation provider: "), gbc1)
+        panel.add(JLabel(resources.getString("GameInfo.Annotation.Provider.Prompt")), gbc1)
         gbc2.gridy = row
         panel.add(textAnnotationProvider, gbc2)
         gbc1.gridy = ++row
-        panel.add(JLabel("Rules: "), gbc1)
+        panel.add(JLabel(resources.getString("GameInfo.Rules.Prompt")), gbc1)
         gbc2.gridy = row
         panel.add(comboRules, gbc2)
         gbc1.gridy = ++row
-        panel.add(JLabel("Opening type: "), gbc1)
+        panel.add(JLabel(resources.getString("GameInfo.Opening.Type.Prompt")), gbc1)
         gbc2.gridy = row
         panel.add(textOpeningType, gbc2)
         panel2 = JPanel(GridBagLayout())
         gbc3.gridx = 0
         gbc3.gridy = 0
-        panel2.add(JLabel("Year"), gbc3)
+        panel2.add(JLabel(resources.getString("Date.Year")), gbc3)
         gbc3.gridx = 1
-        panel2.add(JLabel("Month"), gbc3)
+        panel2.add(JLabel(resources.getString("Date.Month")), gbc3)
         gbc3.gridx = 2
-        panel2.add(JLabel("Day"), gbc3)
+        panel2.add(JLabel(resources.getString("Date.Day")), gbc3)
         spinGameDay.isEnabled = false
         gbc2.gridx = 0
         gbc2.gridy = 1
@@ -1264,7 +1283,7 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         gbc3.gridx = 0
         gbc3.gridy = ++row
         gbc3.gridwidth = 3
-        panel.add(JLabel("Game Comment:"), gbc3)
+        panel.add(JLabel(resources.getString("GameInfo.Comment.Prompt")), gbc3)
         panelGameInfo.add(panel, BorderLayout.NORTH)
         panelGameInfo.add(textGameComment, BorderLayout.CENTER)
         panel = JPanel(BorderLayout())
@@ -1277,14 +1296,14 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         panel2.add(buttonNextGameInfoNode)
         panel.add(panel2, BorderLayout.NORTH)
         panel.add(panelGameInfo, BorderLayout.CENTER)
-        tabs.addTab("Game Info", JScrollPane(panel))
+        tabs.addTab(resources.getString("GameInfo"), JScrollPane(panel))
     }
 
-    private val labelSize = JLabel("Size: ${sgf.width}x${sgf.height}")
+    private val labelSize = JLabel(sizeFormat.format(sgf.width, sgf.height))
     private val comboCharset = JComboBox<Charset?>()
-    private val checkAutoMarkup = JCheckBox("Auto-markup")
-    private val radioChildVariations = JRadioButton("Child nodes")
-    private val radioSiblingVariations = JRadioButton("Sibling nodes")
+    private val checkAutoMarkup = JCheckBox(resources.getString("Root.Markup.Auto"))
+    private val radioChildVariations = JRadioButton(resources.getString("Root.Variations.Children"))
+    private val radioSiblingVariations = JRadioButton(resources.getString("Root.Variations.Siblings"))
 
     init {
         comboCharset.isEditable = false
@@ -1326,21 +1345,21 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         gbc.weightx = 0.0
         gbc.anchor = GridBagConstraints.LINE_START
         gbc.fill = GridBagConstraints.NONE
-        panel2.add(JLabel("Encoding: "), gbc)
+        panel2.add(JLabel(resources.getString("Encoding.Prompt")), gbc)
         gbc.gridx = 1
         gbc.weightx = 1.0
         gbc.fill = GridBagConstraints.HORIZONTAL
         panel2.add(comboCharset, gbc)
         panel.add(panel2)
         panel.add(checkAutoMarkup)
-        panel.add(JLabel("Show variations of:"))
+        panel.add(JLabel(resources.getString("Root.Variations.Prompt")))
         panel.add(radioChildVariations)
         panel.add(radioSiblingVariations)
         panel2 = panel
         panel = JPanel(BorderLayout())
         panel.add(panel2, BorderLayout.NORTH)
-        tabs.addTab("Root", JScrollPane(panel))
-        selectSGFNode(node)
+        tabs.addTab(resources.getString("Root"), JScrollPane(panel))
+        selectSGFNode(node, resources)
     }
 
     private fun goPointClicked(e: MouseEvent) {
@@ -1462,7 +1481,7 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         }
     }
 
-    private fun selectSGFNode(node: GoSGFNode) {
+    private fun selectSGFNode(node: GoSGFNode, resources: ResourceBundle = gobanDesktopResources(Locale.getDefault())) {
         this.node = node
         textComment.text = node.comment
         val nodeType: String
@@ -1470,7 +1489,7 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
             is GoSGFMoveNode -> {
                 nodeType = "Move"
                 checkMoveForced.isSelected = node.isForced
-                comboMoveAnnotation.selectedItem = node.moveAnnotation ?: MOVE_ANNOTATION
+                comboMoveAnnotation.selectedItem = node.moveAnnotation ?: MoveAnnotationHeader
                 spinMoveNumber.updateUI()
                 spinBlackTime.updateUI()
                 spinWhiteTime.updateUI()
@@ -1487,7 +1506,7 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
                 }.isSelected = true
             }
         }
-        tabs.setTitleAt(1, nodeType)
+        tabs.setTitleAt(1, resources.getString(nodeType))
         cardMoveSetup.show(panelMoveSetup, nodeType)
         textNodeName.text = node.nodeName
         spinNodeValue.updateUI()
@@ -1503,7 +1522,7 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         }
         selectFigureNode()
         if (!gameInfoTransferHandler.isDragging)
-            selectGameInfo(node.gameInfo)
+            selectGameInfo(node.gameInfo, resources)
         buttonSGFDelete.isEnabled = node.parent != null
         selectedToolButton.isSelected = false
         buttonInheritDim.isSelected = node.newDimPoints == null
@@ -1518,18 +1537,18 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         labelWhiteScore.text = PREFIX_WHITE_SCORE + whiteScore
     }
 
-    private fun selectGameInfo(info: GameInfo?) {
+    private fun selectGameInfo(info: GameInfo?, resources: ResourceBundle) {
         gameInfoTransferHandler.gameInfo = info
         if (info == null) {
             panelGameInfo.isVisible = false
             buttonCopyGameInfo.isEnabled = false
             buttonDeleteGameInfo.isEnabled = false
-            buttonGameInfoNode.text = "Create"
+            buttonGameInfoNode.text = resources.getString("Create")
         } else {
             panelGameInfo.isVisible = true
             buttonCopyGameInfo.isEnabled = true
             buttonDeleteGameInfo.isEnabled = true
-            buttonGameInfoNode.text = "Game info node"
+            buttonGameInfoNode.text = resources.getString("GameInfo.Node")
             textBlackName.text = info.blackPlayer.name
             textWhiteName.text = info.whitePlayer.name
             textBlackTeam.text = info.blackPlayer.team
@@ -1670,7 +1689,7 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
             button.isEnabled = true
         sgfTreeView.isEnabled = true
         enableSGFVariations()
-        buttonSGFDelete.text = "Delete"
+        buttonSGFDelete.text = gobanDesktopResources(Locale.getDefault()).getString("Delete")
         val node = this.node
         buttonSGFDelete.isEnabled = node.parent != null
         updateNodeGoban(node)
@@ -1681,6 +1700,25 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         println(sgf.toSGFTree())
     }
 
+    private object MoveAnnotationHeader {
+
+        override fun toString(): String {
+            val resources = gobanDesktopResources(Locale.getDefault())
+            return resources.getString("Move.Annotation.Header")
+        }
+
+    }
+
+    private enum class FigureMode {
+
+        NONE, INHERIT, NEW;
+
+        override fun toString(): String {
+            return gobanDesktopResources(Locale.getDefault()).getStringArray("Figure.Mode")[ordinal]
+        }
+
+    }
+
     @Suppress("RemoveExplicitTypeArguments")
     companion object {
 
@@ -1689,10 +1727,9 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
 
         private val LABEL = PointMarkup.label("A")
 
-        private const val MOVE_ANNOTATION = "Move Annotation..."
         private val moveAnnotations = enumValues<MoveAnnotation>().let {
             Array<Any>(1 + it.size) { index ->
-                if (index == 0) MOVE_ANNOTATION
+                if (index == 0) MoveAnnotationHeader
                 else it[index - 1]
             }
         }
@@ -1713,11 +1750,7 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
 
         private val PRINT_METHODS = enumValues<PrintMethod>()
 
-        private val FIGURE_MODES = arrayOf(
-            "No figure",
-            "New figure",
-            "New figure settings..."
-        )
+        private val FIGURE_MODES = enumValues<FigureMode>()
 
         private const val FIGURE_NONE = 0
         private const val FIGURE_INHERIT = 1
@@ -2059,14 +2092,14 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         ): Component {
             return renderer.getListCellRendererComponent(
                 list,
-                when {
-                    value == null -> "Result... "
-                    value.winner == GoColor.BLACK -> "Black wins... "
-                    value.winner == GoColor.WHITE -> "White wins... "
-                    value == GameResult.UNKNOWN -> "Unknown result "
-                    value == GameResult.VOID -> "Void result "
-                    else -> "Draw "
-                },
+                gobanDesktopResources(Locale.getDefault()).getString(when {
+                    value == null -> "GameInfo.Result.Header"
+                    value.winner == GoColor.BLACK -> "GameInfo.Result.Winner.Black"
+                    value.winner == GoColor.WHITE -> "GameInfo.Result.Winner.White"
+                    value == GameResult.UNKNOWN -> "GameInfo.Result.Unknown"
+                    value == GameResult.VOID -> "GameInfo.Result.Void"
+                    else -> "GameInfo.Result.Draw"
+                }),
                 index,
                 isSelected,
                 cellHasFocus
@@ -2137,12 +2170,12 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
         ): Component = renderer.getListCellRendererComponent(
             list,
             if (value == null) ""
-            else when(value.charCode) {
-                'F' -> "by default" // forfeit
-                'R' -> "by resignation"
-                'T' -> "by time"
-                else -> "by amount: "
-            },
+            else gobanDesktopResources(Locale.getDefault()).getString(when(value.charCode) {
+                'F' -> "GameInfo.Result.Winner.Forfeit"
+                'R' -> "GameInfo.Result.Winner.Resign"
+                'T' -> "GameInfo.Result.Winner.Time"
+                else -> "GameInfo.Result.Winner.Amount"
+            }),
             index,
             isSelected,
             cellHasFocus
@@ -2633,7 +2666,7 @@ class GoEditorFrame private constructor(sgf: GoSGF, private var node: GoSGFNode)
             cellHasFocus: Boolean
         ): Component = renderer.getListCellRendererComponent(
             list,
-            value?.displayName() ?: "System default",
+            value?.displayName() ?: gobanDesktopResources(Locale.getDefault()).getString("Encoding.Default"),
             index, isSelected, cellHasFocus
         )
 

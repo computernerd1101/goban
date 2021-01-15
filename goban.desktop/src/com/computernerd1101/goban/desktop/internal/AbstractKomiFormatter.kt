@@ -1,8 +1,10 @@
 package com.computernerd1101.goban.desktop.internal
 
 import com.computernerd1101.goban.desktop.CN13Spinner
+import com.computernerd1101.goban.desktop.resources.gobanDesktopResources
 import com.computernerd1101.goban.sgf.GameInfo
 import java.text.*
+import java.util.*
 import javax.swing.*
 import javax.swing.event.ListDataListener
 
@@ -103,7 +105,8 @@ abstract class AbstractKomiFormatter:
         return if (komi == 0.0) Zero.plus else komi
     }
 
-    override fun getSelectedItem(): Any = "Komi: "
+    override fun getSelectedItem(): Any = gobanDesktopResources(Locale.getDefault())
+        .getString("GameInfo.Komi.Prompt")
 
     override fun setSelectedItem(anItem: Any?) {
         if (anItem is Number) {
