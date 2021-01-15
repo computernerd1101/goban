@@ -929,8 +929,6 @@ class DateSet(): MutableIterable<Date>, Serializable {
                         day29 = accountFor(other.day29)
                     }
 
-                    open fun copy(yt: YearTable): MonthTable = yt.MonthTable(this)
-
                     fun accountFor(date: Date?): Date? {
                         if (date != null) {
                             Private.updateDayCount.incrementAndGet(this)
@@ -938,6 +936,8 @@ class DateSet(): MutableIterable<Date>, Serializable {
                         }
                         return date
                     }
+
+                    open fun copy(yt: YearTable): MonthTable = yt.MonthTable(this)
 
                     open val lastDay: Int get() = 29
 

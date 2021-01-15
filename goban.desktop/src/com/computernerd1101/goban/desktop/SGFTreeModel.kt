@@ -283,7 +283,7 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
         val data: Transferable = support.transferable
         if (doImport) {
             val gameInfo: GameInfo = try {
-                data.getTransferData(GameInfoTransferHandler.gameInfoFlavor) as? GameInfo
+                data.getTransferData(GameInfoTransferHandler.serializedGameInfoFlavor) as? GameInfo
             } catch(e: UnsupportedFlavorException) {
                 null
             } catch(e: IOException) {
