@@ -7,27 +7,27 @@ fun interface SGFNodeFormatter {
     companion object Default: SGFNodeFormatter {
 
         override fun format(index: Int, move: String?, hotspot: Int, gameInfo: Boolean): String {
-            val text = when {
-                index == 0 -> "SGF"
-                move != null -> "$index: $move"
-                else -> index.toString()
-            }
-            var hotspotString = when(hotspot) {
-                1 -> " (Hotspot"
-                2 -> " (Major hotspot"
-                else -> ""
-            }
-            var separator = ""
-            val gameInfoString = when {
-                gameInfo -> {
-                    if (hotspotString.isEmpty()) hotspotString = " ("
-                    else separator = ", "
-                    "Game Info)"
+            return buildString {
+                if (index == 0) append("SGF")
+                else {
+                    append(index)
+                    if (move != null) append(": ").append(move)
                 }
-                hotspotString.isNotEmpty() -> ")"
-                else -> ""
+                val extra = when(hotspot) {
+                    1 -> {
+                        append(" (Hotspot")
+                        true
+                    }
+                    2 -> {
+                        append(" (Major hotspot")
+                        true
+                    }
+                    else -> false
+                }
+                if (gameInfo)
+                    append(if (extra) ", GameInfo)" else " (GameInfo)")
+                else if (extra) append(")")
             }
-            return "$text$hotspotString$separator$gameInfoString"
         }
 
     }
