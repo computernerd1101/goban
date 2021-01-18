@@ -8,50 +8,8 @@ import java.awt.geom.*
 import javax.swing.JComponent
 import kotlin.math.*
 
-// Kotlin does not yet support properties with final getters but open setters,
-// nor vice versa, for that matter. Believe me, I've tried.
-@Suppress("DEPRECATION")
-inline var GobanView.goban: AbstractGoban?
-    get() = getGoban()
-    set(goban) = setGoban(goban)
-
-@Suppress("DEPRECATION")
-inline var GobanView.pointMarkup: PointMarkupMap?
-    get() = getPointMarkup()
-    set(map) = setPointMarkup(map)
-
-@Suppress("DEPRECATION")
-inline var GobanView.lineMarkup: LineMarkupSet?
-    get() = getLineMarkup()
-    set(set) = setLineMarkup(set)
-
-@Suppress("DEPRECATION", "unused")
-inline var GobanView.gobanBackground: Paint
-    get() = getGobanBackground()
-    set(paint) = setGobanBackground(paint)
-
-@Suppress("DEPRECATION", "unused")
-inline var GobanView.defaultMarkupColor: Color
-    get() = getDefaultMarkupColor()
-    set(color) = setDefaultMarkupColor(color)
-
-@Suppress("DEPRECATION", "unused")
-inline var GobanView.edgeThickness: Int
-    get() = getEdgeThickness()
-    set(thickness) = setEdgeThickness(thickness)
-
-@Suppress("DEPRECATION", "unused")
-inline var GobanView.defaultPointMarkupThickness: Int
-    get() = getDefaultPointMarkupThickness()
-    set(thickness) = setDefaultPointMarkupThickness(thickness)
-
-@Suppress("DEPRECATION", "unused")
-inline var GobanView.defaultLineMarkupThickness: Int
-    get() = getDefaultLineMarkupThickness()
-    set(thickness) = setDefaultLineMarkupThickness(thickness)
-
 open class GobanView
-@JvmOverloads constructor(private var goban: AbstractGoban? = null): JComponent() {
+@JvmOverloads constructor(goban: AbstractGoban? = null): JComponent() {
 
     init {
         foreground = Color.BLACK
@@ -63,11 +21,15 @@ open class GobanView
     private var startX: Int = 0
     private var startY: Int = 0
 
-    @Deprecated("use this.goban instead", ReplaceWith("this.goban"))
-    fun getGoban() = goban
-    open fun setGoban(goban: AbstractGoban?) {
-        val old = this.goban
-        this.goban = goban
+    // Kotlin does not yet support properties with final getters but open setters,
+    // nor vice versa, for that matter. Believe me, I've tried.
+    private var _goban: AbstractGoban? = goban
+    var goban: AbstractGoban?
+        get() = _goban
+        set(goban) = setGobanImpl(goban)
+    protected open fun setGobanImpl(goban: AbstractGoban?) {
+        val old = this._goban
+        this._goban = goban
         if (old !== goban) {
             if (old == null || goban == null ||
                     old.width != goban.width ||
@@ -78,80 +40,85 @@ open class GobanView
         repaint()
     }
 
-    private var pointMarkup: PointMarkupMap? = null
-    @Deprecated("use this.pointMarkup instead", ReplaceWith("this.pointMarkup"))
-    fun getPointMarkup() = pointMarkup
-    open fun setPointMarkup(map: PointMarkupMap?) {
-        val old = pointMarkup
-        pointMarkup = map
+    private var _pointMarkup: PointMarkupMap? = null
+    var pointMarkup: PointMarkupMap?
+        get() = _pointMarkup
+        set(map) = setPointMarkupImpl(map)
+    protected open fun setPointMarkupImpl(map: PointMarkupMap?) {
+        val old = _pointMarkup
+        _pointMarkup = map
         if (old.isNullOrEmpty() != map.isNullOrEmpty()) {
             revalidate()
             repaint()
         }
     }
 
-    private var lineMarkup: LineMarkupSet? = null
-    fun getLineMarkup() = lineMarkup
-    @Deprecated("use this.lineMarkup instead", ReplaceWith("this.lineMarkup"))
-    open fun setLineMarkup(set: LineMarkupSet?) {
-        val old = lineMarkup
-        lineMarkup = set
+    private var _lineMarkup: LineMarkupSet? = null
+    var lineMarkup: LineMarkupSet?
+        get() = _lineMarkup
+        set(set) = setLineMarkupImpl(set)
+    protected open fun setLineMarkupImpl(set: LineMarkupSet?) {
+        val old = _lineMarkup
+        _lineMarkup = set
         if (old.isNullOrEmpty() != set.isNullOrEmpty()) {
             revalidate()
             repaint()
         }
     }
 
-    private var gobanBackground: Paint = Color.ORANGE
-    @Deprecated("Use this.gobanBackground instead", ReplaceWith("this.gobanBackground"))
-    fun getGobanBackground() = gobanBackground
-    open fun setGobanBackground(paint: Paint) {
-        val old = gobanBackground
-        gobanBackground = paint
+    private var _gobanBackground: Paint = Color.ORANGE
+    var gobanBackground: Paint
+        get() = _gobanBackground
+        set(paint) = setGobanBackgroundImpl(paint)
+    protected open fun setGobanBackgroundImpl(paint: Paint) {
+        val old = _gobanBackground
+        _gobanBackground = paint
         if (old != paint) {
             revalidate()
             repaint()
         }
     }
 
-    private var defaultMarkupColor: Color = Color.RED
-    @Deprecated("Use this.defaultMarkupColor instead", ReplaceWith("this.defaultMarkupColor"))
-    fun getDefaultMarkupColor() = defaultMarkupColor
-    open fun setDefaultMarkupColor(color: Color) {
-        val old = defaultMarkupColor
-        defaultMarkupColor = color
+    private var _defaultMarkupColor: Color = Color.RED
+    var defaultMarkupColor: Color
+        get() = _defaultMarkupColor
+        set(color) = setDefaultMarkupColorImpl(color)
+    protected open fun setDefaultMarkupColorImpl(color: Color) {
+        val old = _defaultMarkupColor
+        _defaultMarkupColor = color
         if (old != color) {
             revalidate()
             repaint()
         }
     }
 
-    private var edgeThickness: Int = 3
-    @Deprecated("Use this.edgeThickness instead", ReplaceWith("this.edgeThickness"))
-    fun getEdgeThickness() = edgeThickness
-    open fun setEdgeThickness(value: Int) = setThickness(value) { thickness ->
-        val old = edgeThickness
-        edgeThickness = thickness
+    private var _edgeThickness: Int = 3
+    var edgeThickness: Int
+        get() = _edgeThickness
+        set(value) = setEdgeThicknessImpl(value)
+    protected open fun setEdgeThicknessImpl(value: Int) = setThickness(value) { thickness ->
+        val old = _edgeThickness
+        _edgeThickness = thickness
         old
     }
 
-    private var defaultPointMarkupThickness: Int = 2
-    @Deprecated("Use this.defaultPointMarkupThickness instead",
-        ReplaceWith("this.defaultPointMarkupThickness"))
-    fun getDefaultPointMarkupThickness() = defaultPointMarkupThickness
-    open fun setDefaultPointMarkupThickness(value: Int) = setThickness(value) { thickness ->
-        val old = defaultPointMarkupThickness
-        defaultPointMarkupThickness = thickness
+    private var _defaultPointMarkupThickness: Int = 2
+    var defaultPointMarkupThickness: Int
+        get() = _defaultPointMarkupThickness
+        set(value) = setDefaultPointMarkupThicknessImpl(value)
+    protected open fun setDefaultPointMarkupThicknessImpl(value: Int) = setThickness(value) { thickness ->
+        val old = _defaultPointMarkupThickness
+        _defaultPointMarkupThickness = thickness
         old
     }
 
-    private var defaultLineMarkupThickness: Int = 2
-    @Deprecated("Use this.defaultLineMarkupThickness instead",
-        ReplaceWith("this.defaultLineMarkupThickness"))
-    fun getDefaultLineMarkupThickness() = defaultLineMarkupThickness
-    open fun setDefaultLineMarkupThickness(value: Int) = setThickness(value) { thickness ->
-        val old = defaultLineMarkupThickness
-        defaultLineMarkupThickness = thickness
+    private var _defaultLineMarkupThickness: Int = 2
+    var defaultLineMarkupThickness: Int
+        get() = _defaultLineMarkupThickness
+        set(value) = setDefaultLineMarkupThicknessImpl(value)
+    protected open fun setDefaultLineMarkupThicknessImpl(value: Int) = setThickness(value) { thickness ->
+        val old = _defaultLineMarkupThickness
+        _defaultLineMarkupThickness = thickness
         old
     }
 

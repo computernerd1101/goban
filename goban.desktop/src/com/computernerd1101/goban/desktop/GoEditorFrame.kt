@@ -111,8 +111,8 @@ class GoEditorFrame private constructor(
     private fun <B: AbstractButton> toolBarAbstractButton(
         resources: ResourceBundle,
         iconName: String,
-        toolTip: String?,
         altText: String,
+        toolTip: String?,
         button: B
     ): B {
         val iconURL: URL? = GoEditorFrame::class.java.getResource("icons/toolbar/$iconName.png")
@@ -129,51 +129,51 @@ class GoEditorFrame private constructor(
         resources: ResourceBundle,
         iconName: String,
         altText: String
-    ) = toolBarAbstractButton(resources, iconName, null, altText, JButton())
+    ) = toolBarAbstractButton(resources, iconName, altText, null, JButton())
 
     private fun toolBarToggleButton(
         resources: ResourceBundle,
         iconName: String,
-        toolTip: String?,
-        altText: String
-    ) = toolBarAbstractButton(resources, iconName, toolTip, altText, JToggleButton())
+        altText: String,
+        toolTip: String? = null
+    ) = toolBarAbstractButton(resources, iconName, altText, toolTip, JToggleButton())
 
     private val buttonBlack =
-        toolBarToggleButton(resources, "Black", null, "B")
+        toolBarToggleButton(resources, "Black", "B")
     private val buttonWhite =
-        toolBarToggleButton(resources, "White", null, "W")
+        toolBarToggleButton(resources, "White", "W")
     private val buttonLabelMarkup =
-        toolBarToggleButton(resources, "LabelMarkup", null, "LB")
+        toolBarToggleButton(resources, "LabelMarkup", "LB")
     private val buttonSelectMarkup =
-        toolBarToggleButton(resources, "SelectMarkup", null, "SL")
+        toolBarToggleButton(resources, "SelectMarkup", "SL")
     private val buttonXMarkup =
-        toolBarToggleButton(resources, "XMarkup", null, "MA")
+        toolBarToggleButton(resources, "XMarkup", "MA")
     private val buttonTriangleMarkup =
-        toolBarToggleButton(resources, "TriangleMarkup", null, "TR")
+        toolBarToggleButton(resources, "TriangleMarkup", "TR")
     private val buttonCircleMarkup =
-        toolBarToggleButton(resources, "CircleMarkup", null, "CR")
+        toolBarToggleButton(resources, "CircleMarkup", "CR")
     private val buttonSquareMarkup =
-        toolBarToggleButton(resources, "SquareMarkup", null, "SQ")
+        toolBarToggleButton(resources, "SquareMarkup", "SQ")
     private val buttonDeletePointMarkup =
-        toolBarToggleButton(resources, "DeletePointMarkup", null, "X")
+        toolBarToggleButton(resources, "DeletePointMarkup", "X")
     private val buttonLineMarkup =
-        toolBarToggleButton(resources, "LineMarkup", null, "LN")
+        toolBarToggleButton(resources, "LineMarkup", "LN")
     private val buttonArrowMarkup =
-        toolBarToggleButton(resources, "ArrowMarkup", null, "AR")
+        toolBarToggleButton(resources, "ArrowMarkup", "AR")
     private val buttonDeleteLineMarkup =
-        toolBarToggleButton(resources, "DeleteLineMarkup", null, "XLN")
+        toolBarToggleButton(resources, "DeleteLineMarkup", "XLN")
     private val buttonDim =
-        toolBarToggleButton(resources, "Dim", null, "DD")
+        toolBarToggleButton(resources, "Dim", "DD")
     private val buttonResetDim =
         toolBarButton(resources, "ResetDim", "XDD")
     private val buttonInheritDim =
-        toolBarToggleButton(resources, "InheritDim", "ToolBar.DD.Inherit", "<DD")
+        toolBarToggleButton(resources, "InheritDim", "<DD", "ToolBar.DD.Inherit")
     private val buttonVisible =
-        toolBarToggleButton(resources, "Visible", null, "VW")
+        toolBarToggleButton(resources, "Visible", "VW")
     private val buttonResetVisible =
         toolBarButton(resources, "ResetVisible", "XVW")
     private val buttonInheritVisible =
-        toolBarToggleButton(resources, "InheritVisible", "ToolBar.VW.Inherit", "<VW")
+        toolBarToggleButton(resources, "InheritVisible", "<VW", "ToolBar.VW.Inherit")
     private val markupButtons = arrayOf<AbstractButton>(
         buttonLabelMarkup,
         buttonSelectMarkup,
@@ -329,10 +329,10 @@ class GoEditorFrame private constructor(
         override fun getMarkupColorAt(p: GoPoint): Color {
             if (p == goCursor) {
                 when(selectedToolButton) {
-                    buttonDeletePointMarkup -> Color.GRAY
+                    buttonDeletePointMarkup -> return Color.GRAY
                     buttonLabelMarkup, buttonSelectMarkup,
                         buttonXMarkup, buttonTriangleMarkup,
-                        buttonCircleMarkup, buttonSquareMarkup -> Color.BLUE
+                        buttonCircleMarkup, buttonSquareMarkup -> return Color.BLUE
                 }
             }
             return super.getMarkupColorAt(p)
