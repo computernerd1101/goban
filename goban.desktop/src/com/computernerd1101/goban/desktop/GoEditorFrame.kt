@@ -596,7 +596,6 @@ class GoEditorFrame private constructor(
             }
         }
         buttonSGFDelete.addActionListener {
-            // TODO bug in node deletion
             @Suppress("NAME_SHADOWING") val node: GoSGFNode
             if (buttonSGFSetup.isSelected) {
                 buttonSGFSetup.isSelected = false
@@ -611,7 +610,7 @@ class GoEditorFrame private constructor(
                         "Delete node", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
                     var path: TreePath = sgfTreeView.selectionPath?.parentPath!!
                     var index = node.childIndex
-                    if (index < prev.children) index++
+                    if (index < prev.children - 1) index++
                     else index--
                     val node2: GoSGFNode
                     if (index >= 0) {
