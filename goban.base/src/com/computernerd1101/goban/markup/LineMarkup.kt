@@ -11,12 +11,12 @@ import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
 @Suppress("unused")
-fun lineMarkup(x1: Int, x2: Int, y1: Int, y2: Int) = LineMarkup.lineMarkup(x1, x2, y1, y2)
+fun lineMarkup(x1: Int, y1: Int, x2: Int, y2: Int) = LineMarkup.lineMarkup(x1, y1, x2, y2)
 
 infix fun GoPoint.lineMarkup(other: GoPoint) = LineMarkup.lineMarkup(this, other)
 
 @Suppress("unused")
-fun arrowMarkup(x1: Int, x2: Int, y1: Int, y2: Int) = LineMarkup.arrowMarkup(x1, x2, y1, y2)
+fun arrowMarkup(x1: Int, y1: Int, x2: Int, y2: Int) = LineMarkup.arrowMarkup(x1, y1, x2, y2)
 
 infix fun GoPoint.arrowMarkup(other: GoPoint) = LineMarkup.arrowMarkup(this, other)
 
@@ -24,8 +24,20 @@ infix fun GoPoint.arrowMarkup(other: GoPoint) = LineMarkup.arrowMarkup(this, oth
 class LineMarkup private constructor(
     @JvmField val start: GoPoint,
     @JvmField val end: GoPoint,
-    @JvmField val isArrow: Boolean
+    // private parameter type ensures that even the public synthetic constructor is useless
+    // outside of LineMarkup and nested classes
+    type: Type
 ): Serializable {
+
+    @JvmField val isArrow = type.isArrow
+
+    private enum class Type {
+
+        LINE, ARROW;
+
+        val isArrow: Boolean get() = this == ARROW
+
+    }
 
     companion object {
 
@@ -45,7 +57,7 @@ class LineMarkup private constructor(
                 p1 = a
                 p2 = b
             }
-            return LineMarkup(p1, p2, false)
+            return LineMarkup(p1, p2, Type.LINE)
         }
 
         @JvmStatic
@@ -55,7 +67,7 @@ class LineMarkup private constructor(
         fun arrowMarkup(start: GoPoint, end: GoPoint): LineMarkup {
             if (start == end)
                 throw IllegalArgumentException("start and end points cannot be the same")
-            return LineMarkup(start, end, true)
+            return LineMarkup(start, end, Type.ARROW)
         }
 
         private const val serialVersionUID = 1L
@@ -90,7 +102,7 @@ class LineMarkup private constructor(
     }
 
     private fun readResolve(): Any {
-        return if (isArrow || start < end) this else LineMarkup(end, start, false)
+        return if (isArrow || start < end) this else LineMarkup(end, start, Type.LINE)
     }
 
 }
@@ -142,6 +154,35 @@ class LineMarkupSet: MutableIterable<LineMarkup> {
         }
         weakStartMap = WeakReference(map)
         return map
+    }
+
+    private fun getOrCreateEndMap(startMap: MutableGoPointMap<WeakMap>,
+                                  start: GoPoint): MutableGoPointMap<LineMarkup> {
+        val weakMap = startMap[start]
+        var endMap: MutableGoPointMap<LineMarkup>?
+        if (weakMap != null) {
+            endMap = weakMap.endMap
+            if (endMap == null) {
+                endMap = weakMap.get()
+                if (endMap != null) {
+                    weakMap.endMap = endMap
+                    return endMap
+                }
+            }
+        }
+        endMap = MutableGoPointMap()
+        startMap[start] = WeakMap(start, endMap, queue)
+        return endMap
+    }
+
+    private class WeakMap(
+        val start: GoPoint,
+        endMap: MutableGoPointMap<LineMarkup>,
+        queue: ReferenceQueue<in MutableGoPointMap<LineMarkup>>
+    ): WeakReference<MutableGoPointMap<LineMarkup>>(endMap, queue) {
+
+        var endMap: MutableGoPointMap<LineMarkup>? = endMap
+
     }
 
     private fun expungeStaleSlots() {
@@ -218,42 +259,18 @@ class LineMarkupSet: MutableIterable<LineMarkup> {
         }
     }
 
-    private class WeakMap(
-        val start: GoPoint,
-        endMap: MutableGoPointMap<LineMarkup>,
-        queue: ReferenceQueue<in MutableGoPointMap<LineMarkup>>
-    ): WeakReference<MutableGoPointMap<LineMarkup>>(endMap, queue) {
-
-        var endMap: MutableGoPointMap<LineMarkup>? = endMap
-
-    }
-
     fun add(markup: LineMarkup): Boolean {
         expungeStaleSlots()
         val (a, b, isArrow) = markup
         val startMap = getOrCreateStartMap()
-        var weakMap = startMap[a]
-        var endMap: MutableGoPointMap<LineMarkup>? = null
-        if (weakMap != null) {
-            endMap = weakMap.endMap
-            if (endMap == null) {
-                endMap = weakMap.get()
-                weakMap = null
-            }
-        }
-        if (endMap == null)
-            endMap = MutableGoPointMap()
-        if (weakMap == null)
-            startMap[a] = WeakMap(a, endMap, queue)
-        var oldValue = endMap.put(b, markup)
-        var delta = 0
-        if (oldValue == null) delta = 1
+        var oldValue = getOrCreateEndMap(startMap, a).put(b, markup)
+        var delta = if (oldValue == null) 1 else 0
         if (isArrow) {
             if (oldValue != null && oldValue.isArrow) return false
             if (a > b) {
-                weakMap = startMap[b]
+                val weakMap = startMap[b]
                 if (weakMap != null) {
-                    endMap = weakMap.endMap
+                    val endMap = weakMap.endMap
                     if (endMap != null) {
                         oldValue = endMap[a]
                         if (oldValue != null && !oldValue.isArrow) {
@@ -266,9 +283,9 @@ class LineMarkupSet: MutableIterable<LineMarkup> {
             }
         } else {
             if (oldValue != null && !oldValue.isArrow) return false
-            weakMap = startMap[b]
+            val weakMap = startMap[b]
             if (weakMap != null) {
-                endMap = weakMap.endMap
+                val endMap = weakMap.endMap
                 if (endMap != null) {
                     oldValue = endMap[a]
                     if (oldValue != null && oldValue.isArrow) {
@@ -294,26 +311,18 @@ class LineMarkupSet: MutableIterable<LineMarkup> {
             val a = startEntry.key
             val otherMap = startEntry.value.endMap ?: continue
             if (startMap == null) startMap = getOrCreateStartMap()
-            var endMap = startMap[a]?.endMap
-            if (endMap == null) {
-                endMap = MutableGoPointMap()
-                startMap[a] = WeakMap(a, endMap, queue)
-            }
+            var endMap = getOrCreateEndMap(startMap, a)
             var delta = endMap.size
             endMap.putAll(otherMap)
             delta = endMap.size - delta
             for(markup in otherMap.values) {
-                val weak = startMap[markup.end]
-                if (weak != null) {
-                    endMap = weak.endMap
-                    if (endMap != null) {
-                        val reverse = endMap[markup.start]
-                        if (reverse != null && !(markup.isArrow && reverse.isArrow)) {
-                            endMap.remove(markup.start)
-                            delta--
-                            if (endMap.size == 0) weak.endMap = null
-                        }
-                    }
+                val weak = startMap[markup.end] ?: continue
+                endMap = weak.endMap ?: continue
+                val reverse = endMap[markup.start]
+                if (reverse != null && !(markup.isArrow && reverse.isArrow)) {
+                    endMap.remove(markup.start)
+                    delta--
+                    if (endMap.size == 0) weak.endMap = null
                 }
             }
             if (delta != 0) countUpdater.addAndGet(this, delta)

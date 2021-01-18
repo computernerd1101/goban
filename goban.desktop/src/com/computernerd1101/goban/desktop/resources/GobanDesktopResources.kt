@@ -69,6 +69,11 @@ class GobanDesktopResources: ListResourceBundle() {
             arrayOf("Node", "Node"),
             arrayOf("Node.Name.Prompt", "Node name: "),
             arrayOf("Node.Value.Prompt", "Node value: "),
+            arrayOf("Node.PositionState.Header", "Position state..."),
+            arrayOf(
+                "Node.Hotspot.Values",
+                arrayOf("No hotspot", "Hotspot", "Major hotspot")
+            ),
             arrayOf("PrintMethod.Default.Prefix", ""),
             arrayOf("PrintMethod.Default.Suffix", " (Default)"),
             arrayOf(
@@ -128,9 +133,7 @@ class GobanDesktopResources: ListResourceBundle() {
             arrayOf("Root.Variations.Prompt", "Show variations of:"),
             arrayOf("Root.Variations.Children", "Child nodes"),
             arrayOf("Root.Variations.Siblings", "Sibling nodes"),
-            arrayOf(
-                "Size.Format", GobanSizeFormatter
-            ),
+            arrayOf("Size.Format", GobanSizeFormatter),
             arrayOf("Encoding.Prompt", "Encoding: "),
             arrayOf("Encoding.Default", "System default"),
 
@@ -151,7 +154,13 @@ class GobanDesktopResources: ListResourceBundle() {
             arrayOf("ToolBar.DD.Inherit", "Inherit dim part of board"),
             arrayOf("ToolBar.VW", "Visible part of board"),
             arrayOf("ToolBar.XVW", "Reset visibility of entire board"),
-            arrayOf("ToolBar.VW.Inherit", "Inherit visible part of board")
+            arrayOf("ToolBar.VW.Inherit", "Inherit visible part of board"),
+
+            arrayOf("Markup.Label.Prompt", "Label:"),
+            arrayOf("Score.Black.Prefix", "Black score: "),
+            arrayOf("Score.Black.Suffix", ""),
+            arrayOf("Score.White.Prefix", "White score: "),
+            arrayOf("Score.White.Suffix", "")
         )
     }
 

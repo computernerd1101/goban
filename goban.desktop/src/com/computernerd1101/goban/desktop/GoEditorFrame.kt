@@ -766,7 +766,7 @@ class GoEditorFrame private constructor(
     private val textNodeName = JTextField()
     private val spinNodeValue = CN13Spinner()
     private val comboNodePosition = JComboBox(positionStates)
-    private val comboHotspot = JComboBox<Any>(HOTSPOTS)
+    private val comboHotspot = JComboBox<Any>(resources.getStringArray("Node.Hotspot.Values"))
     private val defaultPrintMethod: Any = localeToString { resources ->
         resources.getString("PrintMethod.Default.Prefix") +
                 (node.parent?.printMethod ?: PrintMethod.PRINT_ALL) +
@@ -1401,10 +1401,14 @@ class GoEditorFrame private constructor(
                 val lineMarkup = move.lineMarkup
                 lineMarkupSet = lineMarkup
                 gobanView.lineMarkup = lineMarkup
+                // TODO bug in score calculation
                 blackScore += whiteStones - g.whiteCount
                 whiteScore += blackStones - g.blackCount
-                labelBlackScore.text = PREFIX_BLACK_SCORE + blackScore
-                labelWhiteScore.text = PREFIX_WHITE_SCORE + whiteScore
+                val resources = gobanDesktopResources(Locale.getDefault())
+                labelBlackScore.text = resources.getString("Score.Black.Prefix") +
+                        blackScore + resources.getString("Score.Black.Suffix")
+                labelWhiteScore.text = resources.getString("Score.White.Prefix") +
+                        whiteScore + resources.getString("Score.White.Suffix")
             }
         } else if (!buttonSGFSetup.isSelected) run markup@{
             val addLine = buttonLineMarkup.isSelected
@@ -1416,7 +1420,8 @@ class GoEditorFrame private constructor(
                     pointMarkupMap[p] = when {
                         buttonLabelMarkup.isSelected -> {
                             val text: String? = JOptionPane.showInputDialog(
-                                this, "Label:",
+                                this,
+                                gobanDesktopResources(Locale.getDefault()).getString("Markup.Label.Prompt"),
                                 pointMarkupMap[p]?.label
                             )
                             if (text.isNullOrEmpty()) return@markup
@@ -1510,7 +1515,7 @@ class GoEditorFrame private constructor(
         cardMoveSetup.show(panelMoveSetup, nodeType)
         textNodeName.text = node.nodeName
         spinNodeValue.updateUI()
-        comboNodePosition.selectedItem = node.positionState ?: POSITION_STATE
+        comboNodePosition.selectedItem = node.positionState ?: PositionStateHeader
         comboHotspot.selectedIndex = node.hotspot
         comboPrintMethod.selectedItem = if (node.printMethodNode != node)
             defaultPrintMethod
@@ -1533,8 +1538,10 @@ class GoEditorFrame private constructor(
         blackScore = 0
         whiteScore = 0
         computeScores(node)
-        labelBlackScore.text = PREFIX_BLACK_SCORE + blackScore
-        labelWhiteScore.text = PREFIX_WHITE_SCORE + whiteScore
+        labelBlackScore.text = resources.getString("Score.Black.Prefix") +
+                blackScore + resources.getString("Score.Black.Suffix")
+        labelWhiteScore.text = resources.getString("Score.White.Prefix") +
+                whiteScore + resources.getString("Score.White.Suffix")
     }
 
     private fun selectGameInfo(info: GameInfo?, resources: ResourceBundle) {
@@ -1703,8 +1710,7 @@ class GoEditorFrame private constructor(
     private object MoveAnnotationHeader {
 
         override fun toString(): String {
-            val resources = gobanDesktopResources(Locale.getDefault())
-            return resources.getString("Move.Annotation.Header")
+            return gobanDesktopResources(Locale.getDefault()).getString("Move.Annotation.Header")
         }
 
     }
@@ -1719,11 +1725,16 @@ class GoEditorFrame private constructor(
 
     }
 
+    private object PositionStateHeader {
+
+        override fun toString(): String {
+            return gobanDesktopResources(Locale.getDefault()).getString("Node.PositionState.Header")
+        }
+
+    }
+
     @Suppress("RemoveExplicitTypeArguments")
     companion object {
-
-        private const val PREFIX_BLACK_SCORE = "Black score: "
-        private const val PREFIX_WHITE_SCORE = "White score: "
 
         private val LABEL = PointMarkup.label("A")
 
@@ -1734,19 +1745,12 @@ class GoEditorFrame private constructor(
             }
         }
 
-        private const val POSITION_STATE = "Position state..."
         private val positionStates = enumValues<PositionState>().let {
             Array<Any>(1 + it.size) { index ->
-                if (index == 0) POSITION_STATE
+                if (index == 0) PositionStateHeader
                 else it[index - 1]
             }
         }
-
-        private val HOTSPOTS = arrayOf(
-            "No hotspot",
-            "Hotspot",
-            "Major hotspot"
-        )
 
         private val PRINT_METHODS = enumValues<PrintMethod>()
 
