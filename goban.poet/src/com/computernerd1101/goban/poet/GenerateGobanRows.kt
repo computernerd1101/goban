@@ -22,12 +22,11 @@ fun main() {
     }
     buf.append("""|
        |    )
-       |    @JvmField val updaters = CharArray(6).let { buf ->
+       |    @JvmField val updaters: Array<AtomicLongFieldUpdater<GobanRows1>> = CharArray(6).let { buf ->
        |        buf[0] = 'r'
        |        buf[1] = 'o'
        |        buf[2] = 'w'
-       |        // The true type of rowUpdaters
-       |        Array<AtomicLongFieldUpdater<GobanRows1>>(104) { index ->
+       |        Array(104) { index ->
        |            var nBuf = 3
        |            if (index >= 100)
        |                buf[nBuf++] = '0' + index / 100

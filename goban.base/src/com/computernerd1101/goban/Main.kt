@@ -7,7 +7,7 @@ import kotlin.reflect.*
 
 fun main() {
     for(h in 1..52) {
-        println("$h => ${InternalGoban.newRows(false, h).javaClass}, ${InternalGoban.newRows(true, h).javaClass}")
+        println("$h => ${InternalGoban.emptyRows(false, h).javaClass}, ${InternalGoban.emptyRows(true, h).javaClass}")
     }
 }
 
