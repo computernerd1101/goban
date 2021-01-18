@@ -19,6 +19,7 @@ import java.net.URL
 import java.nio.charset.Charset
 import java.text.*
 import java.util.*
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater
 import javax.swing.*
 import javax.swing.event.*
 import javax.swing.tree.TreePath
@@ -595,6 +596,7 @@ class GoEditorFrame private constructor(
             }
         }
         buttonSGFDelete.addActionListener {
+            // TODO bug in node deletion
             @Suppress("NAME_SHADOWING") val node: GoSGFNode
             if (buttonSGFSetup.isSelected) {
                 buttonSGFSetup.isSelected = false
@@ -1375,8 +1377,8 @@ class GoEditorFrame private constructor(
                 g[p] = if (g[p] == newStone) null
                 else newStone
             } else {
-                var blackStones = goban.blackCount
-                var whiteStones = goban.whiteCount
+                var blackStones = g.blackCount
+                var whiteStones = g.whiteCount
                 val prevButton: JToggleButton
                 val nextButton: JToggleButton
                 if (isBlack) {
@@ -1391,7 +1393,12 @@ class GoEditorFrame private constructor(
                 if (!g.play(p, newStone)) return
                 val move = node.createNextMoveNode(p, newStone)
                 move.moveVariation(0)
-                selectSGFTreePathFast(move)
+                updateSuppressComputeScores.incrementAndGet(this)
+                try {
+                    selectSGFTreePathFast(move)
+                } finally {
+                    updateSuppressComputeScores.decrementAndGet(this)
+                }
                 prevButton.isSelected = false
                 nextButton.isSelected = true
                 selectedToolButton = nextButton
@@ -1401,7 +1408,6 @@ class GoEditorFrame private constructor(
                 val lineMarkup = move.lineMarkup
                 lineMarkupSet = lineMarkup
                 gobanView.lineMarkup = lineMarkup
-                // TODO bug in score calculation
                 blackScore += whiteStones - g.whiteCount
                 whiteScore += blackStones - g.blackCount
                 val resources = gobanDesktopResources(Locale.getDefault())
@@ -1462,12 +1468,7 @@ class GoEditorFrame private constructor(
         if (this.node.parent?.children == 1)
             treePath = treePath?.parentPath
         treePath = treePath?.pathByAddingChild(node) ?: TreePath(node)
-        try {
-            sgfTreeView.updateUI()
-        } catch(e: Throwable) {
-            println(treePath)
-            throw e
-        }
+        sgfTreeView.updateUI()
         sgfTreeView.selectionPath = treePath
     }
 
@@ -1486,7 +1487,8 @@ class GoEditorFrame private constructor(
         }
     }
 
-    private fun selectSGFNode(node: GoSGFNode, resources: ResourceBundle = gobanDesktopResources(Locale.getDefault())) {
+    private fun selectSGFNode(node: GoSGFNode,
+                              resources: ResourceBundle = gobanDesktopResources(Locale.getDefault())) {
         this.node = node
         textComment.text = node.comment
         val nodeType: String
@@ -1537,12 +1539,16 @@ class GoEditorFrame private constructor(
         enableSGFVariations()
         blackScore = 0
         whiteScore = 0
-        computeScores(node)
-        labelBlackScore.text = resources.getString("Score.Black.Prefix") +
-                blackScore + resources.getString("Score.Black.Suffix")
-        labelWhiteScore.text = resources.getString("Score.White.Prefix") +
-                whiteScore + resources.getString("Score.White.Suffix")
+        if (suppressComputeScores <= 0) {
+            computeScores(node)
+            labelBlackScore.text = resources.getString("Score.Black.Prefix") +
+                    blackScore + resources.getString("Score.Black.Suffix")
+            labelWhiteScore.text = resources.getString("Score.White.Prefix") +
+                    whiteScore + resources.getString("Score.White.Suffix")
+        }
     }
+
+    @Volatile private var suppressComputeScores: Int = 0
 
     private fun selectGameInfo(info: GameInfo?, resources: ResourceBundle) {
         gameInfoTransferHandler.gameInfo = info
@@ -1735,6 +1741,9 @@ class GoEditorFrame private constructor(
 
     @Suppress("RemoveExplicitTypeArguments")
     companion object {
+
+        private val updateSuppressComputeScores: AtomicIntegerFieldUpdater<GoEditorFrame> =
+            AtomicIntegerFieldUpdater.newUpdater(GoEditorFrame::class.java, "suppressComputeScores")
 
         private val LABEL = PointMarkup.label("A")
 
