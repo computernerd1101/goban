@@ -562,15 +562,15 @@ sealed class GoSGFNode {
         return parent.fastChild(node.childIndex + direction)
     }
 
-    private fun findGameInfoChild(stop: GoSGFNode, fastStop: Boolean, forward: Boolean): GoSGFNode? {
+    private fun findGameInfoChild(stop: GoSGFNode, firstStop: Boolean, forward: Boolean): GoSGFNode? {
         var current = this
-        var slowStop = fastStop
+        var nextStop = firstStop
         while(current.childCount == 1) {
-            if ((slowStop && current == stop) || current.gameInfoNode != null) return current
+            if ((nextStop && current == stop) || current.gameInfoNode != null) return current
             current = current.fastChild(0)
-            slowStop = true
+            nextStop = true
         }
-        if ((slowStop && current == stop) || current.gameInfoNode != null) return current
+        if ((nextStop && current == stop) || current.gameInfoNode != null) return current
         current.forEachChild(forward) {
             val child = it.findGameInfoChild(stop, true, forward)
             if (child != null) return child

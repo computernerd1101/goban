@@ -6,36 +6,15 @@ import com.computernerd1101.goban.desktop.resources.*
 import com.computernerd1101.goban.sgf.*
 import java.awt.Component
 import java.awt.datatransfer.*
-import java.io.IOException
 import java.util.*
 import javax.swing.*
 import javax.swing.event.TreeModelEvent
 import javax.swing.event.TreeModelListener
 import javax.swing.tree.*
 
-/*var SGFTreeModel.root
-    get() = getRoot()
-    set(sgf) = setRoot(sgf)*/
-
 class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
 
     private val renderer = DefaultTreeCellRenderer()
-
-//    fun pointToString(p: GoPoint): String {
-//        val sgf = root ?: return ""
-//        val y = sgf.height - p.y
-//        val s: CharArray
-//        if (y >= 10) {
-//            s = CharArray(3)
-//            s[1] = '0' + (y / 10)
-//            s[2] = '0' + (y % 10)
-//        } else {
-//            s = CharArray(2)
-//            s[1] = '0' + y
-//        }
-//        s[0] = xToChar(p.x)
-//        return String(s)
-//    }
 
     private val pointFormatter: GoPointFormatter
     private val nodeFormatter: SGFNodeFormatter
@@ -201,13 +180,13 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
     private fun import(support: TransferSupport, doImport: Boolean): Boolean {
         if (!support.isDrop) return false
         support.setShowDropLocation(true)
-        val isNode = support.isDataFlavorSupported(nodeFlavor)
+        val isNode = support.isDataFlavorSupported(Private.nodeFlavor)
         val isGameInfo = support.isDataFlavorSupported(GameInfoTransferHandler.serializedGameInfoFlavor)
         if (!isNode && !isGameInfo) return false
         val path = (support.dropLocation as? JTree.DropLocation)?.path ?: return false
         return when {
-            isGameInfo -> importGameInfo(support, path, doImport)
             isNode -> importNode(support, path, doImport)
+            isGameInfo -> importGameInfo(support, path, doImport)
             else -> false
         }
     }
@@ -220,13 +199,11 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
         val dstNode = path.lastPathComponent as? GoSGFNode ?: return false
         val data: Transferable = support.transferable
         val srcNode: GoSGFNode = try {
-            data.getTransferData(nodeFlavor) as? GoSGFNode
-        } catch(e: UnsupportedFlavorException) {
-            null
-        } catch(e: IOException) {
+            data.getTransferData(Private.nodeFlavor) as? GoSGFNode
+        } catch(e: Exception) {
             null
         } ?: return false
-        if (srcNode.parent != dstNode.parent) return false
+        if (srcNode.parent !== dstNode.parent) return false
         if (doImport) {
             val fromIndex = srcNode.childIndex
             val toIndex = dstNode.childIndex
@@ -282,9 +259,7 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
         if (doImport) {
             val gameInfo: GameInfo = try {
                 data.getTransferData(GameInfoTransferHandler.serializedGameInfoFlavor) as? GameInfo
-            } catch(e: UnsupportedFlavorException) {
-                null
-            } catch(e: IOException) {
+            } catch(e: Exception) {
                 null
             } ?: return false
             val oldGameInfo = dstNode.gameInfo
@@ -308,13 +283,13 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
                         JOptionPane.YES_NO_OPTION,
                         JOptionPane.WARNING_MESSAGE
                     ) == JOptionPane.YES_OPTION)
-                    importGameInfo(path, dstNode, gameInfo)
-            } else importGameInfo(path, dstNode, gameInfo)
+                    Private.importGameInfo(path, dstNode, gameInfo)
+            } else Private.importGameInfo(path, dstNode, gameInfo)
         }
         return true
     }
 
-    private fun importGameInfo(path: TreePath, dstNode: GoSGFNode, info: GameInfo) {
+    private fun Private.importGameInfo(path: TreePath, dstNode: GoSGFNode, info: GameInfo) {
         // setting dstNode.gameInfo to the value it already has
         // is NOT redundant, as it sets dstNode.gameInfoNode to itself.
         dstNode.gameInfo = if (dstNode.gameInfo === info) info
@@ -334,6 +309,7 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
 
     override fun getSourceActions(c: JComponent?) = MOVE
 
+    @Suppress("SpellCheckingInspection")
     companion object {
         private val iconPlayBlack = ImageIcon(
             SGFTreeModel::class.java.getResource("icons/treeview/PlayBlack.png"))
@@ -379,19 +355,11 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
             return (goban.whiteCount != 0 || goban.blackCount == 0).goBlackOrWhite()
         }
 
-//        @JvmStatic
-//        fun describeNode(node: GoSGFNode): String {
-//            val index = node.index
-//            val s = node.nodeName
-//            if (s.isNotEmpty()) return "$index: $s"
-//            if (node !is GoSGFMoveNode)
-//                return "$index: Setup"
-//            val isBlack = node.turnPlayer == GoColor.BLACK
-//            val point = node.playStoneAt ?: return "$index${if (isBlack) "B[] (Pass)" else "W[] (Pass)"}"
-//            return "$index${if (isBlack) ": B[" else ": W["}$point]"
-//        }
+    }
 
-        private val nodeFlavor = try {
+    private object Private {
+
+        @JvmField val nodeFlavor = try {
             DataFlavor(DataFlavor.javaJVMLocalObjectMimeType +
                     ";class=\"com.computernerd1101.goban.sgf.GoSGFNode\"")
         } catch(e: ClassNotFoundException) {
@@ -407,9 +375,9 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
             return node
         }
 
-        override fun getTransferDataFlavors() = arrayOf(nodeFlavor)
+        override fun getTransferDataFlavors() = arrayOf(Private.nodeFlavor)
 
-        override fun isDataFlavorSupported(flavor: DataFlavor?) = nodeFlavor == flavor
+        override fun isDataFlavorSupported(flavor: DataFlavor?) = Private.nodeFlavor == flavor
 
     }
 
