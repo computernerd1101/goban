@@ -210,7 +210,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
             strongUpdater[table2d]?.let {
                 val t = Table2d(queue, it)
                 strongUpdater[copyTable] = t
-                weakUpdater<Table2d>(i)[copyTable] = Weak(t, copyTable, i)
+                weakUpdater<Table2d>(i)[copyTable] = WeakDateTable(t, copyTable, i)
             }
         }
         return copy
@@ -219,7 +219,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
     private fun expungeStaleReferences() {
         var r = queue.poll()
         while(r != null) {
-            if (r is Weak<*>) r.expunge()
+            if (r is WeakDateTable<*>) r.expunge()
             r = queue.poll()
         }
     }
@@ -291,7 +291,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                 val tmp = strongUpdater.compareAndExchange(table2d, null, t)
                 if (tmp != null) t = tmp
                 if (updateWeak)
-                    weakUpdater.compareAndSet(table2d, weak, Weak(t, table2d, i))
+                    weakUpdater.compareAndSet(table2d, weak, WeakDateTable(t, table2d, i))
             }
             t.addDate(date)
         } finally {
@@ -483,7 +483,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                     Private.updateCount1d.incrementAndGet(this)
                     val t = Table1d(it)
                     strongUpdater[this] = t
-                    weakUpdater<Table1d>(i)[this] = Weak(t, this, i)
+                    weakUpdater<Table1d>(i)[this] = WeakDateTable(t, this, i)
                 }
             }
         }
@@ -507,7 +507,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                 if (tmp == null) Private.updateCount1d.incrementAndGet(this)
                 else t = tmp
                 if (updateWeak)
-                    weakUpdater.compareAndSet(this, weak, Weak(t, this, i))
+                    weakUpdater.compareAndSet(this, weak, WeakDateTable(t, this, i))
             }
             return t.addDate(date)
         }
@@ -566,7 +566,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                         Private.updateYearCount.incrementAndGet(this)
                         val yt = YearTable(it)
                         strongUpdater[this] = yt
-                        weakUpdater<YearTable>(i)[this] = Weak(yt, this, i)
+                        weakUpdater<YearTable>(i)[this] = WeakDateTable(yt, this, i)
                     }
                 }
             }
@@ -587,7 +587,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                     if (tmp == null) Private.updateYearCount.incrementAndGet(this)
                     else yt = tmp
                     if (updateWeak)
-                        weakUpdater.compareAndSet(this, weak, Weak(yt, this, i))
+                        weakUpdater.compareAndSet(this, weak, WeakDateTable(yt, this, i))
                     if (tmp == null && date.month == 0)
                         return true
                 }
@@ -670,7 +670,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                             strongUpdater[other]?.let {
                                 val mt = it.copy(this)
                                 strongUpdater[this] = mt
-                                weakUpdater<MonthTable>(i)[this] = Weak(mt, this, i)
+                                weakUpdater<MonthTable>(i)[this] = WeakDateTable(mt, this, i)
                             }
                         }
                 }
@@ -710,7 +710,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                             if (!Private.updateMonthCount.compareAndSet(this, -1, 1))
                                 Private.updateMonthCount.incrementAndGet(this)
                             if (updateWeak)
-                                weakUpdater.compareAndSet(this, weak, Weak(mt, this, m - 1))
+                                weakUpdater.compareAndSet(this, weak, WeakDateTable(mt, this, m - 1))
                             modified = true
                         }
                     }
@@ -1151,13 +1151,13 @@ class DateSet(): MutableIterable<Date>, Serializable {
             val strong2d = strongUpdater<Table2d>(i2d)
             val t2d = strong2d[table2d] ?: Table2d(queue, i2d).apply {
                 strong2d[table2d] = this
-                weakUpdater<Table2d>(i2d)[table2d] = Weak(this, table2d, i2d)
+                weakUpdater<Table2d>(i2d)[table2d] = WeakDateTable(this, table2d, i2d)
             }
             val i1d = (y shr 8) and 0xFF
             val strong1d = strongUpdater<Table2d.Table1d>(i1d)
             val t1d = strong1d[t2d] ?: t2d.Table1d(i1d).apply {
                 strong1d[t2d] = this
-                weakUpdater<Table2d.Table1d>(i1d)[t2d] = Weak(this, t2d, i1d)
+                weakUpdater<Table2d.Table1d>(i1d)[t2d] = WeakDateTable(this, t2d, i1d)
                 Private.updateCount1d.incrementAndGet(t2d)
             }
             val i = y and 0xFF
@@ -1166,7 +1166,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                 throw InvalidObjectException("Duplicate year $y")
             val yt = t1d.YearTable(y)
             strongYear[t1d] = yt
-            weakUpdater<Table2d.Table1d.YearTable>(i)[t1d] = Weak(yt, t1d, i)
+            weakUpdater<Table2d.Table1d.YearTable>(i)[t1d] = WeakDateTable(yt, t1d, i)
             Private.updateYearCount.incrementAndGet(t1d)
             var daysInYear = 0
             for(m in 1..12) {
@@ -1190,7 +1190,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                         }
                     }
                     strongUpdater<Table2d.Table1d.YearTable.MonthTable>(m - 1)[yt] = mt
-                    weakUpdater<Table2d.Table1d.YearTable.MonthTable>(m - 1)[yt] = Weak(mt, yt, m - 1)
+                    weakUpdater<Table2d.Table1d.YearTable.MonthTable>(m - 1)[yt] = WeakDateTable(mt, yt, m - 1)
                     Private.updateMonthCount.incrementAndGet(yt)
                 }
             }

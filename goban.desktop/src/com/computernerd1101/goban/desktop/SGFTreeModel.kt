@@ -2,9 +2,7 @@ package com.computernerd1101.goban.desktop
 
 import com.computernerd1101.goban.*
 import com.computernerd1101.goban.desktop.internal.GameInfoTransferHandler
-import com.computernerd1101.goban.desktop.resources.GoPointFormatter
-import com.computernerd1101.goban.desktop.resources.SGFNodeFormatter
-import com.computernerd1101.goban.desktop.resources.gobanDesktopResources
+import com.computernerd1101.goban.desktop.resources.*
 import com.computernerd1101.goban.sgf.*
 import java.awt.Component
 import java.awt.datatransfer.*
@@ -43,9 +41,9 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
     private val nodeFormatter: SGFNodeFormatter
 
     init {
-        val resources = gobanDesktopResources(Locale.getDefault())
-        pointFormatter = resources.getObject("SGF.Point.Format") as GoPointFormatter
-        nodeFormatter = resources.getObject("SGF.Node.Format") as SGFNodeFormatter
+        val resources = gobanDesktopFormatResources()
+        pointFormatter = resources.getObject("GoPointFormatter") as GoPointFormatter
+        nodeFormatter = resources.getObject("SGFNodeFormatter") as SGFNodeFormatter
     }
 
     override fun getTreeCellRendererComponent(

@@ -24,12 +24,6 @@ class GoGameSetup {
         private const val RANDOM_PLAYER = 1
         private const val FREE_HANDICAP = 2
 
-        private fun getFlags(
-            isRandomPlayer: Boolean,
-            isFreeHandicap: Boolean
-        ) = (if (isRandomPlayer) RANDOM_PLAYER else 0) or
-                (if (isFreeHandicap) FREE_HANDICAP else 0)
-
     }
 
     constructor(
@@ -102,6 +96,12 @@ class GoGameSetup {
     var isFreeHandicap: Boolean
         get() = flags and FREE_HANDICAP != 0
         set(value) = setFlag(FREE_HANDICAP, value)
+
+    private fun getFlags(
+        isRandomPlayer: Boolean,
+        isFreeHandicap: Boolean
+    ) = (if (isRandomPlayer) RANDOM_PLAYER else 0) or
+            (if (isFreeHandicap) FREE_HANDICAP else 0)
 
     private fun setFlag(on: Int, value: Boolean) {
         val op: IntBinOp

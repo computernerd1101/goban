@@ -51,12 +51,23 @@ internal object GobanRows {
         buf[1] = 'o'
         buf[2] = 'w'
         Array(104) { index ->
-            var nBuf = 3
-            if (index >= 100)
-                buf[nBuf++] = '0' + index / 100
-            if (index >= 10)
-                buf[nBuf++] = '0' + (index / 10) % 10
-            buf[nBuf++] = '0' + index % 10
+            val nBuf = when {
+                index >= 100 -> {
+                    buf[3] = '1'
+                    buf[4] = '0'
+                    buf[5] = (index - (100 - '0'.toInt())).toChar()
+                    6
+                }
+                index >= 10 -> {
+                    buf[3] = '0' + index / 10
+                    buf[4] = '0' + index % 10
+                    5
+                }
+                else -> {
+                    buf[3] = '0' + index
+                    4
+                }
+            }
             val classIndex: Int = if (index < 52) index
             else index / 2 + 26
             AtomicLongFieldUpdater.newUpdater(empty[classIndex].javaClass, String(buf, 0, nBuf))

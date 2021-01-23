@@ -2,20 +2,36 @@
 
 package com.computernerd1101.goban
 
-import com.computernerd1101.goban.internal.InternalGoban
 import kotlin.reflect.*
 
 fun main() {
-    for(h in 1..52) {
-        println("$h => ${InternalGoban.emptyRows(false, h).javaClass}, ${InternalGoban.emptyRows(true, h).javaClass}")
-    }
+    testDefaultParam(19)
+}
+
+
+object TestStatic {
+
+    @JvmStatic fun foo() = println("foo")
+
+    fun bar() = println("bar")
+
+
+}
+
+fun testDefaultParam(width: Int, height: Int = width) {
+    println("${width}x$height")
 }
 
 class TestCompanion {
 
-    companion object {
+    companion object: Runnable {
 
         var myProp: Any = Any()
+
+        @JvmStatic
+        override fun run() {
+            TODO("Not yet implemented")
+        }
 
     }
 

@@ -65,28 +65,12 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime(), PropertyTranslator
         return resources.getString("time.Overtime.Canadian")
     }
 
-    override fun parseThis(s: String): Boolean = parse(s, this) != null
+    override fun parseThis(s: String): Boolean = Regex.parse(s, this) != null
 
     companion object {
 
         @JvmStatic
-        fun parse(s: String): CanadianOvertime? = parse(s, null)
-
-        private fun parse(s: String, value: CanadianOvertime?): CanadianOvertime? {
-            val m = Regex.REGEX.matchEntire(s) ?: return null
-            val time: Long
-            val moves: Int
-            try {
-                time = m.groupValues[Regex.GROUP_TIME].secondsToMillis()
-                moves = m.groupValues[Regex.GROUP_MOVES].toInt()
-            } catch (e: NumberFormatException) {
-                return null
-            }
-            return value?.apply {
-                this.millis = time
-                this.moves = moves
-            } ?: CanadianOvertime(time, moves)
-        }
+        fun parse(s: String): CanadianOvertime? = Regex.parse(s, null)
 
     }
 
@@ -98,6 +82,22 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime(), PropertyTranslator
         @JvmField
         val REGEX = """^\s*(0*\.0*[1-9]\d*|0*[1-9]\d*\.?\d*)\s*/\s*(0*[1-9]\d*)\s*canadian\s*$"""
             .toRegex(RegexOption.IGNORE_CASE)
+
+        fun parse(s: String, value: CanadianOvertime?): CanadianOvertime? {
+            val m = REGEX.matchEntire(s) ?: return null
+            val time: Long
+            val moves: Int
+            try {
+                time = m.groupValues[GROUP_TIME].secondsToMillis()
+                moves = m.groupValues[GROUP_MOVES].toInt()
+            } catch (e: NumberFormatException) {
+                return null
+            }
+            return value?.apply {
+                this.millis = time
+                this.moves = moves
+            } ?: CanadianOvertime(time, moves)
+        }
 
     }
 

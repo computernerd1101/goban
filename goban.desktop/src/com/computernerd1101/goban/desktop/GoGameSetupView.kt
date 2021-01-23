@@ -3,6 +3,8 @@ package com.computernerd1101.goban.desktop
 import com.computernerd1101.goban.*
 import com.computernerd1101.goban.annotations.PropertyFactory
 import com.computernerd1101.goban.desktop.internal.*
+import com.computernerd1101.goban.desktop.resources.GobanSizeFormatter
+import com.computernerd1101.goban.desktop.resources.gobanDesktopFormatResources
 import com.computernerd1101.goban.desktop.resources.gobanDesktopResources
 import com.computernerd1101.goban.sgf.GameInfo
 import com.computernerd1101.goban.time.Overtime
@@ -21,11 +23,12 @@ fun main() {
     }
 }
 
-class GoGameSetupView private constructor(resources: ResourceBundle): JComponent() {
+class GoGameSetupView private constructor(
+    resources: ResourceBundle,
+    formatResources: ResourceBundle
+): JComponent() {
 
-    constructor(locale: Locale): this(gobanDesktopResources(locale))
-
-    constructor(): this(Locale.getDefault())
+    constructor(): this(gobanDesktopResources(), gobanDesktopFormatResources())
 
     private val gameSetup: GoGameSetup
 
@@ -45,6 +48,7 @@ class GoGameSetupView private constructor(resources: ResourceBundle): JComponent
     private val sizeHeader = localeToString { resources ->
         resources.getString("SizeHeader." + if (checkHeight.isSelected) "WIDTH" else "SIZE")
     }
+    private val sizeFormatter = formatResources.getObject("GobanSizeFormatter.SHORT") as GobanSizeFormatter
 
     init {
         val gameInfo = GameInfo()
@@ -293,8 +297,10 @@ class GoGameSetupView private constructor(resources: ResourceBundle): JComponent
             val component = renderer.getListCellRendererComponent(
                 list, value, index, isSelected, cellHasFocus
             )
-            if (value is Number && component is JLabel)
-                component.text = "${value}x$value"
+            if (value is Number && component is JLabel) {
+                val size = value.toInt()
+                component.text = sizeFormatter.format(size, size)
+            }
             return component
         }
 

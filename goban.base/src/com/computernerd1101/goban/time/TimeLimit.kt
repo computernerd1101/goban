@@ -101,12 +101,6 @@ class TimeLimit(mainTime: Long, val overtime: Overtime?) {
         timeEvent = filterEvent(timeEvent)
     }
 
-    @Suppress("unused")
-    fun addNewTimeListener(l: TimeListener): TimeListener {
-        synchronized(this) { timeListeners.add(l) }
-        return l
-    }
-
     fun addTimeListener(l: TimeListener?) {
         if (l != null) synchronized(this) { timeListeners.add(l) }
     }

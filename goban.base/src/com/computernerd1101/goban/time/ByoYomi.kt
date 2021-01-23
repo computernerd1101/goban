@@ -61,30 +61,14 @@ class ByoYomi(periods: Int, millis: Long): Overtime(), PropertyTranslator {
         return resources.getString("time.Overtime.ByoYomi")
     }
 
-    override fun parseThis(s: String): Boolean = parse(s, this) != null
+    override fun parseThis(s: String): Boolean = Regex.parse(s, this) != null
 
     companion object {
 
         private const val FLAGS_OVERTIME_TICKING = TimeEvent.FLAG_OVERTIME or TimeEvent.FLAG_TICKING
 
         @JvmStatic
-        fun parse(s: String): ByoYomi? = parse(s, null)
-
-        private fun parse(s: String, value: ByoYomi?): ByoYomi? {
-            val m = Regex.REGEX.matchEntire(s) ?: return null
-            val periods: Int
-            val time: Long
-            try {
-                periods = m.groupValues[Regex.GROUP_PERIODS].toInt()
-                time = m.groupValues[Regex.GROUP_TIME].secondsToMillis()
-            } catch (e: NumberFormatException) {
-                return null
-            }
-            return value?.apply {
-                this.periods = periods
-                this.millis = time
-            } ?: ByoYomi(periods, time)
-        }
+        fun parse(s: String): ByoYomi? = Regex.parse(s, null)
 
     }
 
@@ -96,6 +80,22 @@ class ByoYomi(periods: Int, millis: Long): Overtime(), PropertyTranslator {
         @JvmField
         val REGEX = """^\s*(0*[1-9]\d*)\s*[*x]\s*(0*\.0*[1-9]\d*|0*[1-9]\d*\.?\d*)\s*byo\s*[\-_]?\s*yomi\s*$"""
             .toRegex(RegexOption.IGNORE_CASE)
+
+        fun parse(s: String, value: ByoYomi?): ByoYomi? {
+            val m = REGEX.matchEntire(s) ?: return null
+            val periods: Int
+            val time: Long
+            try {
+                periods = m.groupValues[GROUP_PERIODS].toInt()
+                time = m.groupValues[GROUP_TIME].secondsToMillis()
+            } catch (e: NumberFormatException) {
+                return null
+            }
+            return value?.apply {
+                this.periods = periods
+                this.millis = time
+            } ?: ByoYomi(periods, time)
+        }
 
     }
 

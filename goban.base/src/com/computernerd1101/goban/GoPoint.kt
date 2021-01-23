@@ -36,7 +36,7 @@ class GoPoint private constructor(
 
     /**
      * Makes the Java syntax as pretty as I could manage:
-     * `GoRectangle rect = new GoPoint(x1, y1).rect(x2, y2);`
+     * `GoRectangle rect = pointAt(x1, y1).rect(x2, y2);`
      */
     fun rect(x: Int, y: Int) = rect(null, x, y)
 

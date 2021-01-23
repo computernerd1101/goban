@@ -29,15 +29,9 @@ class LineMarkup private constructor(
     type: Type
 ): Serializable {
 
-    @JvmField val isArrow = type.isArrow
+    @JvmField val isArrow = type == Type.ARROW
 
-    private enum class Type {
-
-        LINE, ARROW;
-
-        val isArrow: Boolean get() = this == ARROW
-
-    }
+    private enum class Type { LINE, ARROW }
 
     companion object {
 

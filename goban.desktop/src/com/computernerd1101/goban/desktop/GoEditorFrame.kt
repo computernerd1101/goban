@@ -4,8 +4,7 @@ package com.computernerd1101.goban.desktop
 
 import com.computernerd1101.goban.*
 import com.computernerd1101.goban.desktop.internal.*
-import com.computernerd1101.goban.desktop.resources.GobanSizeFormatter
-import com.computernerd1101.goban.desktop.resources.gobanDesktopResources
+import com.computernerd1101.goban.desktop.resources.*
 import com.computernerd1101.goban.markup.*
 import com.computernerd1101.goban.sgf.*
 import com.computernerd1101.goban.sgf.Date
@@ -49,7 +48,8 @@ fun readSGF(file: String): GoSGF? {
 class GoEditorFrame private constructor(
     sgf: GoSGF,
     private var node: GoSGFNode,
-    resources: ResourceBundle = gobanDesktopResources(Locale.getDefault())
+    resources: ResourceBundle = gobanDesktopResources(),
+    formatResources: ResourceBundle = gobanDesktopFormatResources()
 ): JFrame() {
 
     constructor(sgf: GoSGF): this(sgf, sgf.rootNode)
@@ -65,7 +65,7 @@ class GoEditorFrame private constructor(
         setLocationRelativeTo(null)
     }
 
-    private val sizeFormat = resources.getObject("Size.Format") as GobanSizeFormatter
+    private val sizeFormat = formatResources.getObject("GobanSizeFormatter.LONG") as GobanSizeFormatter
 
     var sgf: GoSGF = sgf
         set(sgf) {
@@ -505,7 +505,7 @@ class GoEditorFrame private constructor(
             override fun treeNodesRemoved(e: TreeModelEvent?) = Unit
             override fun treeStructureChanged(e: TreeModelEvent?) = Unit
         })
-        sgfTreeView.setSelectionRow(0)
+        sgfTreeView.selectionPath = SGFTreeModel.pathTo(node)
         sgfTreeView.cellRenderer = sgfTreeModel
         sgfTreeView.transferHandler = sgfTreeModel
         sgfTreeView.dragEnabled = true
@@ -606,26 +606,30 @@ class GoEditorFrame private constructor(
             } else {
                 node = this.node
                 val prev = node.parent
-                if (prev != null && JOptionPane.showConfirmDialog(this, "Are you sure?",
-                        "Delete node", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
-                    var path: TreePath = sgfTreeView.selectionPath?.parentPath!!
+                val resources = gobanDesktopResources()
+                if (prev != null && JOptionPane.showConfirmDialog(this,
+                        resources.getString("Confirm.Message"), resources.getString("Node.Delete"),
+                        JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+                    var path: TreePath? = sgfTreeView.selectionPath?.parentPath
                     var index = node.childIndex
                     if (index < prev.children - 1) index++
                     else index--
                     val node2: GoSGFNode
                     if (index >= 0) {
                         node2 = prev.child(index)
-                        path = path.pathByAddingChild(node2)
+                        path = path?.pathByAddingChild(node2)
                     } else {
                         node2 = prev
-                        val last = path.lastPathComponent
-                        if (last != prev && (prev.parent != null || last != sgf))
-                            path = path.pathByAddingChild(prev)
+                        if (path != null) {
+                            val last = path.lastPathComponent
+                            if (last != prev && (prev.parent != null || last != sgf))
+                                path = path.pathByAddingChild(prev)
+                        }
                     }
                     this.node = node2
                     node.delete()
                     sgfTreeView.updateUI()
-                    sgfTreeView.selectionPath = path
+                    sgfTreeView.selectionPath = path ?: SGFTreeModel.pathTo(node2)
                 }
             }
         }
@@ -694,9 +698,9 @@ class GoEditorFrame private constructor(
         gbc2.gridx = 1
         gbc2.gridy = ++row
         gbc2.weightx = 0.0
-        panel2.add(JLabel(resources.getString("Black")), gbc2)
+        panel2.add(JLabel(GoColor.BLACK.toString()), gbc2)
         gbc2.gridx = 2
-        panel2.add(JLabel(resources.getString("White")), gbc2)
+        panel2.add(JLabel(GoColor.WHITE.toString()), gbc2)
         gbc.gridy = ++row
         gbc1.gridy = row
         gbc1.gridwidth = 1
@@ -719,8 +723,8 @@ class GoEditorFrame private constructor(
     }
 
     private val radioSetupDefaultPlayer = JRadioButton(resources.getString("Default"))
-    private val radioSetupBlackPlayer = JRadioButton(resources.getString("Black"))
-    private val radioSetupWhitePlayer = JRadioButton(resources.getString("White"))
+    private val radioSetupBlackPlayer = JRadioButton(GoColor.BLACK.toString())
+    private val radioSetupWhitePlayer = JRadioButton(GoColor.WHITE.toString())
 
     init {
         val actionListener = ActionListener { e: ActionEvent ->
@@ -1157,9 +1161,9 @@ class GoEditorFrame private constructor(
         gbc3.weightx = 0.0
         gbc3.fill = GridBagConstraints.NONE
         gbc3.anchor = GridBagConstraints.CENTER
-        panel.add(JLabel(resources.getString("Black")), gbc3)
+        panel.add(JLabel(GoColor.BLACK.toString()), gbc3)
         gbc3.gridx = 2
-        panel.add(JLabel(resources.getString("White")), gbc3)
+        panel.add(JLabel(GoColor.WHITE.toString()), gbc3)
         gbc1.gridy = ++row
         panel.add(JLabel(resources.getString("GameInfo.Player.Prompt")), gbc1)
         gbc2.gridx = 1

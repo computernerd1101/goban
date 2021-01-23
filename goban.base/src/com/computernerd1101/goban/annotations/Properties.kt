@@ -85,13 +85,12 @@ annotation class IntProperty(
 fun <T: Any> PropertyFactory(type: KClass<out T>) = PropertyFactory.propertyFactory(type)
 
 @Suppress("unused")
-inline fun <reified T: Any> PropertyFactory() = PropertyFactory.propertyFactory(T::class)
+inline fun <reified T: Any> PropertyFactory() = PropertyFactory(T::class)
 
 class PropertyFactory<T: Any> private constructor(
     @Suppress("CanBeParameter") val type: KClass<out T>,
     cache: Cache
 ): Iterable<PropertyFactory.Entry<T>> {
-
 
     companion object {
 

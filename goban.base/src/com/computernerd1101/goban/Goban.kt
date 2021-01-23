@@ -264,7 +264,7 @@ class FixedGoban: AbstractGoban {
         val width = this.width
         val height = this.height
         val oldRows = this.rows
-        val rows = InternalGoban.newRows(width > 32, height)
+        val rows = oldRows.newInstance()
         val count = InternalGoban.copyRows(oldRows, rows)
         GobanBulk.threadLocalGoban(width, height, rows)
         val arrays: Array<LongArray> = GobanThreadLocals.arrays()
@@ -361,11 +361,11 @@ sealed class AbstractMutableGoban: AbstractGoban {
     override fun readOnly(): FixedGoban {
         val width = this.width
         val height = this.height
-        if (width == height && isEmpty()) return FixedGoban(width) // cached instance
+        if (isEmpty()) return FixedGoban(width, height)
         val oldRows = this.rows
         val rows = InternalGoban.newRows(width > 32, height)
         val count = InternalGoban.copyRows(oldRows, rows)
-        if (width == height && count == 0L) return FixedGoban(width) // cached instance
+        if (count == 0L) return FixedGoban(width, height)
         return FixedGoban(width, height, rows, count)
     }
 

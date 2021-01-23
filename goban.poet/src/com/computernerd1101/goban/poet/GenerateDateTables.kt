@@ -12,7 +12,7 @@ fun main() {
        |import java.util.concurrent.atomic.AtomicReferenceFieldUpdater
        |
        |@Suppress("UNCHECKED_CAST")
-       |internal class Weak<T>(referent: T, val table: DateTable12<T>, val index: Int):
+       |internal class WeakDateTable<T>(referent: T, val table: DateTable12<T>, val index: Int):
        |    WeakReference<T>(referent, table.queue as ReferenceQueue<in T>) {
        |    fun expunge() {
        |        DateTable12.weakUpdater<T>(index).compareAndSet(table, this, null)
@@ -24,9 +24,9 @@ fun main() {
        |        fun <T> strongUpdater(index: Int) =
        |            strongUpdaters[index] as AtomicReferenceFieldUpdater<DateTable12<T>, T?>
        |        fun <T> weakUpdater(index: Int) =
-       |            weakUpdaters[index] as AtomicReferenceFieldUpdater<DateTable12<T>, Weak<T>?>
+       |            weakUpdaters[index] as AtomicReferenceFieldUpdater<DateTable12<T>, WeakDateTable<T>?>
        |        @JvmField val strongUpdaters: Array<AtomicReferenceFieldUpdater<DateTable12<*>, *>>
-       |        @JvmField val weakUpdaters: Array<AtomicReferenceFieldUpdater<DateTable12<*>, Weak<*>?>>
+       |        @JvmField val weakUpdaters: Array<AtomicReferenceFieldUpdater<DateTable12<*>, WeakDateTable<*>?>>
        |        init {
        |            val buffer = CharArray(8)
        |            buffer[0] = 's'
@@ -48,7 +48,7 @@ fun main() {
        |            weakUpdaters = 
     """.trimMargin())
     generateUpdaterArray(buf, 4)
-    buf.append("""|Weak::class.java, String(buffer, 0, 6))
+    buf.append("""|WeakDateTable::class.java, String(buffer, 0, 6))
        |            }
        |        }
        |    }
@@ -103,8 +103,8 @@ private fun generateDateTableEntries(buf: StringBuilder, hi: Char) {
 
 private fun generateDateTableEntry(buf: StringBuilder, hi: Char, lo: Char) {
     val prefix = "    @Volatile @JvmField var strong"
-    val middle =   ": T?     = null\n    @Volatile @JvmField var weak"
-    val suffix = ": Weak<T>? = null\n"
+    val middle = ": T? = null\n    @Volatile @JvmField var weak"
+    val suffix = ": WeakDateTable<T>? = null\n"
     buf.append(prefix).append(hi).append(lo).append(middle)
         .append(hi).append(lo).append(suffix)
 }

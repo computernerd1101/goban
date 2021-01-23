@@ -3,7 +3,8 @@ package com.computernerd1101.goban
 import java.util.*
 
 fun main() {
-    printEscape("黒白")
+    printEscape("パス")
+    println("\u30D1\u30B9")
 }
 
 fun printEscape(s: String) {

@@ -1,15 +1,20 @@
 package com.computernerd1101.goban.desktop
 
 import com.computernerd1101.goban.*
+import com.computernerd1101.goban.desktop.resources.*
 import com.computernerd1101.goban.markup.*
 import java.awt.*
 import java.awt.event.MouseEvent
 import java.awt.geom.*
+import java.util.*
 import javax.swing.JComponent
 import kotlin.math.*
 
 open class GobanView
-@JvmOverloads constructor(goban: AbstractGoban? = null): JComponent() {
+@JvmOverloads constructor(
+    goban: AbstractGoban? = null,
+    locale: Locale? = Locale.getDefault(Locale.Category.FORMAT)
+): JComponent() {
 
     init {
         foreground = Color.BLACK
@@ -64,6 +69,61 @@ open class GobanView
             revalidate()
             repaint()
         }
+    }
+
+    private var _formatLocale: Locale? = locale
+    private var formatX: GobanDimensionFormatter?
+    private var formatY: GobanDimensionFormatter?
+    init {
+        if (locale == null) {
+            formatX = null
+            formatY = null
+        } else {
+            val resources = gobanDesktopFormatResources(locale)
+            formatX = resources.getObject("GobanDimensionFormatter.X") as GobanDimensionFormatter
+            formatY = resources.getObject("GobanDimensionFormatter.Y") as GobanDimensionFormatter
+        }
+    }
+    var formatLocale: Locale?
+        get() = _formatLocale
+        set(locale) = setFormatLocaleImpl(locale)
+    protected open fun setFormatLocaleImpl(locale: Locale?) {
+        val old = _formatLocale
+        _formatLocale = locale
+        if (locale == null) {
+            formatX = null
+            formatY = null
+            if (old != null) {
+                revalidate()
+                repaint()
+            }
+        } else if (locale != old) {
+            val resources = gobanDesktopFormatResources(locale)
+            formatX = resources.getObject("GobanDimensionFormatter.X") as GobanDimensionFormatter
+            formatY = resources.getObject("GobanDimensionFormatter.Y") as GobanDimensionFormatter
+            revalidate()
+            repaint()
+        }
+    }
+    open var showCoordinates: Boolean
+        get() = formatLocale != null
+        set(show) {
+            when {
+                !show -> formatLocale = null
+                formatLocale == null -> formatLocale = Locale.getDefault(Locale.Category.FORMAT)
+            }
+        }
+
+    protected open fun formatX(x: Int): String {
+        val goban = this.goban ?: return ""
+        val format = formatX ?: return ""
+        return format.format(x, goban.width)
+    }
+
+    protected open fun formatY(y: Int): String {
+        val goban = this.goban ?: return ""
+        val format = formatY ?: return ""
+        return format.format(y, goban.height)
     }
 
     private var _gobanBackground: Paint = Color.ORANGE
@@ -279,28 +339,39 @@ open class GobanView
         val g2d = g!!.create() as Graphics2D
         val gobanWidth = goban.width
         val gobanHeight = goban.height
-        val width = gobanWidth + 3
-        val height = gobanHeight + 3
+        val width: Int
+        val height: Int
+        val translate: Int
+        if (showCoordinates) {
+            width = gobanWidth + 3
+            height = gobanHeight + 3
+            translate = 2
+        } else {
+            width = gobanWidth + 1
+            height = gobanHeight + 1
+            translate = 1
+        }
         var paintWidth = this.width
         var paintHeight = this.height
         var paintX = 0
         var paintY = 0
         val scale: Double
         // if (width/height > paintWidth/paintHeight) {...}
-        if (width * paintHeight.toLong() > height * paintWidth.toLong()) {
+        val cmp = (width * paintHeight.toLong()).compareTo(height * paintWidth.toLong())
+        if (cmp > 0) {
             scale = paintWidth.toDouble() / width
             val oldHeight = paintHeight
             paintHeight = (height * paintWidth.toLong() / width).toInt()
             paintY = oldHeight - paintHeight shr 1
         } else {
             scale = paintHeight.toDouble() / height
-            if (width * paintHeight.toLong() < height * paintWidth.toLong()) {
+            if (cmp != 0) {
                 val oldWidth = paintWidth
                 paintWidth = (width * paintHeight.toLong() / height).toInt()
                 paintX = oldWidth - paintWidth shr 1
             }
         }
-        val gridStart = (1.5 * scale).toInt()
+        val gridStart = ((translate - 0.5) * scale).toInt()
         startX = paintX + gridStart
         startY = paintY + gridStart
         gridScale = scale
@@ -309,7 +380,7 @@ open class GobanView
         g2d.fillRect(paintX, paintY, paintWidth, paintHeight)
         g2d.translate(paintX, paintY)
         g2d.scale(scale, scale)
-        g2d.translate(2, 2)
+        g2d.translate(translate, translate)
         paintGoban(g2d)
     }
 
@@ -317,57 +388,21 @@ open class GobanView
         val goban = goban ?: return
         val width = goban.width
         val height = goban.height
-        val metrics = g.fontMetrics
         g.paint = foreground
-        var fontGraphics = g.create() as Graphics2D
-        fontGraphics.translate(0.0, -1.5)
-        val fontHeight = metrics.height
-        val fontWidth = metrics.stringWidth("M ")
-        var fontScale = 1.0 / fontWidth
-        fontGraphics.scale(fontScale, fontScale)
-        val buffer = CharArray(2)
-        for (x in 0 until width) {
-            var ch: Char
-            when {
-                x == 52 -> ch = 'i'
-                x == 51 -> ch = 'I'
-                x >= 25 -> {
-                    ch = ('a' - 25) + x
-                    if (ch >= 'i') ch++
-                }
-                else -> {
-                    ch = 'A' + x
-                    if (ch >= 'I') ch++
-                }
+        if (showCoordinates) {
+            var label: String
+            for (x in 0 until width) {
+                label = formatX(x)
+                if (label.length > 1 && !(label[0].isWhitespace() && label[label.lastIndex].isWhitespace()))
+                    label = " $label "
+                paintLabel(g, x, -1, label)
+                paintLabel(g, x, height, label)
             }
-            buffer[0] = ch
-            val label = String(buffer, 0, 1)
-            val xPos = x * fontWidth - metrics.charWidth(ch) * 0.5f
-            fontGraphics.drawString(label, xPos, fontHeight - fontWidth * 0.25f)
-            fontGraphics.drawString(label, xPos, fontHeight + (height + 0.75f) * fontWidth)
-        }
-        fontGraphics = g.create() as Graphics2D
-        fontGraphics.translate(-0.5, 0.5)
-        fontScale = 1.0 / fontHeight
-        fontGraphics.scale(fontScale, fontScale)
-        val descent = metrics.descent
-        for (y in 0 until height) {
-            val y2 = height - y
-            val length = if (y2 < 10) {
-                buffer[0] = '0' + y2
-                1
-            } else {
-                buffer[0] = '0' + (y2 / 10)
-                buffer[1] = '0' + (y2 % 10)
-                2
+            for (y in 0 until height) {
+                label = formatY(y)
+                paintLabel(g, -1, y, label)
+                paintLabel(g, width, y, label)
             }
-            val label = String(buffer, 0, length)
-            val yPos = y * fontHeight - descent.toFloat()
-            fontGraphics.drawString(
-                label, -(metrics.stringWidth(label) + fontHeight * 0.25f),
-                yPos
-            )
-            fontGraphics.drawString(label, (width + 0.25f) * fontHeight, yPos)
         }
         paintAllGoPoints(g)
         paintAllLineMarkups(g)
@@ -577,7 +612,7 @@ open class GobanView
     protected open fun paintPointMarkup(g: Graphics2D, p: GoPoint, m: PointMarkup) {
         val label = m.label
         when {
-            label.isNotEmpty() -> paintMarkupLabel(g, p, label)
+            label.isNotEmpty() -> paintLabel(g, p, label)
             m == PointMarkup.SELECT -> paintMarkupSelect(g, p)
             m == PointMarkup.X -> paintMarkupX(g, p)
             m == PointMarkup.TRIANGLE -> paintMarkupTriangle(g, p)
@@ -586,8 +621,12 @@ open class GobanView
         }
     }
 
-    protected open fun paintMarkupLabel(g: Graphics2D, p: GoPoint, label: String) {
-        val (x, y) = p
+    protected open fun paintLabel(g: Graphics2D, p: GoPoint, label: String) {
+        paintLabel(g, p.x, p.y, label)
+    }
+
+    protected open fun paintLabel(g: Graphics2D, x: Int, y: Int, label: String) {
+        if (label.isBlank()) return
         val metrics = g.fontMetrics
         val fontGraphics = g.create() as Graphics2D
         fontGraphics.translate(-0.5, 0.5)

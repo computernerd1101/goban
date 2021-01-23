@@ -4,9 +4,16 @@ package com.computernerd1101.goban.desktop.resources
 
 import java.util.*
 
-fun gobanDesktopResources(locale: Locale): ResourceBundle {
+fun gobanDesktopResources(locale: Locale = Locale.getDefault(Locale.Category.DISPLAY)): ResourceBundle {
     return ResourceBundle.getBundle(
         "com.computernerd1101.goban.desktop.resources.GobanDesktopResources",
+        locale
+    )
+}
+
+fun gobanDesktopFormatResources(locale: Locale = Locale.getDefault(Locale.Category.FORMAT)): ResourceBundle {
+    return ResourceBundle.getBundle(
+        "com.computernerd1101.goban.desktop.resources.GobanDesktopFormatResources",
         locale
     )
 }
@@ -15,8 +22,8 @@ class GobanDesktopResources: ListResourceBundle() {
 
     override fun getContents(): Array<out Array<out Any>> {
         return arrayOf(
-            arrayOf("Black", "Black"),
-            arrayOf("White", "White"),
+            arrayOf("Confirm.Message", "Are you sure?"),
+
             arrayOf("Default", "Default"),
             arrayOf("NewGame", "New Game"),
             arrayOf("RulesPreset.JAPANESE", "Japanese Rules"),
@@ -38,9 +45,6 @@ class GobanDesktopResources: ListResourceBundle() {
             arrayOf("SizeHeader.WIDTH", "Width: "),
             arrayOf("SizeHeader.HEIGHT", "Height: "),
             arrayOf("AllowSuicide", "Allow Suicide?"),
-
-            arrayOf("SGF.Point.Format", GoPointFormatter),
-            arrayOf("SGF.Node.Format", SGFNodeFormatter),
 
             arrayOf("Up", "Up"),
             arrayOf("Down", "Down"),
@@ -67,6 +71,7 @@ class GobanDesktopResources: ListResourceBundle() {
             arrayOf("Setup.NextPlayer.Prompt", "Next Player:"),
 
             arrayOf("Node", "Node"),
+            arrayOf("Node.Delete", "Delete node"),
             arrayOf("Node.Name.Prompt", "Node name: "),
             arrayOf("Node.Value.Prompt", "Node value: "),
             arrayOf("Node.PositionState.Header", "Position state..."),
@@ -133,7 +138,6 @@ class GobanDesktopResources: ListResourceBundle() {
             arrayOf("Root.Variations.Prompt", "Show variations of:"),
             arrayOf("Root.Variations.Children", "Child nodes"),
             arrayOf("Root.Variations.Siblings", "Sibling nodes"),
-            arrayOf("Size.Format", GobanSizeFormatter),
             arrayOf("Encoding.Prompt", "Encoding: "),
             arrayOf("Encoding.Default", "System default"),
 
@@ -160,7 +164,8 @@ class GobanDesktopResources: ListResourceBundle() {
             arrayOf("Score.Black.Prefix", "Black score: "),
             arrayOf("Score.Black.Suffix", ""),
             arrayOf("Score.White.Prefix", "White score: "),
-            arrayOf("Score.White.Suffix", "")
+            arrayOf("Score.White.Suffix", ""),
+
         )
     }
 
