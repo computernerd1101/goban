@@ -179,7 +179,8 @@ internal object GobanBulk: LongBinaryOperator {
         var i: Int
         if (rows is GoRectangle) {
             y1 = rows.start.y
-            y2 = rows.end.y
+            if (y1 >= height || rows.start.x >= width) return false
+            y2 = minOf(rows.end.y, height - 1)
             rectRow = InternalGoRectangle.rowBits(rows) // Guaranteed non-zero
             i = if (width <= 32) y1 else y1*2
         } else {
