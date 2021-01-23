@@ -156,6 +156,7 @@ class GoEditorFrame private constructor(
         toolBarToggleButton(resources, "SquareMarkup", "SQ")
     private val buttonDeletePointMarkup =
         toolBarToggleButton(resources, "DeletePointMarkup", "X")
+    // TODO fix visibility during edit
     private val buttonLineMarkup =
         toolBarToggleButton(resources, "LineMarkup", "LN")
     private val buttonArrowMarkup =
