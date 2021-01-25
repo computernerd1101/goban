@@ -184,16 +184,13 @@ class GameInfo: Serializable {
     var dates: DateSet = DateSet()
     var malformedDates: SGFProperty? = null
     fun parseDates(prop: SGFProperty, warnings: SGFWarningList?): DateSet {
-        var first = true
-        val sb = StringBuilder()
-        for(value in prop.list) {
-            for(bytes in value.list) {
-                if (first) first = false
-                else sb.append(',')
-                sb.append(bytes)
+        val dates = DateSet()
+        var date: Date? = null
+        for(value in prop.list) for(bytes in value.list)
+            date.parseNext(bytes.toString())?.let {
+                date = it
+                dates.addDate(it)
             }
-        }
-        val dates = DateSet(sb.toString())
         this.dates = dates
         malformedDates = if (dates.count == 0) {
             warnings?.addWarning(SGFWarning(prop.row, prop.column,
@@ -337,7 +334,7 @@ class GameInfo: Serializable {
                 malformedKomi == null &&
                 result == null &&
                 malformedResult == null &&
-                dates.isNullOrEmpty() &&
+                dates.isEmpty() &&
                 malformedDates == null &&
                 timeLimit == 0L &&
                 malformedTimeLimit == null &&
