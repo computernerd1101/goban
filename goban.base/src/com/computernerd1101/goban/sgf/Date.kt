@@ -655,7 +655,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                         monthCount = -1
                         Private.updateCount.incrementAndGet(this@DateSet)
                     } else {
-                        year = Date(date.hashCode() and -0x20000, InternalMarker)
+                        year = Date(date.hashCode() and -0x200, InternalMarker)
                     }
                 }
 
@@ -1170,7 +1170,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
             Private.updateYearCount.incrementAndGet(t1d)
             var daysInYear = 0
             for(m in 1..12) {
-                var bits = ois.readInt().and(1.shl(Date.daysInMonth(m) + 1) - 1)
+                var bits = ois.readInt().and(2.shl(Date.daysInMonth(m)) - 1)
                 if (bits != 0) {
                     val mt = Private.monthTableFactories[m - 1](yt, Date(y, m, 0))
                     if (bits == 1) {
