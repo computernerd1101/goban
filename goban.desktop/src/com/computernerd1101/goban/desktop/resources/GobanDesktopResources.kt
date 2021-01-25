@@ -4,7 +4,7 @@ package com.computernerd1101.goban.desktop.resources
 
 import java.util.*
 
-fun gobanDesktopResources(locale: Locale = Locale.getDefault(Locale.Category.DISPLAY)): ResourceBundle {
+fun gobanDesktopResources(locale: Locale = Locale.getDefault()): ResourceBundle {
     return ResourceBundle.getBundle(
         "com.computernerd1101.goban.desktop.resources.GobanDesktopResources",
         locale

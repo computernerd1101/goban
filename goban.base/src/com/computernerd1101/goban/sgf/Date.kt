@@ -208,7 +208,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
         for(i in 0..0x7F) {
             val strongUpdater = strongUpdater<Table2d>(i)
             strongUpdater[table2d]?.let {
-                val t = Table2d(queue, it)
+                val t = copy.Table2d(copy.queue, it)
                 strongUpdater[copyTable] = t
                 weakUpdater<Table2d>(i)[copyTable] = WeakDateTable(t, copyTable, i)
             }
@@ -434,12 +434,12 @@ class DateSet(): MutableIterable<Date>, Serializable {
 
         override fun hasNext(): Boolean {
             if (itr?.hasNext() == true) return true
-            for(i in (index + 1) until array.size) {
+            for(i in index until array.size) {
                 strongUpdater<T>(i)[array]?.let { t: T ->
                     val itr = t.iterator()
                     if (itr.hasNext()) {
                         this.itr = itr
-                        index = i
+                        index = i + 1
                         return true
                     }
                 }
@@ -451,12 +451,12 @@ class DateSet(): MutableIterable<Date>, Serializable {
             val itr1 = itr
             if (itr1 != null && itr1.hasNext())
                 return itr1.next()
-            for(i in (index + 1) until array.size) {
+            for(i in index until array.size) {
                 strongUpdater<T>(i)[array]?.let { t: T ->
                     val itr2 = t.iterator()
                     if (itr2.hasNext()) {
                         itr = itr2
-                        index = i
+                        index = i + 1
                         return itr2.next()
                     }
                 }
@@ -466,7 +466,6 @@ class DateSet(): MutableIterable<Date>, Serializable {
 
         override fun remove() {
             itr?.remove() ?: throw IllegalStateException()
-            itr = null
         }
 
     }
@@ -666,6 +665,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                         Private.updateCount.incrementAndGet(this@DateSet)
                     } else
                         for(i in 0..11) {
+                            Private.updateMonthCount.incrementAndGet(this)
                             val strongUpdater = strongUpdater<MonthTable>(i)
                             strongUpdater[other]?.let {
                                 val mt = it.copy(this)

@@ -2,10 +2,14 @@
 
 package com.computernerd1101.goban
 
+import com.computernerd1101.goban.sgf.*
 import kotlin.reflect.*
 
 fun main() {
-    testDefaultParam(19)
+    val dateSet = DateSet()
+    val date = Date()
+    dateSet.addDate(date)
+    for(d in dateSet) println(d)
 }
 
 

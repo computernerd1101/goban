@@ -570,7 +570,7 @@ class GoEditorFrame private constructor(
         buttonSGFUp.addActionListener(actionListener)
         buttonSGFDown.addActionListener(actionListener)
         buttonSGFSetup.addActionListener {
-            val resources = gobanDesktopResources(Locale.getDefault())
+            val resources = gobanDesktopResources()
             if (buttonSGFSetup.isSelected) {
                 sgfTreeView.isEnabled = false
                 buttonSGFUp.isEnabled = false
@@ -959,7 +959,7 @@ class GoEditorFrame private constructor(
                     "GameInfo.Warning.Selected"
                 else -> "GameInfo.Warning.Parent"
             }
-            val resources = gobanDesktopResources(Locale.getDefault())
+            val resources = gobanDesktopResources()
             if (warning == null || JOptionPane.showConfirmDialog(
                     this, resources.getString(warning),
                     resources.getString("GameInfo.Warning.Title"),
@@ -974,7 +974,7 @@ class GoEditorFrame private constructor(
             }
         }
         buttonDeleteGameInfo.addActionListener {
-            val resources = gobanDesktopResources(Locale.getDefault())
+            val resources = gobanDesktopResources()
             if (JOptionPane.showConfirmDialog(
                     this,
                     resources.getString("GameInfo.Delete.Confirm"),
@@ -997,7 +997,7 @@ class GoEditorFrame private constructor(
             val gameInfoNode = node.gameInfoNode
             when {
                 gameInfoNode == null -> {
-                    if (!node.hasGameInfoChildren || gobanDesktopResources(Locale.getDefault()).let { resources ->
+                    if (!node.hasGameInfoChildren || gobanDesktopResources().let { resources ->
                             JOptionPane.showConfirmDialog(
                                 this,
                                 resources.getString("GameInfo.Warning.Children"),
@@ -1414,7 +1414,7 @@ class GoEditorFrame private constructor(
                 gobanView.lineMarkup = lineMarkup
                 blackScore += whiteStones - g.whiteCount
                 whiteScore += blackStones - g.blackCount
-                val resources = gobanDesktopResources(Locale.getDefault())
+                val resources = gobanDesktopResources()
                 labelBlackScore.text = resources.getString("Score.Black.Prefix") +
                         blackScore + resources.getString("Score.Black.Suffix")
                 labelWhiteScore.text = resources.getString("Score.White.Prefix") +
@@ -1431,7 +1431,7 @@ class GoEditorFrame private constructor(
                         buttonLabelMarkup.isSelected -> {
                             val text: String? = JOptionPane.showInputDialog(
                                 this,
-                                gobanDesktopResources(Locale.getDefault()).getString("Markup.Label.Prompt"),
+                                gobanDesktopResources().getString("Markup.Label.Prompt"),
                                 pointMarkupMap[p]?.label
                             )
                             if (text.isNullOrEmpty()) return@markup
@@ -1492,7 +1492,7 @@ class GoEditorFrame private constructor(
     }
 
     private fun selectSGFNode(node: GoSGFNode,
-                              resources: ResourceBundle = gobanDesktopResources(Locale.getDefault())) {
+                              resources: ResourceBundle = gobanDesktopResources()) {
         this.node = node
         textComment.text = node.comment
         val nodeType: String
@@ -1706,7 +1706,7 @@ class GoEditorFrame private constructor(
             button.isEnabled = true
         sgfTreeView.isEnabled = true
         enableSGFVariations()
-        buttonSGFDelete.text = gobanDesktopResources(Locale.getDefault()).getString("Delete")
+        buttonSGFDelete.text = gobanDesktopResources().getString("Delete")
         val node = this.node
         buttonSGFDelete.isEnabled = node.parent != null
         updateNodeGoban(node)
@@ -1720,7 +1720,7 @@ class GoEditorFrame private constructor(
     private object MoveAnnotationHeader {
 
         override fun toString(): String {
-            return gobanDesktopResources(Locale.getDefault()).getString("Move.Annotation.Header")
+            return gobanDesktopResources().getString("Move.Annotation.Header")
         }
 
     }
@@ -1730,7 +1730,7 @@ class GoEditorFrame private constructor(
         NONE, INHERIT, NEW;
 
         override fun toString(): String {
-            return gobanDesktopResources(Locale.getDefault()).getStringArray("Figure.Mode")[ordinal]
+            return gobanDesktopResources().getStringArray("Figure.Mode")[ordinal]
         }
 
     }
@@ -1738,7 +1738,7 @@ class GoEditorFrame private constructor(
     private object PositionStateHeader {
 
         override fun toString(): String {
-            return gobanDesktopResources(Locale.getDefault()).getString("Node.PositionState.Header")
+            return gobanDesktopResources().getString("Node.PositionState.Header")
         }
 
     }
@@ -2109,7 +2109,7 @@ class GoEditorFrame private constructor(
         ): Component {
             return renderer.getListCellRendererComponent(
                 list,
-                gobanDesktopResources(Locale.getDefault()).getString(when {
+                gobanDesktopResources().getString(when {
                     value == null -> "GameInfo.Result.Header"
                     value.winner == GoColor.BLACK -> "GameInfo.Result.Winner.Black"
                     value.winner == GoColor.WHITE -> "GameInfo.Result.Winner.White"
@@ -2187,7 +2187,7 @@ class GoEditorFrame private constructor(
         ): Component = renderer.getListCellRendererComponent(
             list,
             if (value == null) ""
-            else gobanDesktopResources(Locale.getDefault()).getString(when(value.charCode) {
+            else gobanDesktopResources().getString(when(value.charCode) {
                 'F' -> "GameInfo.Result.Winner.Forfeit"
                 'R' -> "GameInfo.Result.Winner.Resign"
                 'T' -> "GameInfo.Result.Winner.Time"
@@ -2683,7 +2683,7 @@ class GoEditorFrame private constructor(
             cellHasFocus: Boolean
         ): Component = renderer.getListCellRendererComponent(
             list,
-            value?.displayName() ?: gobanDesktopResources(Locale.getDefault()).getString("Encoding.Default"),
+            value?.displayName() ?: gobanDesktopResources().getString("Encoding.Default"),
             index, isSelected, cellHasFocus
         )
 

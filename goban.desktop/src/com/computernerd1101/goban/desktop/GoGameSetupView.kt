@@ -137,7 +137,7 @@ class GoGameSetupView private constructor(
     }
 
     fun showDialog(parentComponent: Component?): GoGameSetup? {
-        val resources = gobanDesktopResources(Locale.getDefault())
+        val resources = gobanDesktopResources()
         return if (JOptionPane.showConfirmDialog(
                 parentComponent,
                 this,
@@ -170,13 +170,9 @@ class GoGameSetupView private constructor(
         GOE(GoRules.ING),
         CUSTOM(GoRules.DEFAULT);
 
-        override fun toString(): String = toString(Locale.getDefault())
+        private val resourceKey = "RulesPreset.$name"
 
-        fun toString(locale: Locale): String {
-            val resources = gobanDesktopResources(locale)
-            resources.locale
-            return resources.getString("RulesPreset.$name")
-        }
+        override fun toString(): String = gobanDesktopResources().getString(resourceKey)
 
     }
 
@@ -219,12 +215,9 @@ class GoGameSetupView private constructor(
 
         AREA, TERRITORY;
 
-        override fun toString(): String = toString(Locale.getDefault())
+        private val resourceKey = "ScoreType.$name"
 
-        fun toString(locale: Locale): String {
-            val resources = gobanDesktopResources(locale)
-            return resources.getString("ScoreType.$name")
-        }
+        override fun toString(): String = gobanDesktopResources().getString(resourceKey)
 
     }
 
@@ -404,10 +397,9 @@ class GoGameSetupView private constructor(
 
         FIXED, FREE;
 
-        override fun toString(): String {
-            val resources = gobanDesktopResources(Locale.getDefault())
-            return resources.getString("HandicapType.$name")
-        }
+        private val resourceKey = "HandicapType.$name"
+
+        override fun toString(): String = gobanDesktopResources().getString(resourceKey)
 
     }
 

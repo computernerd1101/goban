@@ -170,6 +170,7 @@ fun AbstractGoban?.isNullOrEmpty(): Boolean {
 
 @Suppress("unused")
 infix fun AbstractGoban?.contentEquals(other: AbstractGoban?) = AbstractGoban.contentEquals(this, other)
+
 fun FixedGoban(width: Int, height: Int) = FixedGoban.empty(width, height)
 fun FixedGoban(size: Int) = FixedGoban.empty(size)
 fun FixedGoban() = FixedGoban.EMPTY
@@ -177,6 +178,7 @@ fun FixedGoban() = FixedGoban.EMPTY
 class FixedGoban: AbstractGoban {
 
     private val hash: Int
+    private val isPlayable: Boolean
 
     internal constructor(width: Int, height: Int, rows: GobanRows1, count: Long):
             super(width, height, rows, count) {
@@ -188,11 +190,43 @@ class FixedGoban: AbstractGoban {
             hash = 31*hash + (black + (white shl -width))
         }
         this.hash = hash
+        GobanBulk.threadLocalGoban(width, height, rows)
+        val arrays: Array<LongArray> = GobanThreadLocals.arrays()
+        val metaCluster = arrays[GobanThreadLocals.META_CLUSTER]
+        GobanBulk.clear(metaCluster)
+        val blackRows = arrays[GobanThreadLocals.BLACK]
+        val whiteRows = arrays[GobanThreadLocals.WHITE]
+        var playable = true
+        isPlayable@ for(y in 0 until height) {
+            val black = blackRows[y]
+            var unseen = black or whiteRows[y]
+            while(unseen != 0L) {
+                val xBit = unseen and -unseen
+                unseen -= xBit
+                if (metaCluster[y] and xBit != 0L) continue
+                val player: Int
+                val opponent: Int
+                if (black and xBit != 0L) {
+                    player = GobanThreadLocals.BLACK
+                    opponent = GobanThreadLocals.WHITE
+                } else {
+                    player = GobanThreadLocals.WHITE
+                    opponent = GobanThreadLocals.BLACK
+                }
+                if (!GobanBulk.isAlive(width, height, xBit, y, player, opponent)) { // updates cluster
+                    playable = false
+                    break@isPlayable
+                }
+                GobanBulk.updateMetaCluster(height)
+            }
+        }
+        isPlayable = playable
     }
 
     private constructor(width: Int, height: Int, cache: Cache):
             super(width, height, InternalGoban.emptyRows(width > 32, height), 0L) {
         hash = 0
+        isPlayable = true
         if (width == height)
             cache.squares[width - 1] = this
     }
@@ -260,41 +294,8 @@ class FixedGoban: AbstractGoban {
      * @return a new [AbstractMutableGoban] with the same contents
      * as this instance
      */
-    override fun editable(): AbstractMutableGoban {
-        val width = this.width
-        val height = this.height
-        val oldRows = this.rows
-        val rows = oldRows.newInstance()
-        val count = InternalGoban.copyRows(oldRows, rows)
-        GobanBulk.threadLocalGoban(width, height, rows)
-        val arrays: Array<LongArray> = GobanThreadLocals.arrays()
-        val metaCluster = arrays[GobanThreadLocals.META_CLUSTER]
-        GobanBulk.clear(metaCluster)
-        val blackRows = arrays[GobanThreadLocals.BLACK]
-        val whiteRows = arrays[GobanThreadLocals.WHITE]
-        for(y in 0 until height) {
-            val black = blackRows[y]
-            var unseen = black or whiteRows[y]
-            while(unseen != 0L) {
-                val xBit = unseen and -unseen
-                unseen -= xBit
-                if (metaCluster[y] and xBit != 0L) continue
-                val player: Int
-                val opponent: Int
-                if (black and xBit != 0L) {
-                    player = GobanThreadLocals.BLACK
-                    opponent = GobanThreadLocals.WHITE
-                } else {
-                    player = GobanThreadLocals.WHITE
-                    opponent = GobanThreadLocals.BLACK
-                }
-                if (!GobanBulk.isAlive(width, height, xBit, y, player, opponent)) // updates cluster
-                    return MutableGoban(width, height, rows, count)
-                GobanBulk.updateMetaCluster(height)
-            }
-        }
-        return Goban(width, height, rows, count)
-    }
+    override fun editable(): AbstractMutableGoban =
+        if (isPlayable) playable() else edit()
 
     override fun equals(other: Any?): Boolean {
         return other is FixedGoban && this contentEquals other
@@ -305,9 +306,6 @@ class FixedGoban: AbstractGoban {
 }
 
 sealed class AbstractMutableGoban: AbstractGoban {
-
-    constructor(width: Int, height: Int, rows: GobanRows1, count: Long):
-            super(width, height, rows, count)
 
     constructor(width: Int, height: Int): super(
         if (width in 1..52) width else throw InternalGoban.illegalSizeException(width),
@@ -381,9 +379,6 @@ class MutableGoban: AbstractMutableGoban {
 
     companion object;
 
-    internal constructor(width: Int, height: Int, rows: GobanRows1, count: Long):
-            super(width, height, rows, count)
-
     constructor(width: Int, height: Int): super(width, height)
 
     @Suppress("unused")
@@ -413,9 +408,6 @@ class MutableGoban: AbstractMutableGoban {
 class Goban: AbstractMutableGoban {
 
     companion object;
-
-    internal constructor(width: Int, height: Int, rows: GobanRows1, count: Long):
-            super(width, height, rows, count)
 
     constructor(width: Int, height: Int): super(width, height)
 

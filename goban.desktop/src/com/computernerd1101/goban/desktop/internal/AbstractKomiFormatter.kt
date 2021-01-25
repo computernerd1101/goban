@@ -105,8 +105,7 @@ abstract class AbstractKomiFormatter:
         return if (komi == 0.0) Zero.plus else komi
     }
 
-    override fun getSelectedItem(): Any = gobanDesktopResources(Locale.getDefault())
-        .getString("GameInfo.Komi.Prompt")
+    override fun getSelectedItem(): Any = gobanDesktopResources().getString("GameInfo.Komi.Prompt")
 
     override fun setSelectedItem(anItem: Any?) {
         if (anItem is Number) {

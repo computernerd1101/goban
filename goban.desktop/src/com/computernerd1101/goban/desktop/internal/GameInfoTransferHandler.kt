@@ -52,25 +52,10 @@ class GameInfoTransferHandler(
     override fun getSourceActions(c: JComponent?) = COPY
 
     var clipboardContents: GameInfo?
-        get() {
-            val clipboard: Clipboard = Toolkit.getDefaultToolkit().systemClipboard
-            val contents: Transferable = clipboard.getContents(this) ?: return null
-            val flavor: DataFlavor = when {
-                contents.isDataFlavorSupported(gameInfoFlavor) -> gameInfoFlavor
-                contents.isDataFlavorSupported(serializedGameInfoFlavor) -> serializedGameInfoFlavor
-                else -> return null
-            }
-            return try {
-                contents.getTransferData(flavor)
-            } catch(e: UnsupportedFlavorException) {
-                null
-            } as? GameInfo
-        }
+        get() = importGameInfo(Toolkit.getDefaultToolkit().systemClipboard.getContents(this), charset)
         set(info) {
-            if (info != null) {
-                val clipboard: Clipboard = Toolkit.getDefaultToolkit().systemClipboard
-                exportToClipboard(component, clipboard, COPY)
-            }
+            if (info != null)
+                exportToClipboard(component, Toolkit.getDefaultToolkit().systemClipboard, COPY)
         }
 
     companion object {
@@ -80,6 +65,90 @@ class GameInfoTransferHandler(
 
         @JvmField
         val serializedGameInfoFlavor = Flavors.serializedGameInfoFlavor
+
+        @JvmStatic
+        @JvmOverloads
+        fun importGameInfo(contents: Transferable?, charset: Charset? = null): GameInfo? {
+            if (contents == null) return null
+            val flavor: DataFlavor = Flavors.getFlavors(charset).firstOrNull(contents::isDataFlavorSupported)
+                ?: return null
+            val isSGF = flavor.subType == "x-go-sgf"
+            val encode: Charset
+            val sgf: SGFTree
+            try {
+                when(val transfer = contents.getTransferData(flavor)) {
+                    is GameInfo -> return transfer
+                    is CharSequence, is CharBuffer -> {
+                        encode = Charsets.UTF_8
+                        sgf = SGFTree(if (isSGF) transfer.toString() else "($transfer)")
+                    }
+                    is CharArray -> {
+                        encode = Charsets.UTF_8
+                        sgf = SGFTree(String(
+                            if (isSGF) transfer
+                            else CharArray(transfer.size + 2).also { buffer ->
+                                buffer[0] = '('
+                                transfer.copyInto(buffer, destinationOffset = 1)
+                                buffer[buffer.lastIndex] = ')'
+                            }))
+                    }
+                    is Reader -> {
+                        encode = Charsets.UTF_8
+                        val writer = StringWriter()
+                        if (!isSGF) writer.append('(')
+                        transfer.copyTo(writer)
+                        if (!isSGF) writer.append(')')
+                        sgf = SGFTree(writer.toString())
+                    }
+                    is InputStream -> {
+                        encode = charset ?: Charsets.UTF_8
+                        sgf = SGFTree(if (isSGF) transfer
+                        else {
+                            val output = ByteArrayOutputStream()
+                            output.write('('.toInt())
+                            transfer.copyTo(output)
+                            output.write(')'.toInt())
+                            output.toByteArray().inputStream()
+                        })
+                    }
+                    is ByteArray -> {
+                        encode = charset ?: Charsets.UTF_8
+                        sgf = SGFTree(ByteArrayInputStream(
+                            if (isSGF) transfer
+                            else ByteArray(transfer.size + 2).also { bytes ->
+                                bytes[0] = '('.toByte()
+                                transfer.copyInto(bytes, destinationOffset = 1)
+                                bytes[bytes.lastIndex] = ')'.toByte()
+                            }))
+                    }
+                    is ByteBuffer -> {
+                        encode = charset ?: Charsets.UTF_8
+                        val bytes: ByteArray
+                        val offset: Int
+                        val length = transfer.limit() - transfer.position()
+                        if (isSGF) {
+                            bytes = ByteArray(length)
+                            offset = 0
+                        } else {
+                            bytes = ByteArray(length + 2)
+                            bytes[0] = '('.toByte()
+                            bytes[bytes.lastIndex] = ')'.toByte()
+                            offset = 1
+                        }
+                        transfer.get(bytes, offset, length)
+                        sgf = SGFTree(bytes.inputStream())
+                    }
+                    else -> return null
+                }
+            } catch(e: Exception) {
+                return null
+            }
+            val info = GameInfo()
+            for((name, prop) in sgf.nodes[0].properties) {
+                info.parseSGFProperty(name, prop, encode, null)
+            }
+            return if (info.isEmpty()) null else info
+        }
 
     }
 
@@ -122,50 +191,59 @@ class GameInfoTransferHandler(
             StringBuffer::class.java
         )
 
+        fun getFlavors(charset: Charset?) = Array(flavors.size) { index ->
+            when(val flavor = flavors[index]) {
+                is DataFlavor -> flavor
+                else -> DataFlavor(
+                    "$flavor;charset=${charset?.name() ?: "UTF-8"}"
+                )
+            }
+        }
+
         @JvmField val flavors = arrayOf(
             gameInfoFlavor,
             serializedGameInfoFlavor,
-            dataFlavor(
-                "text/plain;class=\"java.lang.String\""
-            ),
-            dataFlavor(
-                "application/x-go-sgf;class=\"java.lang.String\""
-            ),
-            "text/plain;class=\"java.io.InputStream\"",
             "application/x-go-sgf;class=\"java.io.InputStream\"",
-            "text/plain;class=\"[B\"",
-            "application/x-go-sgf;class=\"[B\"",
-            "text/plain;class=\"java.nio.ByteBuffer\"",
             "application/x-go-sgf;class=\"java.nio.ByteBuffer\"",
-            dataFlavor(
-                "text/plain;class=\"java.io.Reader\""
-            ),
+            "application/x-go-sgf;class=\"[B\"",
             dataFlavor(
                 "application/x-go-sgf;class=\"java.io.Reader\""
             ),
             dataFlavor(
-                "text/plain;class=\"[C\""
-            ),
-            dataFlavor(
-                "application/x-go-sgf;class=\"[C\""
-            ),
-            dataFlavor(
-                "text/plain;class=\"java.nio.CharBuffer\""
+                "application/x-go-sgf;class=\"java.lang.String\""
             ),
             dataFlavor(
                 "application/x-go-sgf;class=\"java.nio.CharBuffer\""
             ),
             dataFlavor(
-                "text/plain;class=\"java.lang.StringBuilder\""
+                "application/x-go-sgf;class=\"[C\""
             ),
             dataFlavor(
                 "application/x-go-sgf;class=\"java.lang.StringBuilder\""
             ),
             dataFlavor(
-                "text/plain;class=\"java.lang.StringBuffer\""
+                "application/x-go-sgf;class=\"java.lang.StringBuffer\""
+            ),
+            "text/plain;class=\"java.io.InputStream\"",
+            "text/plain;class=\"java.nio.ByteBuffer\"",
+            "text/plain;class=\"[B\"",
+            dataFlavor(
+                "text/plain;class=\"java.io.Reader\""
             ),
             dataFlavor(
-                "application/x-go-sgf;class=\"java.lang.StringBuffer\""
+                "text/plain;class=\"java.lang.String\""
+            ),
+            dataFlavor(
+                "text/plain;class=\"java.nio.CharBuffer\""
+            ),
+            dataFlavor(
+                "text/plain;class=\"[C\""
+            ),
+            dataFlavor(
+                "text/plain;class=\"java.lang.StringBuilder\""
+            ),
+            dataFlavor(
+                "text/plain;class=\"java.lang.StringBuffer\""
             )
         )
 
@@ -249,14 +327,7 @@ class GameInfoTransferHandler(
             props["AP"] = SGFProperty(SGFValue("CN13 Goban", charset))
         }
 
-        override fun getTransferDataFlavors() = Array(Flavors.flavors.size) { index ->
-            when(val flavor = Flavors.flavors[index]) {
-                is DataFlavor -> flavor
-                else -> DataFlavor(
-                    "$flavor;charset=${charset?.name() ?: "UTF-8"}"
-                )
-            }
-        }
+        override fun getTransferDataFlavors() = Flavors.getFlavors(charset)
 
         override fun isDataFlavorSupported(flavor: DataFlavor) = flavor.representationClass in Flavors.repClasses
 

@@ -184,8 +184,16 @@ class GameInfo: Serializable {
     var dates: DateSet = DateSet()
     var malformedDates: SGFProperty? = null
     fun parseDates(prop: SGFProperty, warnings: SGFWarningList?): DateSet {
-        val s = prop.list[0].toString()
-        val dates = DateSet(s)
+        var first = true
+        val sb = StringBuilder()
+        for(value in prop.list) {
+            for(bytes in value.list) {
+                if (first) first = false
+                else sb.append(',')
+                sb.append(bytes)
+            }
+        }
+        val dates = DateSet(sb.toString())
         this.dates = dates
         malformedDates = if (dates.count == 0) {
             warnings?.addWarning(SGFWarning(prop.row, prop.column,
@@ -319,6 +327,33 @@ class GameInfo: Serializable {
         copy.annotationProvider = annotationProvider
         copy.openingType = openingType
         return copy
+    }
+    
+    fun isEmpty(): Boolean {
+        return black.isEmpty() && white.isEmpty() &&
+                handicap == 0 &&
+                malformedHandicap == null &&
+                komi2 == 0 &&
+                malformedKomi == null &&
+                result == null &&
+                malformedResult == null &&
+                dates.isNullOrEmpty() &&
+                malformedDates == null &&
+                timeLimit == 0L &&
+                malformedTimeLimit == null &&
+                overtime == null &&
+                malformedOvertime.isNullOrEmpty() &&
+                rulesString.isEmpty() &&
+                gameName.isEmpty() &&
+                gameComment.isEmpty() &&
+                gameSource.isEmpty() &&
+                gameUser.isEmpty() &&
+                copyright.isEmpty() &&
+                gameLocation.isEmpty() &&
+                eventName.isEmpty() &&
+                roundType.isEmpty() &&
+                annotationProvider.isEmpty() &&
+                openingType.isEmpty()
     }
 
     fun writeSGFNode(node: SGFNode, charset: Charset?) {

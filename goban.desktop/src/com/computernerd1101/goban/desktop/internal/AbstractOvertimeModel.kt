@@ -5,7 +5,6 @@ import com.computernerd1101.goban.desktop.resources.gobanDesktopResources
 import com.computernerd1101.goban.sgf.GameInfo
 import com.computernerd1101.goban.time.Overtime
 import java.awt.Component
-import java.util.*
 import javax.swing.*
 import javax.swing.event.ListDataListener
 
@@ -18,7 +17,7 @@ abstract class AbstractOvertimeModel(
     private object Header {
 
         override fun toString(): String {
-            val resources = gobanDesktopResources(Locale.getDefault())
+            val resources = gobanDesktopResources()
             return resources.getString("Overtime.Header")
         }
 
@@ -53,7 +52,7 @@ abstract class AbstractOvertimeModel(
     ): Component = renderer.getListCellRendererComponent(
         list,
         if (value is Overtime) {
-            val resources = gobanDesktopResources(Locale.getDefault())
+            val resources = gobanDesktopResources()
             resources.getString("Overtime.Prefix") + value.displayName() +
                     resources.getString("Overtime.Suffix")
         } else value,

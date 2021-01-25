@@ -15,8 +15,7 @@ inline fun <reified K: Enum<K>, V> enumMap() = EnumMap<K, V>(K::class.java)
 inline fun localeToString(crossinline block: Any.(ResourceBundle) -> String): Any = object {
 
     override fun toString(): String {
-        val resources = gobanDesktopResources(Locale.getDefault())
-        return block(resources)
+        return block(gobanDesktopResources())
     }
 
 }

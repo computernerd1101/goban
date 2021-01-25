@@ -131,7 +131,7 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
     override fun getIndexOfChild(parent: Any?, child: Any?): Int {
         if (parent == null || child !is GoSGFNode) return -1
         val sgf = root ?: return -1
-        val parentNode = if (parent == sgf) sgf.rootNode
+        val parentNode: GoSGFNode = if (parent == sgf) sgf.rootNode
         else {
             if (parent !is GoSGFNode || parent.parent?.children == 1)
                 return -1
@@ -181,7 +181,7 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
         if (!support.isDrop) return false
         support.setShowDropLocation(true)
         val isNode = support.isDataFlavorSupported(Private.nodeFlavor)
-        val isGameInfo = support.isDataFlavorSupported(GameInfoTransferHandler.serializedGameInfoFlavor)
+        val isGameInfo = support.isDataFlavorSupported(GameInfoTransferHandler.gameInfoFlavor)
         if (!isNode && !isGameInfo) return false
         val path = (support.dropLocation as? JTree.DropLocation)?.path ?: return false
         return when {
@@ -275,7 +275,7 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
             }
             val tree = support.component as JTree
             if (warning != null) SwingUtilities.invokeLater {
-                val resources = gobanDesktopResources(Locale.getDefault())
+                val resources = gobanDesktopResources()
                 if (JOptionPane.showConfirmDialog(
                         tree,
                         resources.getString(warning),
