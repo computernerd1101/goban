@@ -1,4 +1,4 @@
-package com.computernerd1101.goban.desktop
+package com.computernerd1101.goban.players
 
 abstract class GoPlayerController: Cloneable {
 

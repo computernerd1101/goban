@@ -9,9 +9,11 @@ module computernerd1101.goban {
     exports com.computernerd1101.goban.markup;
     exports com.computernerd1101.goban.annotations;
     exports com.computernerd1101.sgf;
+    exports com.computernerd1101.goban.players;
 
     requires kotlin.stdlib;
     requires kotlin.reflect;
+    requires kotlinx.coroutines.core;
 
     requires junit;
     //requires org.jetbrains.annotations;

@@ -8,11 +8,6 @@
       <root url="jar://$KOTLIN_BUNDLED$/lib/kotlin-stdlib-jdk7.jar!/" />
       <root url="jar://$KOTLIN_BUNDLED$/lib/kotlin-stdlib-jdk8.jar!/" />
       <root url="jar://$KOTLIN_BUNDLED$/lib/kotlin-annotations-jvm.jar!/" />
-      <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/kotlin/kdoc-maven-plugin/0.12.1230/kotlin-stdlib.jar!/" />
-      <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/kotlin/kdoc-maven-plugin/0.12.1230/kotlin-reflect.jar!/" />
-      <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/kotlin/kdoc-maven-plugin/0.12.1230/kotlin-test.jar!/" />
-      <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/kotlin/kdoc-maven-plugin/0.12.1230/kotlin-stdlib-jdk7.jar!/" />
-      <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/kotlin/kdoc-maven-plugin/0.12.1230/kotlin-stdlib-jdk8.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES>
@@ -26,11 +21,6 @@
       <root url="jar://$KOTLIN_BUNDLED$/lib/kotlin-stdlib-jdk7-sources.jar!/" />
       <root url="jar://$KOTLIN_BUNDLED$/lib/kotlin-stdlib-jdk8-sources.jar!/" />
       <root url="jar://$KOTLIN_BUNDLED$/lib/kotlin-annotations-jvm-sources.jar!/" />
-      <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/kotlin/kdoc-maven-plugin/0.12.1230/kotlin-stdlib-sources.jar!/" />
-      <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/kotlin/kdoc-maven-plugin/0.12.1230/kotlin-reflect-sources.jar!/" />
-      <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/kotlin/kdoc-maven-plugin/0.12.1230/kotlin-test-sources.jar!/" />
-      <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/kotlin/kdoc-maven-plugin/0.12.1230/kotlin-stdlib-jdk7-sources.jar!/" />
-      <root url="jar://$MAVEN_REPOSITORY$/org/jetbrains/kotlin/kdoc-maven-plugin/0.12.1230/kotlin-stdlib-jdk8-sources.jar!/" />
     </SOURCES>
   </library>
 </component>

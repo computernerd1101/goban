@@ -1,6 +1,6 @@
-package com.computernerd1101.goban.desktop
+package com.computernerd1101.goban.players
 
-import com.computernerd1101.goban.desktop.internal.IntBinOp
+import com.computernerd1101.goban.internal.IntBinOp
 import com.computernerd1101.goban.sgf.*
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater
 

@@ -1,6 +1,7 @@
 package com.computernerd1101.goban.desktop
 
 import com.computernerd1101.goban.*
+import com.computernerd1101.goban.players.GoGameSetup
 import com.computernerd1101.goban.annotations.PropertyFactory
 import com.computernerd1101.goban.desktop.internal.*
 import com.computernerd1101.goban.desktop.resources.GobanSizeFormatter
