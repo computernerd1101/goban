@@ -48,6 +48,12 @@ class GameInfo: Serializable {
         else whitePlayer = player
     }
 
+    fun swapPlayers() {
+        val player = black
+        black = white
+        white = player
+    }
+
     var blackPlayer: Player
         get() = black
         set(player) {

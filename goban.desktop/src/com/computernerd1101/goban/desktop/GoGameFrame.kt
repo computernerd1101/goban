@@ -1,11 +1,12 @@
 package com.computernerd1101.goban.desktop
 
+import com.computernerd1101.goban.players.GoGameSetup
 import com.computernerd1101.goban.time.ByoYomi
 import java.awt.Frame
 import javax.swing.*
 
 fun main() {
-    val setup = GoGameSetup()
+    val setup = GoGameSetup(ClientPlayer, ClientPlayer)
     val info = setup.gameInfo
     info.timeLimit = 30L*60L*1000L // 30 minutes
     info.overtime = ByoYomi()
@@ -14,7 +15,7 @@ fun main() {
     }
 }
 
-class GoGameFrame(@Suppress("UNUSED_PARAMETER") setup: GoGameSetup = GoGameSetup()): JFrame() {
+class GoGameFrame(@Suppress("UNUSED_PARAMETER") setup: GoGameSetup): JFrame() {
 
     init {
         title = "CN13 Goban"

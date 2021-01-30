@@ -6,7 +6,6 @@ import com.computernerd1101.goban.desktop.resources.*
 import com.computernerd1101.goban.sgf.*
 import java.awt.Component
 import java.awt.datatransfer.*
-import java.util.*
 import javax.swing.*
 import javax.swing.event.TreeModelEvent
 import javax.swing.event.TreeModelListener
@@ -16,12 +15,12 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
 
     private val renderer = DefaultTreeCellRenderer()
 
-    private val pointFormatter: GoPointFormatter
+    //private val pointFormatter: GoPointFormatter
     private val nodeFormatter: SGFNodeFormatter
 
     init {
         val resources = gobanDesktopFormatResources()
-        pointFormatter = resources.getObject("GoPointFormatter") as GoPointFormatter
+        //pointFormatter = resources.getObject("GoPointFormatter") as GoPointFormatter
         nodeFormatter = resources.getObject("SGFNodeFormatter") as SGFNodeFormatter
     }
 
@@ -48,7 +47,7 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
             }
             is GoSGFMoveNode -> {
                 node = value
-                move = pointFormatter.format(value.playStoneAt, sgf.width, sgf.height)
+                move = value.playStoneAt.formatPointOrPass(sgf.width, sgf.height)
                 icon = if (value.turnPlayer == GoColor.BLACK) iconPlayBlack
                 else iconPlayWhite
             }

@@ -6,12 +6,17 @@ import com.computernerd1101.goban.sgf.*
 import kotlin.reflect.*
 
 fun main() {
-    val dateSet = DateSet()
-    val date = Date()
-    dateSet.addDate(date)
-    for(d in dateSet) println(d)
+    testVarargs2("1", "2", "3", "4", "5")
 }
 
+fun testVarargs1(foo: String, vararg args: String) {
+    println(foo)
+    println(args.contentToString())
+}
+
+fun testVarargs2(foo: String, bar: String, vararg args: String) {
+    testVarargs1(foo, bar, *args)
+}
 
 object TestStatic {
 

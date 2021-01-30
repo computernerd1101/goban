@@ -10,11 +10,21 @@ import java.nio.charset.Charset
 internal object InternalGoSGF {
 
     fun playStoneAt(parent: GoSGFNode, point: GoPoint?, stone: GoColor): AbstractGoban {
-        if (point == null) return parent.goban
-        val goban = Goban(parent.goban)
-        goban.play(point, stone)
+        val parentGoban = parent.goban
+        if (point == null) return parentGoban
+        val oldStone = parentGoban[point]
+        if (oldStone == stone) return parentGoban
+        val goban = Goban(parentGoban)
+        if (oldStone != null)
+            goban[point] = stone
+        else if (!goban.play(point, stone))
+            return parentGoban
         return goban
     }
+
+    fun violatesSituationalSuperko(node: GoSGFMoveNode, repeatedPosition: GoSGFMoveNode, natural: Boolean): Boolean =
+        node.turnPlayer == repeatedPosition.turnPlayer &&
+                (!natural || repeatedPosition.playStoneAt != null)
 
     fun parseSGFValue(value: SGFValue, charset: Charset?, warnings: SGFWarningList?): String {
         return parseSGFBytesList(value.row, value.column, value.list, charset, warnings)

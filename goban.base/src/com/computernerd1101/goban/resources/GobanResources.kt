@@ -4,9 +4,16 @@ package com.computernerd1101.goban.resources
 
 import java.util.*
 
-fun gobanResources(locale: Locale): ResourceBundle {
+fun gobanResources(locale: Locale = Locale.getDefault()): ResourceBundle {
     return ResourceBundle.getBundle(
         "com.computernerd1101.goban.resources.GobanResources",
+        locale
+    )
+}
+
+fun gobanFormatResources(locale: Locale = Locale.getDefault(Locale.Category.FORMAT)): ResourceBundle {
+    return ResourceBundle.getBundle(
+        "com.computernerd1101.goban.resources.GobanFormatResources",
         locale
     )
 }
@@ -60,7 +67,36 @@ class GobanResources: ListResourceBundle() {
             ),
             arrayOf("Superko.NATURAL", "Natural Situational Superko"),
             arrayOf("Superko.SITUATIONAL", "Situational Superko"),
-            arrayOf("Superko.POSITIONAL", "Positional Superko")
+            arrayOf("Superko.POSITIONAL", "Positional Superko"),
+
+            arrayOf(
+                "players.GoSGFResumeException.FirstPlayer",
+                "Black plays first in Go"
+            ),
+            arrayOf(
+                "players.GoSGFResumeException.FirstPlayerAfterHandicap",
+                "White plays first after black places handicap stones"
+            ),
+            arrayOf(
+                "players.GoSGFResumeException.InvalidHandicap",
+                "Handicap must be at least 2 or exactly 0"
+            ),
+            arrayOf(
+                "players.GoSGFResumeException.LateGameInfo",
+                "Cannot resume game with game info in non-root node"
+            ),
+            arrayOf(
+                "players.GoSGFResumeException.LateSetup",
+                "Mid-game setup node"
+            ),
+            arrayOf(
+                "players.GoSGFResumeException.SingleStoneSuicide",
+                "Single-stone suicide is never allowed"
+            ),
+            arrayOf(
+                "players.GoSGFResumeException.MultiStoneSuicide",
+                "Multi-stone suicide is not allowed"
+            )
         )
     }
 

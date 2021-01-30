@@ -1,6 +1,6 @@
 @file:Suppress("ClassName")
 
-package com.computernerd1101.goban.desktop.resources
+package com.computernerd1101.goban.resources
 
 import com.computernerd1101.goban.GoPoint
 

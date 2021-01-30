@@ -72,18 +72,6 @@ open class GobanView
     }
 
     private var _formatLocale: Locale? = locale
-    private var formatX: GobanDimensionFormatter?
-    private var formatY: GobanDimensionFormatter?
-    init {
-        if (locale == null) {
-            formatX = null
-            formatY = null
-        } else {
-            val resources = gobanDesktopFormatResources(locale)
-            formatX = resources.getObject("GobanDimensionFormatter.X") as GobanDimensionFormatter
-            formatY = resources.getObject("GobanDimensionFormatter.Y") as GobanDimensionFormatter
-        }
-    }
     var formatLocale: Locale?
         get() = _formatLocale
         set(locale) = setFormatLocaleImpl(locale)
@@ -91,16 +79,11 @@ open class GobanView
         val old = _formatLocale
         _formatLocale = locale
         if (locale == null) {
-            formatX = null
-            formatY = null
             if (old != null) {
                 revalidate()
                 repaint()
             }
         } else if (locale != old) {
-            val resources = gobanDesktopFormatResources(locale)
-            formatX = resources.getObject("GobanDimensionFormatter.X") as GobanDimensionFormatter
-            formatY = resources.getObject("GobanDimensionFormatter.Y") as GobanDimensionFormatter
             revalidate()
             repaint()
         }
@@ -116,14 +99,14 @@ open class GobanView
 
     protected open fun formatX(x: Int): String {
         val goban = this.goban ?: return ""
-        val format = formatX ?: return ""
-        return format.format(x, goban.width)
+        val locale = formatLocale ?: return ""
+        return GoPoint.formatX(x, goban.width, locale)
     }
 
     protected open fun formatY(y: Int): String {
         val goban = this.goban ?: return ""
-        val format = formatY ?: return ""
-        return format.format(y, goban.height)
+        val locale = formatLocale ?: return ""
+        return GoPoint.formatY(y, goban.height, locale)
     }
 
     private var _gobanBackground: Paint = Color.ORANGE

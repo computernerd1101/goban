@@ -29,6 +29,25 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
     var variationView: Int = SUCCESSOR_VARIATION
         set(vv) { field = vv and 3 }
 
+    @Synchronized
+    fun leafNodes(): List<GoSGFNode> {
+        val list = mutableListOf<GoSGFNode>()
+        leafNodes(rootNode, list)
+        return list
+    }
+
+    private fun leafNodes(node: GoSGFNode, list: MutableList<GoSGFNode>) {
+        var current = node
+        var childCount = node.children
+        while(childCount == 1) {
+            current = current.child(0)
+            childCount = current.children
+        }
+        if (childCount == 0) list.add(current)
+        else for(i in 0 until childCount)
+            leafNodes(current.child(i), list)
+    }
+
     @Suppress("unused")
     @Throws(IOException::class)
     fun writeSGFTree(output: OutputStream) {

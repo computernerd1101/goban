@@ -1,21 +1,26 @@
 @file:JvmMultifileClass
 @file:JvmName("GobanKt")
+@file:Suppress("unused")
 
 package com.computernerd1101.goban
 
 import com.computernerd1101.goban.internal.*
+import com.computernerd1101.goban.resources.GoPointFormatter
+import com.computernerd1101.goban.resources.GobanDimensionFormatter
+import com.computernerd1101.goban.resources.gobanFormatResources
 import com.computernerd1101.sgf.SGFBytes
 import java.io.*
+import java.util.*
+import kotlin.NoSuchElementException
 
 fun GoPoint(x: Int, y: Int) = GoPoint.pointAt(x, y)
 
-@Suppress("unused")
 fun String.toGoPoint() = GoPoint.parse(this) ?: throw IllegalArgumentException(this)
-@Suppress("unused")
 fun String.toGoPointOrNull() = GoPoint.parse(this)
 fun Int.toGoPointChar() = GoPoint.toChar(this)
-@Suppress("unused")
 fun Char.toGoPointInt() = GoPoint.parseChar(this)
+fun GoPoint?.formatPointOrPass(x: Int, y: Int, locale: Locale): String = GoPoint.formatPoint(this, x, y, locale)
+fun GoPoint?.formatPointOrPass(x: Int, y: Int): String = GoPoint.formatPoint(this, x, y)
 
 // Implement all the same methods as a data class, with the same behavior,
 // except that all instances are cached.
@@ -131,9 +136,45 @@ class GoPoint private constructor(
             return ch - offset
         }
 
+        @JvmStatic
+        @JvmOverloads
+        fun formatX(x: Int, width: Int, locale: Locale = Locale.getDefault(Locale.Category.FORMAT)): String {
+            return formatDimension(x, width, locale, "GobanDimensionFormatter.X")
+        }
+
+        @JvmStatic
+        @JvmOverloads
+        fun formatY(y: Int, height: Int, locale: Locale = Locale.getDefault(Locale.Category.FORMAT)): String {
+            return formatDimension(y, height, locale, "GobanDimensionFormatter.Y")
+        }
+
+        private fun formatDimension(index: Int, size: Int, locale: Locale, key: String): String {
+            if (size !in 1..52) throw IllegalArgumentException("width=$size is not in the range [1,52]")
+            if (index !in 0 until size) throw IndexOutOfBoundsException("$index is not in the range [0,$size)")
+            return (gobanFormatResources(locale).getObject(key) as GobanDimensionFormatter)
+                .format(index, size)
+        }
+
+        @JvmStatic
+        @JvmOverloads
+        fun formatPoint(
+            point: GoPoint?,
+            width: Int,
+            height: Int,
+            locale: Locale = Locale.getDefault(Locale.Category.FORMAT)
+        ): String {
+            if (width !in 1..52) throw IllegalArgumentException("width=$width is not in the range [1,52]")
+            if (height !in 1..52) throw IllegalArgumentException("height=$height is not in the range [1,52]")
+            return (gobanFormatResources(locale).getObject("GoPointFormatter") as GoPointFormatter)
+                .format(point, width, height)
+        }
+
         private const val serialVersionUID = 1L
 
     }
+
+    fun formatPoint(width: Int, height: Int, locale: Locale): String = formatPoint(this, width, height, locale)
+    fun formatPoint(width: Int, height: Int): String = formatPoint(this, width, height)
 
     override fun toString() = string
 
@@ -144,7 +185,6 @@ class GoPoint private constructor(
     operator fun component1() = x
     operator fun component2() = y
 
-    @Suppress("unused")
     fun copy(x: Int = this.x, y: Int = this.y): GoPoint {
         return GoPoint(x, y)
     }

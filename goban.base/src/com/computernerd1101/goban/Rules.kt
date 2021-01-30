@@ -5,6 +5,8 @@
 package com.computernerd1101.goban
 
 import com.computernerd1101.goban.resources.gobanResources
+import com.computernerd1101.goban.sgf.GoSGF
+import com.computernerd1101.goban.sgf.GoSGFNode
 import java.util.*
 
 enum class Superko {

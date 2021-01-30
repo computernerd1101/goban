@@ -4,9 +4,7 @@ import com.computernerd1101.goban.*
 import com.computernerd1101.goban.players.GoGameSetup
 import com.computernerd1101.goban.annotations.PropertyFactory
 import com.computernerd1101.goban.desktop.internal.*
-import com.computernerd1101.goban.desktop.resources.GobanSizeFormatter
-import com.computernerd1101.goban.desktop.resources.gobanDesktopFormatResources
-import com.computernerd1101.goban.desktop.resources.gobanDesktopResources
+import com.computernerd1101.goban.desktop.resources.*
 import com.computernerd1101.goban.sgf.GameInfo
 import com.computernerd1101.goban.time.Overtime
 import java.awt.*
@@ -55,7 +53,7 @@ class GoGameSetupView private constructor(
         val gameInfo = GameInfo()
         val rules = GoRules.JAPANESE
         gameInfo.rules = rules
-        gameSetup = GoGameSetup(gameInfo = gameInfo)
+        gameSetup = GoGameSetup(ClientPlayer, ClientPlayer, gameInfo = gameInfo)
         checkSuicide.isSelected = rules.allowSuicide
     }
 
