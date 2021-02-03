@@ -1,10 +1,7 @@
 package com.computernerd1101.goban.players
 
 import com.computernerd1101.goban.GoColor
-import com.computernerd1101.goban.Goban
-import com.computernerd1101.goban.sgf.GameInfo
-import com.computernerd1101.goban.sgf.GoSGF
-import com.computernerd1101.goban.sgf.GoSGFNode
+import com.computernerd1101.goban.sgf.*
 import kotlinx.coroutines.*
 
 class GoPlayerManager {
@@ -57,10 +54,11 @@ class GoPlayerManager {
         startGame()
     }
 
+    @Throws(GoSGFResumeException::class)
     constructor(blackPlayer: GoPlayer, whitePlayer: GoPlayer, sgf: GoSGF) {
         this.sgf = sgf
         node = sgf.rootNode
-        gameInfo = node.gameInfo ?: GameInfo()
+        gameInfo = sgf.onResume()
         this.blackPlayer = blackPlayer
         this.whitePlayer = whitePlayer
         startGame()
@@ -68,7 +66,7 @@ class GoPlayerManager {
 
     private fun startGame() {
         gameScope.launch {
-
+            // TODO
         }
     }
 

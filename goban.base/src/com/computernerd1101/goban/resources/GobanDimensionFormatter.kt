@@ -7,14 +7,14 @@ interface GobanDimensionFormatter {
     fun format(index: Int, size: Int): String
 
     companion object {
-        @JvmField val X: GobanDimensionFormatter = Default.X
-        @JvmField val Y: GobanDimensionFormatter = Default.Y
+        @JvmField val X = Default.X
+        @JvmField val Y = Default.Y
     }
 
-    private enum class Default: GobanDimensionFormatter {
+    enum class Default: GobanDimensionFormatter {
         X {
             override fun format(index: Int, size: Int): String {
-                val offset = when(index) {
+                val base: Char = when(index) {
                     in 0..7 -> 'A'
                     in 8..24 -> 'B'
                     in 25..32 -> 'a' - 25
@@ -23,7 +23,7 @@ interface GobanDimensionFormatter {
                     51 -> return "i"
                     else -> return ""
                 }
-                return "${offset + index}"
+                return "${base + index}"
             }
         },
         Y {

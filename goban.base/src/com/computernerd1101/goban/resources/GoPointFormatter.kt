@@ -22,6 +22,7 @@ fun interface GoPointFormatter {
 
 object GoPointFormatter_ja: GoPointFormatter {
 
+    @Suppress("SpellCheckingInspection")
     override fun format(point: GoPoint?, width: Int, height: Int): String {
         return if (point == null) "\u30d1\u30b9" // katakana "pasu" (pass)
         else GobanDimensionFormatter_ja.Y.format(point.y, height) +

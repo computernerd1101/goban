@@ -70,22 +70,6 @@ class GobanResources: ListResourceBundle() {
             arrayOf("Superko.POSITIONAL", "Positional Superko"),
 
             arrayOf(
-                "players.GoSGFResumeException.FirstPlayer",
-                "Black plays first in Go"
-            ),
-            arrayOf(
-                "players.GoSGFResumeException.FirstPlayerAfterHandicap",
-                "White plays first after black places handicap stones"
-            ),
-            arrayOf(
-                "players.GoSGFResumeException.InvalidHandicap",
-                "Handicap must be at least 2 or exactly 0"
-            ),
-            arrayOf(
-                "players.GoSGFResumeException.LateGameInfo",
-                "Cannot resume game with game info in non-root node"
-            ),
-            arrayOf(
                 "players.GoSGFResumeException.LateSetup",
                 "Mid-game setup node"
             ),

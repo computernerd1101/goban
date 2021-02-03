@@ -22,23 +22,6 @@ sealed class GoSGFResumeException(
     ): this(node, (gobanFormatResources().getObject("players.GoSGFResumeException.${type.simpleName}.Format")
                     as GoSGFResumeExceptionFormat).format(*formatArgs))
 
-    class FirstPlayer(node: GoSGFNode): GoSGFResumeException(FirstPlayer::class.java, node)
-
-    class FirstPlayerAfterHandicap(node: GoSGFNode):
-        GoSGFResumeException(FirstPlayerAfterHandicap::class.java, node)
-
-    class InvalidHandicap(node: GoSGFNode): GoSGFResumeException(InvalidHandicap::class.java, node)
-
-    @Suppress("unused", "CanBeParameter")
-    class InaccurateHandicap(
-        node: GoSGFNode,
-        val expectedBlack: Int,
-        val actualBlack: Int,
-        val actualWhite: Int
-    ): GoSGFResumeException(node, InaccurateHandicap::class.java, expectedBlack, actualBlack, actualWhite)
-
-    class LateGameInfo(node: GoSGFNode): GoSGFResumeException(LateGameInfo::class.java, node)
-
     class LateSetup(node: GoSGFSetupNode): GoSGFResumeException(LateSetup::class.java, node) {
 
         override val node: GoSGFSetupNode get() = super.node as GoSGFSetupNode

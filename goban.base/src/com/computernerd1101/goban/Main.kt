@@ -6,7 +6,19 @@ import com.computernerd1101.goban.sgf.*
 import kotlin.reflect.*
 
 fun main() {
-    testVarargs2("1", "2", "3", "4", "5")
+    intArrayOf(5, 4, 3, 2, 1).sort()
+    for(i in TestIterator) {
+        println(i)
+    }
+}
+
+
+object TestIterator {
+
+    operator fun iterator(): IntIterator {
+        return intArrayOf(1, 2, 3, 4, 5).iterator()
+    }
+
 }
 
 fun testVarargs1(foo: String, vararg args: String) {

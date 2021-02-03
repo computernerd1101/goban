@@ -12,8 +12,8 @@ class GobanFormatResources: ListResourceBundle() {
             arrayOf("GobanDimensionFormatter.X", GobanDimensionFormatter.X),
             arrayOf("GobanDimensionFormatter.Y", GobanDimensionFormatter.Y),
             arrayOf(
-                "players.GoSGFResumeException.InaccurateHandicap.Format",
-                GoSGFResumeExceptionFormat.InaccurateHandicap
+                "players.GoSGFResumeException.PlayerColor.Format",
+                GoSGFResumeExceptionFormat.PlayerColor
             ),
             arrayOf(
                 "players.GoSGFResumeException.OverrideStone.Format",

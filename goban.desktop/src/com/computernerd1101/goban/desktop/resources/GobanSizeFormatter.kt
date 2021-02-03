@@ -5,12 +5,12 @@ fun interface GobanSizeFormatter {
 
     companion object {
 
-        @JvmField val SHORT: GobanSizeFormatter = Default.SHORT
-        @JvmField val LONG: GobanSizeFormatter = Default.LONG
+        @JvmField val SHORT = Default.SHORT
+        @JvmField val LONG = Default.LONG
 
     }
 
-    private enum class Default: GobanSizeFormatter {
+    enum class Default: GobanSizeFormatter {
         SHORT {
             override fun format(width: Int, height: Int) = "${width}x$height"
         },

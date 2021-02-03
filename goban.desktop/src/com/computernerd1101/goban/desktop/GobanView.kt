@@ -31,8 +31,10 @@ open class GobanView
     private var _goban: AbstractGoban? = goban
     var goban: AbstractGoban?
         get() = _goban
-        set(goban) = setGobanImpl(goban)
-    protected open fun setGobanImpl(goban: AbstractGoban?) {
+        @JvmSynthetic
+        @JvmName("setGobanFinal")
+        set(goban) = setGoban(goban)
+    open fun setGoban(goban: AbstractGoban?) {
         val old = this._goban
         this._goban = goban
         if (old !== goban) {
@@ -48,8 +50,10 @@ open class GobanView
     private var _pointMarkup: PointMarkupMap? = null
     var pointMarkup: PointMarkupMap?
         get() = _pointMarkup
-        set(map) = setPointMarkupImpl(map)
-    protected open fun setPointMarkupImpl(map: PointMarkupMap?) {
+        @JvmSynthetic
+        @JvmName("setPointMarkupFinal")
+        set(map) = setPointMarkup(map)
+    open fun setPointMarkup(map: PointMarkupMap?) {
         val old = _pointMarkup
         _pointMarkup = map
         if (old.isNullOrEmpty() != map.isNullOrEmpty()) {
@@ -61,8 +65,10 @@ open class GobanView
     private var _lineMarkup: LineMarkupSet? = null
     var lineMarkup: LineMarkupSet?
         get() = _lineMarkup
-        set(set) = setLineMarkupImpl(set)
-    protected open fun setLineMarkupImpl(set: LineMarkupSet?) {
+        @JvmSynthetic
+        @JvmName("setLineMarkupFinal")
+        set(set) = setLineMarkup(set)
+    open fun setLineMarkup(set: LineMarkupSet?) {
         val old = _lineMarkup
         _lineMarkup = set
         if (old.isNullOrEmpty() != set.isNullOrEmpty()) {
@@ -74,8 +80,10 @@ open class GobanView
     private var _formatLocale: Locale? = locale
     var formatLocale: Locale?
         get() = _formatLocale
-        set(locale) = setFormatLocaleImpl(locale)
-    protected open fun setFormatLocaleImpl(locale: Locale?) {
+        @JvmSynthetic
+        @JvmName("setFormatLocaleFinal")
+        set(locale) = setFormatLocale(locale)
+    open fun setFormatLocale(locale: Locale?) {
         val old = _formatLocale
         _formatLocale = locale
         if (locale == null) {
@@ -98,22 +106,22 @@ open class GobanView
         }
 
     protected open fun formatX(x: Int): String {
-        val goban = this.goban ?: return ""
-        val locale = formatLocale ?: return ""
-        return GoPoint.formatX(x, goban.width, locale)
+        val width = goban?.width ?: return ""
+        return GoPoint.formatX(x, width, formatLocale ?: Locale.getDefault(Locale.Category.FORMAT))
     }
 
     protected open fun formatY(y: Int): String {
-        val goban = this.goban ?: return ""
-        val locale = formatLocale ?: return ""
-        return GoPoint.formatY(y, goban.height, locale)
+        val height = goban?.height ?: return ""
+        return GoPoint.formatY(y, height, formatLocale ?: Locale.getDefault(Locale.Category.FORMAT))
     }
 
     private var _gobanBackground: Paint = Color.ORANGE
     var gobanBackground: Paint
         get() = _gobanBackground
-        set(paint) = setGobanBackgroundImpl(paint)
-    protected open fun setGobanBackgroundImpl(paint: Paint) {
+        @JvmSynthetic
+        @JvmName("setGobanBackgroundFinal")
+        set(paint) = setGobanBackground(paint)
+    open fun setGobanBackground(paint: Paint) {
         val old = _gobanBackground
         _gobanBackground = paint
         if (old != paint) {
@@ -125,8 +133,10 @@ open class GobanView
     private var _defaultMarkupColor: Color = Color.RED
     var defaultMarkupColor: Color
         get() = _defaultMarkupColor
-        set(color) = setDefaultMarkupColorImpl(color)
-    protected open fun setDefaultMarkupColorImpl(color: Color) {
+        @JvmSynthetic
+        @JvmName("setDefaultMarkupColorFinal")
+        set(color) = setDefaultMarkupColor(color)
+    open fun setDefaultMarkupColor(color: Color) {
         val old = _defaultMarkupColor
         _defaultMarkupColor = color
         if (old != color) {
@@ -138,8 +148,10 @@ open class GobanView
     private var _edgeThickness: Int = 3
     var edgeThickness: Int
         get() = _edgeThickness
-        set(value) = setEdgeThicknessImpl(value)
-    protected open fun setEdgeThicknessImpl(value: Int) = setThickness(value) { thickness ->
+        @JvmSynthetic
+        @JvmName("setEdgeThicknessFinal")
+        set(value) = setEdgeThickness(value)
+    open fun setEdgeThickness(value: Int): Unit = setThickness(value) { thickness ->
         val old = _edgeThickness
         _edgeThickness = thickness
         old
@@ -148,8 +160,10 @@ open class GobanView
     private var _defaultPointMarkupThickness: Int = 2
     var defaultPointMarkupThickness: Int
         get() = _defaultPointMarkupThickness
-        set(value) = setDefaultPointMarkupThicknessImpl(value)
-    protected open fun setDefaultPointMarkupThicknessImpl(value: Int) = setThickness(value) { thickness ->
+        @JvmSynthetic
+        @JvmName("setDefaultPointMarkupThicknessFinal")
+        set(value) = setDefaultPointMarkupThickness(value)
+    open fun setDefaultPointMarkupThickness(value: Int): Unit = setThickness(value) { thickness ->
         val old = _defaultPointMarkupThickness
         _defaultPointMarkupThickness = thickness
         old
@@ -158,8 +172,10 @@ open class GobanView
     private var _defaultLineMarkupThickness: Int = 2
     var defaultLineMarkupThickness: Int
         get() = _defaultLineMarkupThickness
-        set(value) = setDefaultLineMarkupThicknessImpl(value)
-    protected open fun setDefaultLineMarkupThicknessImpl(value: Int) = setThickness(value) { thickness ->
+        @JvmSynthetic
+        @JvmName("setDefaultLineMarkupThicknessFinal")
+        set(value) = setDefaultLineMarkupThickness(value)
+    open fun setDefaultLineMarkupThickness(value: Int): Unit = setThickness(value) { thickness ->
         val old = _defaultLineMarkupThickness
         _defaultLineMarkupThickness = thickness
         old

@@ -746,7 +746,7 @@ class GoEditorFrame private constructor(
         radioSetupDefaultPlayer.isSelected = true
         radioSetupDefaultPlayer.addActionListener(actionListener)
         radioSetupBlackPlayer.addActionListener(actionListener)
-        radioSetupDefaultPlayer.addActionListener(actionListener)
+        radioSetupWhitePlayer.addActionListener(actionListener)
         val panel = JPanel(BorderLayout())
         val panel2 = JPanel(GridLayout(0, 1))
         panel2.add(JLabel(resources.getString("Setup.NextPlayer.Prompt")))

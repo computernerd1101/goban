@@ -32,12 +32,11 @@ internal object InternalGoban: LongBinaryOperator {
     /**
      * @param row The lowest 32 bits represent the positions of black stones,
      * while the highest 32 bits represent the positions of white stones.
-     * @return The lowest 32 bits represent the number of black stones,
-     * while the highest 32 bits represent the number of white stones.
+     * @return The lowest 5 bits represent the number of black stones, while
+     * the lowest 5 bits among the highest 32 bits represent the number of white stones.
      */
     fun countStonesInRow(row: Long): Long {
-        var i = row
-        i -= (i ushr 1) and 0x5555_5555_5555_5555L
+        var i = row - ((row ushr 1) and 0x5555_5555_5555_5555L)
         i = (i and 0x3333_3333_3333_3333L) + ((i ushr 2) and 0x3333_3333_3333_3333L)
         i = (i + (i ushr 4)) and 0x0f0f_0f0f_0f0f_0f0fL
         i += i ushr 8

@@ -196,8 +196,7 @@ class FixedGoban: AbstractGoban {
         GobanBulk.clear(metaCluster)
         val blackRows = arrays[GobanThreadLocals.BLACK]
         val whiteRows = arrays[GobanThreadLocals.WHITE]
-        var playable = true
-        isPlayable@ for(y in 0 until height) {
+        for(y in 0 until height) {
             val black = blackRows[y]
             var unseen = black or whiteRows[y]
             while(unseen != 0L) {
@@ -214,53 +213,52 @@ class FixedGoban: AbstractGoban {
                     opponent = GobanThreadLocals.BLACK
                 }
                 if (!GobanBulk.isAlive(width, height, xBit, y, player, opponent)) { // updates cluster
-                    playable = false
-                    break@isPlayable
+                    isPlayable = false
+                    return
                 }
                 GobanBulk.updateMetaCluster(height)
             }
         }
-        isPlayable = playable
+        isPlayable = true
     }
 
     private constructor(width: Int, height: Int, cache: Cache):
             super(width, height, InternalGoban.emptyRows(width > 32, height), 0L) {
         hash = 0
         isPlayable = true
-        if (width == height)
-            cache.squares[width - 1] = this
+        cache.empty[width + 52*height - 53] = this
     }
 
     private object Cache {
 
-        @JvmField val squares = unsafeArrayOfNulls<FixedGoban>(52)
+        @JvmField val empty = unsafeArrayOfNulls<FixedGoban>(52*52)
 
     }
 
     companion object {
 
         init {
-            for(size in 1..52) FixedGoban(size, size, Cache)
+            for(height in 1..52) for(width in 1..52)
+                FixedGoban(width, height, Cache)
         }
 
         @JvmStatic
         fun empty(width: Int, height: Int): FixedGoban {
             return when {
                 width !in 1..52 -> throw InternalGoban.illegalSizeException(width)
-                width == height -> Cache.squares[width - 1]
                 height !in 1..52 -> throw InternalGoban.illegalSizeException(height)
-                else -> FixedGoban(width, height, Cache)
+                else -> Cache.empty[width + 52*height - 53]
             }
         }
 
         @JvmStatic
         fun empty(size: Int = 19): FixedGoban {
             if (size !in 1..52) throw InternalGoban.illegalSizeException(size)
-            return Cache.squares[size - 1]
+            return Cache.empty[(size - 1)*53]
         }
 
         @JvmField
-        val EMPTY = Cache.squares[18] // size=19
+        val EMPTY = Cache.empty[18*53] // size=19
 
     }
 

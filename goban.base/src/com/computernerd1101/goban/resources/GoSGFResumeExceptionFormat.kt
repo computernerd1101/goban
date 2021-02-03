@@ -10,27 +10,18 @@ fun interface GoSGFResumeExceptionFormat {
 
     companion object {
 
-        @JvmField val InaccurateHandicap: GoSGFResumeExceptionFormat = Default.InaccurateHandicap
-        @JvmField val OverrideStone: GoSGFResumeExceptionFormat = Default.OverrideStone
-        @JvmField val Superko: GoSGFResumeExceptionFormat = Default.Superko
+        @JvmField val PlayerColor = Default.PlayerColor
+        @JvmField val OverrideStone = Default.OverrideStone
+        @JvmField val Superko = Default.Superko
 
     }
 
-    private enum class Default: GoSGFResumeExceptionFormat {
-        InaccurateHandicap {
-
-            override fun format(vararg args: Any?) = buildString {
-                val expectedBlack = args[0] as Int
-                val actualBlack = args[1] as Int
-                val actualWhite = args[2] as Int
-                append("Expected ").append(expectedBlack).append(" black handicap stones")
-                if (actualWhite != 0)
-                    append(" and 0 white stones")
-                append("; found ").append(actualBlack).append(" black stones")
-                if (actualWhite != 0)
-                    append(" and ").append(actualWhite).append(" white stones")
+    enum class Default: GoSGFResumeExceptionFormat {
+        PlayerColor {
+            override fun format(vararg args: Any?): String {
+                val expected = args[0] as GoColor
+                return "${expected.opponent} played during $expected's turn."
             }
-
         },
         OverrideStone {
             override fun format(vararg args: Any?): String {

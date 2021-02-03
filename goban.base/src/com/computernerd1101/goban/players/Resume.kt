@@ -4,62 +4,74 @@ import com.computernerd1101.goban.*
 import com.computernerd1101.goban.sgf.*
 import com.computernerd1101.goban.sgf.internal.InternalGoSGF.violatesSituationalSuperko
 
-fun GoSGF.onResume(): GoSGFResumeException? = synchronized(this) {
+fun GoSGF.tryResume(): GoSGFResumeException? = try {
+    onResume()
+    null
+} catch(e: GoSGFResumeException) {
+    e
+}
+
+@Throws(GoSGFResumeException::class)
+fun GoSGF.onResume(): GameInfo = synchronized(this) {
     val root = rootNode
     var children = root.children
-    if (children == 0) return@synchronized null
-    val info = root.gameInfo
-    val handicap = info?.handicap ?: 0
-    if (handicap == 1 || handicap < 0)
-        return@synchronized GoSGFResumeException.InvalidHandicap(root)
-    val rules = info?.rules ?: GoRules.DEFAULT
+    val handicapNode = if (children == 1) root.child(0) as? GoSGFSetupNode else null
+    val node: GoSGFSetupNode
+    val handicap: Int
+    val firstPlayer: GoColor
+    if (handicapNode != null) {
+        node = handicapNode
+        val goban = handicapNode.goban
+        handicap = goban.blackCount
+        if (goban.emptyCount == 0 || goban.whiteCount != 0 || handicap <= 1)
+            throw GoSGFResumeException.LateSetup(handicapNode)
+        children = handicapNode.children
+        firstPlayer = GoColor.WHITE
+    } else {
+        node = root
+        handicap = 0
+        firstPlayer = GoColor.BLACK
+    }
+    val info = findGameInfo(handicap)
+    val rules = info.rules
     val repetitions: MutableMap<GoSGFMoveNode, GoSGFMoveNode>? =
         if (rules.superko == Superko.POSITIONAL) null
         else mutableMapOf()
-    if (handicap == 0) {
-        if (root.turnPlayer == GoColor.WHITE)
-            return@synchronized GoSGFResumeException.FirstPlayer(root)
-        try {
-            root.onResume(GoColor.BLACK, rules, repetitions)
-        } catch(e: GoSGFResumeException) {
-            return@synchronized e
+    for(i in 0 until children)
+        node.child(i).onResume(firstPlayer, rules, repetitions)
+    info.handicap = handicap
+    root.gameInfo = info
+    root.turnPlayer = null
+    handicapNode?.turnPlayer = GoColor.WHITE
+    info
+}
+
+private fun GoSGF.findGameInfo(targetHandicap: Int): GameInfo {
+    val root = rootNode
+    var info1: GameInfo? = null
+    val first = root.nextGameInfoNode
+    var info = first.gameInfo
+    if (info == null)
+        return GameInfo()
+    var handicap = info.handicap
+    if (handicap == targetHandicap)
+        return info
+    if (handicap == 1 && targetHandicap == 0)
+        info1 = info
+    var next = first.nextGameInfoNode
+    while (next != first) {
+        info = next.gameInfo
+        if (info != null) {
+            handicap = info.handicap
+            if (handicap == targetHandicap) {
+                return info
+            }
+            if (handicap == 1 && targetHandicap == 0 && info1 == null)
+                info1 = info
         }
-    } else {
-        val turnPlayer = root.turnPlayer
-        val node = root.child(0)
-        if (node !is GoSGFSetupNode)
-            return@synchronized GoSGFResumeException.InaccurateHandicap(node, handicap, 0, 0)
-        if (node.gameInfoNode == node)
-            return@synchronized GoSGFResumeException.LateGameInfo(node)
-        @Suppress("NON_EXHAUSTIVE_WHEN")
-        when (node.turnPlayer) {
-            null -> if (turnPlayer == GoColor.BLACK)
-                return@synchronized GoSGFResumeException.FirstPlayerAfterHandicap(root)
-            GoColor.BLACK -> return GoSGFResumeException.FirstPlayerAfterHandicap(node)
-        }
-        val goban = node.goban
-        if (goban.emptyCount == 0 || goban.whiteCount != 0 || goban.blackCount != handicap)
-            return@synchronized GoSGFResumeException.InaccurateHandicap(
-                node,
-                handicap,
-                goban.blackCount,
-                goban.whiteCount
-            )
-        if (children > 1) {
-            val extra = root.child(1)
-            if (extra is GoSGFSetupNode)
-                return@synchronized GoSGFResumeException.LateSetup(extra)
-            return@synchronized GoSGFResumeException.InaccurateHandicap(extra, handicap, 0, 0)
-        }
-        children = node.children
-        try {
-            for (j in 0 until children)
-                node.child(j).onResume(GoColor.WHITE, rules, repetitions)
-        } catch (e: GoSGFResumeException) {
-            return@synchronized e
-        }
+        next = next.nextGameInfoNode
     }
-    return@synchronized null
+    return info1 ?: GameInfo()
 }
 
 private fun GoSGFNode.onResume(
@@ -74,8 +86,6 @@ private fun GoSGFNode.onResume(
     val allowSuicide = rules.allowSuicide
     var children: Int
     while(true) {
-        if (node.gameInfoNode == node)
-            throw GoSGFResumeException.LateGameInfo(node)
         val isForced = node.isForced
         if (!isForced) {
             if (nextPlayer != node.turnPlayer)

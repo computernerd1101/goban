@@ -1,4 +1,3 @@
-@file:Suppress("FunctionName")
 @file:JvmMultifileClass
 @file:JvmName("GobanKt")
 
@@ -7,7 +6,8 @@ package com.computernerd1101.goban
 import com.computernerd1101.goban.internal.*
 import com.computernerd1101.sgf.*
 
-inline val emptyGoPointSet get() = GoPointSet.EMPTY
+@Suppress("unused")
+val emptyGoPointSet get() = GoPointSet.EMPTY
 
 fun GoPointSet(vararg points: Iterable<GoPoint>) = GoPointSet.readOnly(*points)
 
@@ -389,7 +389,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
     }
 
     override fun readOnly(): GoPointSet {
-        if (isEmpty()) return emptyGoPointSet
+        if (isEmpty()) return EMPTY
         val copy = GoPointSet(InternalGoPointSet)
         for(updater in InternalGoPointSet.rowUpdaters)
             updater[copy] = updater[this]
@@ -632,6 +632,12 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
         return modified
     }
 
+    private object ThreadLocalRows: ThreadLocal<LongArray>() {
+
+        override fun initialValue() = LongArray(52)
+
+    }
+
     fun invertAll(elements: Collection<GoPoint>): Boolean {
         var modified = false
         when(elements) {
@@ -654,12 +660,12 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                     if (invertRow(y, InternalGoPointSet.rowUpdaters[y][elements])) modified = true
             }
             else -> {
-                val rows2 = LongArray(52)
+                val rows: LongArray = ThreadLocalRows.get()
                 @Suppress("USELESS_CAST")
                 for((x, y) in elements)
-                    rows2[y] = rows2[y] xor (1L shl x)
+                    rows[y] = rows[y] xor (1L shl x)
                 for(y in 0..51)
-                    if (invertRow(y, rows2[y])) modified = true
+                    if (invertRow(y, rows[y])) modified = true
             }
         }
         return modified
