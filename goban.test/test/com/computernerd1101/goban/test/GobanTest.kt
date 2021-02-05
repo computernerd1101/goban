@@ -1,5 +1,6 @@
-package com.computernerd1101.goban
+package com.computernerd1101.goban.test
 
+import com.computernerd1101.goban.*
 import org.junit.Test
 
 import org.junit.Assert.*

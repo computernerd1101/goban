@@ -15,7 +15,6 @@ module computernerd1101.goban {
     requires kotlin.reflect;
     requires kotlinx.coroutines.core;
 
-    requires junit;
     //requires org.jetbrains.annotations;
 
     uses Overtime;

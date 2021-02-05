@@ -1,5 +1,7 @@
-package com.computernerd1101.goban
+package com.computernerd1101.goban.test
 
+import com.computernerd1101.goban.GoPoint
+import com.computernerd1101.goban.GoRectangle
 import org.junit.*
 
 import org.junit.Assert.*

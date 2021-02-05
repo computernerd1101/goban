@@ -175,6 +175,11 @@ fun FixedGoban(width: Int, height: Int) = FixedGoban.empty(width, height)
 fun FixedGoban(size: Int) = FixedGoban.empty(size)
 fun FixedGoban() = FixedGoban.EMPTY
 
+fun FixedGoban(width: Int, height: Int, builder: Goban.() -> Unit): FixedGoban =
+    Goban(width, height).apply(builder).readOnly()
+fun FixedGoban(size: Int, builder: Goban.() -> Unit): FixedGoban = Goban(size).apply(builder).readOnly()
+fun FixedGoban(builder: Goban.() -> Unit): FixedGoban = Goban().apply(builder).readOnly()
+
 class FixedGoban: AbstractGoban {
 
     private val hash: Int
@@ -226,7 +231,7 @@ class FixedGoban: AbstractGoban {
             super(width, height, InternalGoban.emptyRows(width > 32, height), 0L) {
         hash = 0
         isPlayable = true
-        cache.empty[width + 52*height - 53] = this
+        cache.empty[width + 52*height - 53] = this // (width - 1) + 52*(height - 1)
     }
 
     private object Cache {
@@ -247,14 +252,14 @@ class FixedGoban: AbstractGoban {
             return when {
                 width !in 1..52 -> throw InternalGoban.illegalSizeException(width)
                 height !in 1..52 -> throw InternalGoban.illegalSizeException(height)
-                else -> Cache.empty[width + 52*height - 53]
+                else -> Cache.empty[width + 52*height - 53] // (width - 1) + 52*(height - 1)
             }
         }
 
         @JvmStatic
         fun empty(size: Int = 19): FixedGoban {
             if (size !in 1..52) throw InternalGoban.illegalSizeException(size)
-            return Cache.empty[(size - 1)*53]
+            return Cache.empty[(size - 1)*53] // size + 52*size - 53
         }
 
         @JvmField
@@ -431,10 +436,11 @@ class Goban: AbstractMutableGoban {
      */
     override fun edit() = MutableGoban(this)
 
-    fun play(p: GoPoint?, stone: GoColor): Boolean {
-        if (p == null) return false
-        val (x, y) = p
-        if (x >= width || y >= height || InternalGoban.set(this, x, y, stone, null) != null)
+    fun play(p: GoPoint?, stone: GoColor): Boolean = p != null && play(p.x, p.y, stone)
+
+    fun play(x: Int, y: Int, stone: GoColor): Boolean {
+        if (x < 0 || y < 0 || x >= width || y >= height ||
+            InternalGoban.set(this, x, y, stone, null) != null)
             return false
         val arrays: Array<LongArray> = GobanThreadLocals.arrays()
         val metaCluster = arrays[GobanThreadLocals.META_CLUSTER]

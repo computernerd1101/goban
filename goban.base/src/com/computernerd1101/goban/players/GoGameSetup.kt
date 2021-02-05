@@ -98,7 +98,7 @@ class GoGameSetup {
             val width = this.width
             val height = this.height
             val max = if (isFreeHandicap) width*height - 1
-            else maxFixedHandicap(width)*maxFixedHandicap(height)
+            else maxFixedHandicap(width) * maxFixedHandicap(height)
             return if (max <= 1) 0 else max
         }
 

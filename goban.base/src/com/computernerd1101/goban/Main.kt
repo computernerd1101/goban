@@ -6,10 +6,7 @@ import com.computernerd1101.goban.sgf.*
 import kotlin.reflect.*
 
 fun main() {
-    intArrayOf(5, 4, 3, 2, 1).sort()
-    for(i in TestIterator) {
-        println(i)
-    }
+    testVarargs2("1", "2", "3", "4", "5")
 }
 
 
@@ -27,7 +24,7 @@ fun testVarargs1(foo: String, vararg args: String) {
 }
 
 fun testVarargs2(foo: String, bar: String, vararg args: String) {
-    testVarargs1(foo, bar, *args)
+    testVarargs1(foo, bar, *args, *args, bar)
 }
 
 object TestStatic {

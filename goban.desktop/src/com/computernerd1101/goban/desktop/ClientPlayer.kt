@@ -1,7 +1,8 @@
 package com.computernerd1101.goban.desktop
 
 import com.computernerd1101.goban.GoColor
-import com.computernerd1101.goban.players.*
+import com.computernerd1101.goban.players.GoPlayer
+import com.computernerd1101.goban.players.GoPlayerManager
 
 class ClientPlayer(manager: GoPlayerManager, color: GoColor): GoPlayer(manager, color) {
 

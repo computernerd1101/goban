@@ -6,7 +6,7 @@ package com.computernerd1101.goban
 import com.computernerd1101.goban.internal.*
 import java.io.Serializable
 
-fun GoRectangle(x1: Int, y1: Int, x2: Int, y2: Int) = GoRectangle.rect(x1, x2, y1, y2)
+fun GoRectangle(x1: Int, y1: Int, x2: Int, y2: Int) = GoRectangle.rect(x1, y1, x2, y2)
 
 class GoRectangle internal constructor(
     @JvmField val start: GoPoint,
@@ -40,9 +40,7 @@ class GoRectangle internal constructor(
                 startY = y2
                 endY = y1
             }
-            val start = GoPoint(startX, startY)
-            val end = GoPoint(endX, endY)
-            return GoRectangle(start, end, null, InternalGoRectangle)
+            return GoRectangle(GoPoint(startX, startY), GoPoint(endX, endY), null, InternalGoRectangle)
         }
 
         private const val serialVersionUID = 1L
