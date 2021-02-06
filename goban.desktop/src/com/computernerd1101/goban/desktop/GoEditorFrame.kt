@@ -67,7 +67,9 @@ class GoEditorFrame private constructor(
 
     private val sizeFormat = formatResources.getObject("GobanSizeFormatter.LONG") as GobanSizeFormatter
 
+    @get:JvmName("getSGF")
     var sgf: GoSGF = sgf
+        @JvmName("setSGF")
         set(sgf) {
             val old = field
             field = sgf

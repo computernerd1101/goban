@@ -8,6 +8,8 @@ module computernerd1101.goban.desktop {
 
     requires kotlin.stdlib;
     requires kotlin.reflect;
+    requires kotlinx.coroutines.core;
+    requires org.jetbrains.annotations;
 
     requires junit;
 

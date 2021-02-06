@@ -6,7 +6,8 @@ import com.computernerd1101.goban.sgf.*
 import kotlin.reflect.*
 
 fun main() {
-    testVarargs2("1", "2", "3", "4", "5")
+    val mj = MyJava()
+    
 }
 
 

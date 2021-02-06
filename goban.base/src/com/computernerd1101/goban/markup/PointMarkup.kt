@@ -5,6 +5,7 @@ package com.computernerd1101.goban.markup
 
 import com.computernerd1101.goban.GoPoint
 import com.computernerd1101.goban.MutableGoPointMap
+import com.computernerd1101.goban.internal.unsafeArrayOfNulls
 import java.io.*
 
 class PointMarkup: Comparable<PointMarkup>, Serializable {
@@ -64,7 +65,7 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
 
         fun ignore() = Unit
 
-        @JvmField val VALUES = arrayOf(EMPTY_LABEL, SELECT, X, TRIANGLE, CIRCLE, SQUARE)
+        @JvmField val VALUES = unsafeArrayOfNulls<PointMarkup>(TYPES)
 
     }
 
@@ -90,12 +91,14 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
         this.enumType = type
         label = ""
         type.value = this
+        Private.VALUES[type.ordinal + 1] = this
     }
 
     private constructor(label: String, marker: Private) {
         marker.ignore()
         enumType = null
         this.label = label
+        if (label.isEmpty()) Private.VALUES[0] = this
     }
 
     override fun compareTo(other: PointMarkup) : Int {

@@ -10,9 +10,9 @@ class GoPlayerManager {
     val blackPlayerJob = Job(gameJob)
     val whitePlayerJob = Job(gameJob)
 
-    val gameScope = CoroutineScope(Dispatchers.Main + gameJob)
-    val blackPlayerScope = CoroutineScope(Dispatchers.Main + blackPlayerJob)
-    val whitePlayerScope = CoroutineScope(Dispatchers.Main + whitePlayerJob)
+    val gameScope: CoroutineScope
+    val blackPlayerScope = CoroutineScope(Dispatchers.IO + blackPlayerJob)
+    val whitePlayerScope = CoroutineScope(Dispatchers.IO + whitePlayerJob)
 
     @get:JvmName("getSGF")
     val sgf: GoSGF
@@ -26,7 +26,11 @@ class GoPlayerManager {
     val blackPlayer: GoPlayer
     val whitePlayer: GoPlayer
 
-    constructor(setup: GoGameSetup) {
+    private fun CoroutineDispatcher.notIO(): CoroutineDispatcher =
+        if (this == Dispatchers.IO) Dispatchers.Default else this
+
+    constructor(dispatcher: CoroutineDispatcher, setup: GoGameSetup) {
+        gameScope = CoroutineScope(dispatcher.notIO() + gameJob)
         val width = setup.width
         val height = setup.height
         sgf = GoSGF(width, height)
@@ -55,7 +59,8 @@ class GoPlayerManager {
     }
 
     @Throws(GoSGFResumeException::class)
-    constructor(blackPlayer: GoPlayer, whitePlayer: GoPlayer, sgf: GoSGF) {
+    constructor(dispatcher: CoroutineDispatcher, blackPlayer: GoPlayer, whitePlayer: GoPlayer, sgf: GoSGF) {
+        gameScope = CoroutineScope(dispatcher.notIO() + gameJob)
         this.sgf = sgf
         node = sgf.rootNode
         gameInfo = sgf.onResume()

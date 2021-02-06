@@ -7,6 +7,7 @@ module computernerd1101.goban.test {
 
     requires computernerd1101.goban;
     requires computernerd1101.goban.desktop;
+    requires java.desktop;
     requires kotlin.stdlib;
     requires kotlin.reflect;
     requires kotlinx.coroutines.core;

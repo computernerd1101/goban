@@ -5,8 +5,10 @@ import com.computernerd1101.goban.players.GoGameSetup
 import com.computernerd1101.goban.annotations.PropertyFactory
 import com.computernerd1101.goban.desktop.internal.*
 import com.computernerd1101.goban.desktop.resources.*
+import com.computernerd1101.goban.players.GoPlayerManager
 import com.computernerd1101.goban.sgf.GameInfo
 import com.computernerd1101.goban.time.Overtime
+import kotlinx.coroutines.Dispatchers
 import java.awt.*
 import java.awt.event.*
 import java.text.NumberFormat
@@ -18,7 +20,7 @@ fun main() {
     SwingUtilities.invokeLater {
         val setup = GoGameSetupView().showDialog(null)
         if (setup != null)
-            GoGameFrame(setup).isVisible = true
+            GoGameFrame(GoPlayerManager(Dispatchers.Default, setup)).isVisible = true
     }
 }
 
