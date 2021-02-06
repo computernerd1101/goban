@@ -3,6 +3,7 @@ package com.computernerd1101.goban.desktop;
 import com.computernerd1101.goban.*;
 import com.computernerd1101.goban.markup.*;
 import kotlin.text.StringsKt;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -186,7 +187,9 @@ public class GobanView extends JComponent {
         return new Color(argb, true);
     }
 
-    @Nullable public final GoPoint toGoPoint(@Nullable MouseEvent event) {
+    @Nullable
+    @Contract("null -> null")
+    public final GoPoint toGoPoint(@Nullable MouseEvent event) {
         return event == null ? null : toGoPoint(event.getX(), event.getY());
     }
 
@@ -456,17 +459,45 @@ public class GobanView extends JComponent {
             thick = isThick ? Math.min(thick / scale, 0.25) : thin;
             Rectangle2D.Double rect;
             Line2D.Double line = null;
-            if (width == 1 && height == 1) {
-                double thickStart = (-0.5)*thick;
-                rect = new Rectangle2D.Double(thickStart, thickStart, thick, thick);
-                g.fill(rect);
+            if (width == 1) {
+                circle = new Ellipse2D.Double(-starRadius, y - starRadius, starDiameter, starDiameter);
+                g.fill(circle);
+                line = new Line2D.Double();
+                line.x1 = 0.0;
+                line.x2 = 0.0;
+                if (y != 0) {
+                    line.y1 = y - 0.5;
+                    line.y2 = y - starRadius;
+                    g.draw(line);
+                }
+                if (y != height - 1) {
+                    line.y1 = y + starRadius;
+                    line.y2 = y + 0.5;
+                    g.draw(line);
+                }
+            } else if (height == 1) {
+                circle = new Ellipse2D.Double(x - starRadius, -starRadius, starDiameter, starDiameter);
+                g.fill(circle);
+                line = new Line2D.Double();
+                line.y1 = 0.0;
+                line.y2 = 0.0;
+                if (x != 0) {
+                    line.x1 = x - 0.5;
+                    line.x2 = x - starRadius;
+                    g.draw(line);
+                }
+                if (x != width - 1) {
+                    line.x1 = x + starRadius;
+                    line.x2 = x + 0.5;
+                    g.draw(line);
+                }
             } else if (x == 0 || x == width - 1) {
                 if (isThick) {
                     rect = new Rectangle2D.Double(
                             x - 0.5*thick, y == 0 ? (-0.5)*thick : y - 0.5,
                             thick, y == 0 || y == height - 1 ? 0.5 + 0.5*thick : 1.0);
                     g.fill(rect);
-                    if (height != 1 && (y == 0 || y == height - 1)) {
+                    if (y == 0 || y == height - 1) {
                         rect.x = x == 0 ? 0.5*thick : x - 0.5;
                         rect.y = y - 0.5*thick;
                         rect.width = 0.5 - 0.5*thick;
@@ -478,7 +509,7 @@ public class GobanView extends JComponent {
                             x, y == height - 1 ? y : y + 0.5);
                     g.draw(line);
                 }
-                if (height != 1 && !(isThick && (y == 0 || y == height - 1))) {
+                if (!(isThick && (y == 0 || y == height - 1))) {
                     if (line == null) line = new Line2D.Double();
                     if (x == 0) {
                         line.x1 = 0.5*thick;

@@ -1,11 +1,13 @@
 package com.computernerd1101.goban.internal;
 
+import org.jetbrains.annotations.NotNull;
+
 public final class GobanThreadLocals extends ThreadLocal<long[][]> {
 
     private GobanThreadLocals() { }
 
     @Override
-    protected long[][] initialValue() {
+    protected long @NotNull[] @NotNull [] initialValue() {
         // I could have done this in Kotlin with Array(5) { LongArray(52) },
         // but then the compiler would have generated more opcodes than multianewarray.
         // Since this method is called once per thread, or possibly more depending
