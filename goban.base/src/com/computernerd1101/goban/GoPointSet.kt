@@ -211,13 +211,13 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
             for((first, second) in compressed) {
                 val value = SGFValue(first.toSGFBytes())
                 if (first != second)
-                    value.list.add(second.toSGFBytes())
-                if (prop != null) prop.list.add(value)
+                    value.parts.add(second.toSGFBytes())
+                if (prop != null) prop.values.add(value)
                 else prop = SGFProperty(value)
             }
         } else for(point in this) {
             val value = SGFValue(point.toSGFBytes())
-            if (prop != null) prop.list.add(value)
+            if (prop != null) prop.values.add(value)
             else prop = SGFProperty(value)
         }
         return prop

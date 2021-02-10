@@ -342,13 +342,23 @@ sealed class AbstractMutableGoban: AbstractGoban {
         return changed
     }
 
-    @Suppress("unused")
-    fun clear() {
+    @JvmOverloads
+    fun clear(color: GoColor? = null) {
         val rows = this.rows
         var count = 0L
         for (i in 0 until rows.size) {
-            val row = GobanRows.updaters[i].getAndSet(rows, 0L)
-            count -= InternalGoban.countStonesInRow(row)
+            val updater = GobanRows.updaters[i]
+            val mask: Long
+            val row: Long
+            if (color == null) {
+                mask = -1L
+                row = updater.getAndSet(rows, 0L)
+            } else {
+                mask = if (color == GoColor.BLACK) -1L ushr 32
+                else -1L shl 32
+                row = updater.getAndAccumulate(rows, mask.inv(), LongBinOp.AND)
+            }
+            count -= InternalGoban.countStonesInRow(row) and mask
         }
         InternalGoban.count.addAndGet(this, count)
     }

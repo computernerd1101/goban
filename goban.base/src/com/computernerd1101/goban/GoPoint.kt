@@ -5,6 +5,7 @@
 package com.computernerd1101.goban
 
 import com.computernerd1101.goban.internal.*
+import com.computernerd1101.goban.players.GoPlayerMove
 import com.computernerd1101.goban.resources.GoPointFormatter
 import com.computernerd1101.goban.resources.GobanDimensionFormatter
 import com.computernerd1101.goban.resources.gobanFormatResources
@@ -171,6 +172,18 @@ class GoPoint private constructor(
 
         private const val serialVersionUID = 1L
 
+    }
+
+    private lateinit var move: GoPlayerMove.Stone
+
+    internal fun getMove(marker: InternalMarker): GoPlayerMove.Stone {
+        marker.ignore()
+        return move
+    }
+
+    internal fun setMove(move: GoPlayerMove.Stone, marker: InternalMarker) {
+        marker.ignore()
+        this.move = move
     }
 
     fun formatPoint(width: Int, height: Int, locale: Locale): String = formatPoint(this, width, height, locale)

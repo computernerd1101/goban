@@ -12,8 +12,6 @@ import com.computernerd1101.goban.time.*
 import com.computernerd1101.sgf.*
 import java.awt.*
 import java.awt.event.*
-import java.io.FileInputStream
-import java.io.IOException
 import java.net.URL
 import java.nio.charset.Charset
 import java.text.*
@@ -23,27 +21,6 @@ import javax.swing.*
 import javax.swing.event.*
 import javax.swing.tree.TreePath
 import kotlin.math.*
-
-fun main(args: Array<String>) {
-    val sgf = (if (args.isNotEmpty()) readSGF(args[0]) else null) ?: GoSGF()
-    SwingUtilities.invokeLater {
-        GoEditorFrame(sgf).isVisible = true
-    }
-}
-
-fun readSGF(file: String): GoSGF? {
-    return try {
-        FileInputStream(file).use { input ->
-            GoSGF(input)
-        }
-    } catch(e: IOException) {
-        e.printStackTrace()
-        null
-    } catch(e: SGFException) {
-        e.printStackTrace()
-        null
-    }
-}
 
 class GoEditorFrame private constructor(
     sgf: GoSGF,

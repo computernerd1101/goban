@@ -8,8 +8,8 @@ class SGFValue: RowColumn, Serializable {
 
     private var sequence: Sequence
 
-    val list: MutableList<SGFBytes>
-        @JvmName("list") get() = sequence
+    val parts: MutableList<SGFBytes>
+        @JvmName("parts") get() = sequence
 
     fun copy(level: SGFCopyLevel? = null) = SGFValue(this, level ?: SGFCopyLevel.COMPOSITE)
 

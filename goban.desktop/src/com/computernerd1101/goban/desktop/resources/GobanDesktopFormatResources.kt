@@ -10,7 +10,8 @@ class GobanDesktopFormatResources: ListResourceBundle() {
         return arrayOf(
             arrayOf("SGFNodeFormatter", SGFNodeFormatter),
             arrayOf("GobanSizeFormatter.SHORT", GobanSizeFormatter.SHORT),
-            arrayOf("GobanSizeFormatter.LONG", GobanSizeFormatter.LONG)
+            arrayOf("GobanSizeFormatter.LONG", GobanSizeFormatter.LONG),
+            arrayOf("GobanHandicapProgressFormatter", GobanHandicapProgressFormatter)
         )
     }
 

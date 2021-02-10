@@ -7,7 +7,24 @@ import kotlin.reflect.*
 
 fun main() {
     val mj = MyJava()
-    
+    println(testNotNullProperty)
+}
+
+object TestParams {
+
+    fun test(foo: String, bar: String) = Unit
+
+}
+
+@JvmField
+var testNotNullProperty: String = "Hello, World!"
+
+fun notNullToNotNull(s: String): String {
+    return s;
+}
+
+fun testNullability(s: String): String {
+    return MyJava().notNullToNotNull(s)
 }
 
 

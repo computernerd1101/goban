@@ -4,7 +4,6 @@ import com.computernerd1101.goban.desktop.CN13Spinner
 import com.computernerd1101.goban.desktop.resources.gobanDesktopResources
 import com.computernerd1101.goban.sgf.GameInfo
 import java.text.*
-import java.util.*
 import javax.swing.*
 import javax.swing.event.ListDataListener
 
@@ -12,7 +11,7 @@ abstract class AbstractKomiFormatter:
     CN13Spinner.Formatter(NumberFormat.getInstance()),
     ComboBoxModel<Any> {
 
-    private var value: BoxedDouble? = Zero.plus
+    private var value: Double? = Zero.plus
 
     init {
         commitsOnValidEdit = true
@@ -62,20 +61,20 @@ abstract class AbstractKomiFormatter:
         val info = gameInfo ?: return null
         var value = this.value
         val komi = info.komi
-        if (value as Double? != komi) {
-            value = komi as BoxedDouble
+        if (value != komi) {
+            value = komi
             this.value = value
         }
-        return value as Double?
+        return value
     }
 
     override fun setValue(value: Any?) {
         val info = gameInfo ?: return
-        var boxed: BoxedDouble? = null
+        var boxed: Double? = null
         var unboxed = 0.0
-        if (value is BoxedDouble) {
+        if (value is Double) {
             boxed = value
-            unboxed = boxed as Double
+            unboxed = boxed
         } else if (value is Number) {
             unboxed = value.toDouble()
         }
@@ -84,7 +83,7 @@ abstract class AbstractKomiFormatter:
             val komi = info.komi
             if (komi != unboxed)
                 boxed = if (komi == 0.0) Zero.plus else null
-            if (boxed == null) boxed = komi as BoxedDouble
+            if (boxed == null) boxed = komi
             this.value = boxed
             fireChangeEvent()
             if (komi == 0.0) SwingUtilities.invokeLater {

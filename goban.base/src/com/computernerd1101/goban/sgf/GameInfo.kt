@@ -92,7 +92,7 @@ class GameInfo: Serializable {
     var handicap: Int = 0
     var malformedHandicap: SGFProperty? = null
     fun parseHandicap(prop: SGFProperty, warnings: SGFWarningList?): Int {
-        val bytes: SGFBytes = prop.list[0].list[0]
+        val bytes: SGFBytes = prop.values[0].parts[0]
         val s = bytes.toString()
         return try {
             val h = s.toInt()
@@ -126,7 +126,7 @@ class GameInfo: Serializable {
         }
     var malformedKomi: SGFProperty? = null
     fun parseKomi(prop: SGFProperty, warnings: SGFWarningList?): Double {
-        val bytes: SGFBytes = prop.list[0].list[0]
+        val bytes: SGFBytes = prop.values[0].parts[0]
         val s = bytes.toString()
         val m = ParseKomi.REGEX.find(s)
         return if (m != null) {
@@ -175,7 +175,7 @@ class GameInfo: Serializable {
     var result: GameResult? = null
     var malformedResult: SGFProperty? = null
     fun parseResult(prop: SGFProperty, warnings: SGFWarningList?): GameResult? {
-        val bytes: SGFBytes = prop.list[0].list[0]
+        val bytes: SGFBytes = prop.values[0].parts[0]
         val s = bytes.toString()
         val result = GameResult.nullable(s)
         malformedResult = if (result == null) {
@@ -192,7 +192,7 @@ class GameInfo: Serializable {
     fun parseDates(prop: SGFProperty, warnings: SGFWarningList?): DateSet {
         val dates = DateSet()
         var date: Date? = null
-        for(value in prop.list) for(bytes in value.list)
+        for(value in prop.values) for(bytes in value.parts)
             date.parseNext(bytes.toString())?.let {
                 date = it
                 dates.addDate(it)
@@ -209,7 +209,7 @@ class GameInfo: Serializable {
     var timeLimit: Long = 0L
     var malformedTimeLimit: SGFProperty? = null
     fun parseTimeLimit(prop: SGFProperty, warnings: SGFWarningList?): Long {
-        val bytes = prop.list[0].list[0]
+        val bytes = prop.values[0].parts[0]
         val s = bytes.toString()
         var isMalformed = false
         var time = try {
@@ -253,7 +253,7 @@ class GameInfo: Serializable {
         }
 
     fun parseOvertime(prop: SGFProperty, charset: Charset?, warnings: SGFWarningList?): Overtime? {
-        val value: SGFValue = prop.list[0]
+        val value: SGFValue = prop.values[0]
         val s: String = InternalGoSGF.parseSGFValue(value, charset, warnings)
         var isMalformed = false
         val o: Overtime? = try {
@@ -449,20 +449,20 @@ class GameInfo: Serializable {
             "TM" -> parseTimeLimit(prop, warnings)
             "OT" -> parseOvertime(prop, charset, warnings)
             "RE" -> parseResult(prop, warnings)
-            "RU" -> rulesString = InternalGoSGF.parseSGFValue(prop.list[0], charset, warnings)
-            "GN" -> gameName = InternalGoSGF.parseSGFValue(prop.list[0], charset, warnings)
-            "GC" -> gameComment = InternalGoSGF.parseSGFValue(prop.list[0], charset, warnings)
-            "SO" -> gameSource = InternalGoSGF.parseSGFValue(prop.list[0], charset, warnings)
-            "US" -> gameUser = InternalGoSGF.parseSGFValue(prop.list[0], charset, warnings)
-            "CP" -> copyright = InternalGoSGF.parseSGFValue(prop.list[0], charset, warnings)
-            "PC" -> gameLocation = InternalGoSGF.parseSGFValue(prop.list[0], charset, warnings)
-            "EV" -> eventName = InternalGoSGF.parseSGFValue(prop.list[0], charset, warnings)
-            "RO" -> roundType = InternalGoSGF.parseSGFValue(prop.list[0], charset, warnings)
-            "AN" -> annotationProvider = InternalGoSGF.parseSGFValue(prop.list[0], charset, warnings)
-            "ON" -> openingType = InternalGoSGF.parseSGFValue(prop.list[0], charset, warnings)
+            "RU" -> rulesString = InternalGoSGF.parseSGFValue(prop.values[0], charset, warnings)
+            "GN" -> gameName = InternalGoSGF.parseSGFValue(prop.values[0], charset, warnings)
+            "GC" -> gameComment = InternalGoSGF.parseSGFValue(prop.values[0], charset, warnings)
+            "SO" -> gameSource = InternalGoSGF.parseSGFValue(prop.values[0], charset, warnings)
+            "US" -> gameUser = InternalGoSGF.parseSGFValue(prop.values[0], charset, warnings)
+            "CP" -> copyright = InternalGoSGF.parseSGFValue(prop.values[0], charset, warnings)
+            "PC" -> gameLocation = InternalGoSGF.parseSGFValue(prop.values[0], charset, warnings)
+            "EV" -> eventName = InternalGoSGF.parseSGFValue(prop.values[0], charset, warnings)
+            "RO" -> roundType = InternalGoSGF.parseSGFValue(prop.values[0], charset, warnings)
+            "AN" -> annotationProvider = InternalGoSGF.parseSGFValue(prop.values[0], charset, warnings)
+            "ON" -> openingType = InternalGoSGF.parseSGFValue(prop.values[0], charset, warnings)
         }
         if (player != null) {
-            val s = InternalGoSGF.parseSGFValue(prop.list[0], charset, warnings)
+            val s = InternalGoSGF.parseSGFValue(prop.values[0], charset, warnings)
             when(playerProp) {
                 0 -> player.name = s
                 1 -> player.team = s
@@ -475,13 +475,13 @@ class GameInfo: Serializable {
         return this === other || (other is GameInfo &&
                 black == other.black && white == other.white &&
                 handicap == other.handicap && komi2 == other.komi2 &&
-                malformedKomi?.list == other.malformedKomi?.list &&
+                malformedKomi?.values == other.malformedKomi?.values &&
                 result == other.result &&
-                malformedResult?.list == other.malformedResult?.list &&
+                malformedResult?.values == other.malformedResult?.values &&
                 dates contentEquals other.dates &&
-                malformedDates?.list == other.malformedDates?.list &&
+                malformedDates?.values == other.malformedDates?.values &&
                 timeLimit == other.timeLimit &&
-                malformedTimeLimit?.list == other.malformedTimeLimit?.list &&
+                malformedTimeLimit?.values == other.malformedTimeLimit?.values &&
                 overtimeString == other.overtimeString &&
                 rulesString == other.rulesString && gameName == other.gameName &&
                 gameUser == other.gameUser && copyright == other.copyright &&
@@ -496,12 +496,12 @@ class GameInfo: Serializable {
                 black.hashCode() * (31 * 31 * 31) + white.hashCode()) * 31 +
                 handicap) * 31 +
                 komi2) * 31 +
-                malformedKomi?.list.hashCode()) * 31 +
+                malformedKomi?.values.hashCode()) * 31 +
                 result.hashCode()) * 31 +
                 dates.contentHashCode()) * 31 +
-                malformedDates?.list.hashCode()) * 31 +
+                malformedDates?.values.hashCode()) * 31 +
                 timeLimit.hashCode()) * 31 +
-                malformedTimeLimit?.list.hashCode()) * 31 +
+                malformedTimeLimit?.values.hashCode()) * 31 +
                 overtimeString.hashCode()) * 31 +
                 rulesString.hashCode()) * 31 +
                 gameName.hashCode()) * 31 +

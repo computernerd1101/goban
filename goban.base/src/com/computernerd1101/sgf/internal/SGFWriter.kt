@@ -86,14 +86,14 @@ sealed class SGFWriter {
     }
 
     fun writeProperty(prop: SGFProperty) {
-        for(value in prop.list) {
+        for(value in prop.values) {
             writeValue(value)
         }
     }
 
     fun writeValue(value: SGFValue) {
         var sep = '['.toInt()
-        for(bytes in value.list) {
+        for(bytes in value.parts) {
             write(sep)
             sep = ':'.toInt()
             write(bytes.escape(true))

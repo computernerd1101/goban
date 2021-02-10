@@ -27,7 +27,7 @@ internal object InternalGoSGF {
                 (!natural || repeatedPosition.playStoneAt != null)
 
     fun parseSGFValue(value: SGFValue, charset: Charset?, warnings: SGFWarningList?): String {
-        return parseSGFBytesList(value.row, value.column, value.list, charset, warnings)
+        return parseSGFBytesList(value.row, value.column, value.parts, charset, warnings)
     }
 
     fun parseSGFBytesList(
@@ -86,7 +86,7 @@ internal fun GoSGFMoveNode.PlayerTime.parseTimeRemaining(time: SGFProperty?, ove
     var bytes: SGFBytes
     var s: String
     if (time != null) {
-        bytes = time.list[0].list[0]
+        bytes = time.values[0].parts[0]
         s =  bytes.toString()
         try {
             this.time = s.secondsToMillis()
@@ -99,7 +99,7 @@ internal fun GoSGFMoveNode.PlayerTime.parseTimeRemaining(time: SGFProperty?, ove
         }
     }
     if (overtime != null) {
-        bytes = overtime.list[0].list[0]
+        bytes = overtime.values[0].parts[0]
         s = bytes.toString()
         try {
             this.overtime = s.toInt()

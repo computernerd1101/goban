@@ -5,24 +5,14 @@ import com.computernerd1101.goban.players.GoGameSetup
 import com.computernerd1101.goban.annotations.PropertyFactory
 import com.computernerd1101.goban.desktop.internal.*
 import com.computernerd1101.goban.desktop.resources.*
-import com.computernerd1101.goban.players.GoPlayerManager
 import com.computernerd1101.goban.sgf.GameInfo
 import com.computernerd1101.goban.time.Overtime
-import kotlinx.coroutines.Dispatchers
 import java.awt.*
 import java.awt.event.*
 import java.text.NumberFormat
 import java.util.*
 import javax.swing.*
 import javax.swing.event.ListDataListener
-
-fun main() {
-    SwingUtilities.invokeLater {
-        val setup = GoGameSetupView().showDialog(null)
-        if (setup != null)
-            GoGameFrame(GoPlayerManager(Dispatchers.Default, setup)).isVisible = true
-    }
-}
 
 class GoGameSetupView private constructor(
     resources: ResourceBundle,
@@ -31,6 +21,7 @@ class GoGameSetupView private constructor(
 
     constructor(): this(gobanDesktopResources(), gobanDesktopFormatResources())
 
+    private val playerFactory = ClientPlayer.Factory()
     private val gameSetup: GoGameSetup
 
     private val comboSize = JComboBox<Any>()
@@ -55,7 +46,7 @@ class GoGameSetupView private constructor(
         val gameInfo = GameInfo()
         val rules = GoRules.JAPANESE
         gameInfo.rules = rules
-        gameSetup = GoGameSetup(ClientPlayer, ClientPlayer, gameInfo = gameInfo)
+        gameSetup = GoGameSetup(playerFactory, playerFactory, gameInfo = gameInfo)
         checkSuicide.isSelected = rules.allowSuicide
     }
 

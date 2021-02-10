@@ -30,6 +30,14 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
         set(vv) { field = vv and 3 }
 
     @Synchronized
+    fun primaryLeafNode(): GoSGFNode {
+        var current: GoSGFNode = rootNode
+        while(current.children > 0)
+            current = current.child(0)
+        return current
+    }
+
+    @Synchronized
     fun leafNodes(): List<GoSGFNode> {
         val list = mutableListOf<GoSGFNode>()
         leafNodes(rootNode, list)
@@ -64,7 +72,7 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
         val height = this.height
         val sizeVal = SGFValue(SGFBytes(width.toString()))
         if (width != height)
-            sizeVal.list.add(SGFBytes(height.toString()))
+            sizeVal.parts.add(SGFBytes(height.toString()))
         node.properties["SZ"] = SGFProperty(sizeVal)
         val charset = this.charset
         if (charset != null)
@@ -113,7 +121,7 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
         warningList = warnings
         val node = tree.nodes[0]
         node.properties["CA"]?.let { prop ->
-            val b: SGFBytes = prop.list[0].list[0]
+            val b: SGFBytes = prop.values[0].parts[0]
             val enc = b.toString()
             if (Charset.isSupported(enc)) {
                 try {
@@ -127,7 +135,7 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
             }
         }
         node.properties["ST"]?.let { prop ->
-            val b: SGFBytes = prop.list[0].list[0]
+            val b: SGFBytes = prop.values[0].parts[0]
             val s = b.toString()
             try {
                 variationView = s.toInt()
@@ -152,7 +160,7 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
             val node = tree.nodes[0]
             var fileFormat = 4
             node.properties["FF"]?.let { prop ->
-                val b: SGFBytes = prop.list[0].list[0]
+                val b: SGFBytes = prop.values[0].parts[0]
                 val s = b.toString()
                 try {
                     val ff = s.toInt()
@@ -167,7 +175,7 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
             }
             this.fileFormat = fileFormat
             node.properties["GM"]?.let { prop ->
-                val b: SGFBytes = prop.list[0].list[0]
+                val b: SGFBytes = prop.values[0].parts[0]
                 val s = b.toString()
                 var i = 0
                 while(i < s.length && s[i].isWhitespace()) i++
@@ -187,8 +195,8 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
             var w = 0
             var h = 0
             node.properties["SZ"]?.let { prop ->
-                val v: SGFValue = prop.list[0]
-                var s = v.list[0].toString()
+                val v: SGFValue = prop.values[0]
+                var s = v.parts[0].toString()
                 try {
                     w = s.toInt()
                     if (w !in 1..52) {
@@ -198,10 +206,10 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
                 } catch(e: NumberFormatException) {
                     warnings += SGFWarning(v.row, v.column,
                         "Invalid board size SZ[$s" +
-                                (if (v.list.size > 1) ":...]: " else "]: ") + e, e)
+                                (if (v.parts.size > 1) ":...]: " else "]: ") + e, e)
                 }
-                if (v.list.size > 1) {
-                    val b = v.list[1]
+                if (v.parts.size > 1) {
+                    val b = v.parts[1]
                     s = b.toString()
                     try {
                         h = s.toInt()
@@ -807,7 +815,7 @@ sealed class GoSGFNode {
                 i = markup.ordinal
                 if (i == 0) {
                     val value = SGFValue(SGFBytes(point.toString())).addText(markup.label, charset)
-                    prop?.list?.add(value) ?: SGFProperty(value).let { prop = it }
+                    prop?.values?.add(value) ?: SGFProperty(value).let { prop = it }
                 } else markupSets[i - 1].add(point)
             }
             prop?.let { propMap.put("LB", it) }
@@ -822,11 +830,11 @@ sealed class GoSGFNode {
             var propAR: SGFProperty? = null
             for(lm in current.lineMarkup) {
                 val value = SGFValue(SGFBytes(lm.start.toString()))
-                value.list.add(SGFBytes(lm.end.toString()))
+                value.parts.add(SGFBytes(lm.end.toString()))
                 if (lm.isArrow)
-                    propAR?.list?.add(value) ?: SGFProperty(value).let { propAR = it }
+                    propAR?.values?.add(value) ?: SGFProperty(value).let { propAR = it }
                 else
-                    prop?.list?.add(value) ?: SGFProperty(value).let { prop = it }
+                    prop?.values?.add(value) ?: SGFProperty(value).let { prop = it }
             }
             prop?.let { propMap["LN"] = it }
             propAR?.let { propMap["AR"] = it }
@@ -954,7 +962,7 @@ sealed class GoSGFNode {
                 if (setup != null) currentNode = setup
             }
             if (moveProp != null) {
-                val moveBytes: SGFBytes = moveProp.list[0].list[0]
+                val moveBytes: SGFBytes = moveProp.values[0].parts[0]
                 var movePoint = InternalGoSGF.parsePoint(moveBytes, ignoreCase)
                 if (movePoint != null && (movePoint.x >= width || movePoint.y >= height)) {
                     if (!(movePoint.x == 19 && movePoint.y == 19 &&
@@ -1114,7 +1122,7 @@ sealed class GoSGFNode {
             if (propPL != null) {
                 if (isSetupNode) {
                     var nextPlayer: GoColor? = null
-                    val bytes: SGFBytes = propPL.list[0].list[0]
+                    val bytes: SGFBytes = propPL.values[0].parts[0]
                     loopPL@ for (b in bytes) {
                         when (b.toInt()) {
                             'B'.toInt(), 'b'.toInt() -> {
@@ -1137,7 +1145,7 @@ sealed class GoSGFNode {
             }
             if (propN != null)
                 (setup ?: currentNode).nodeName =
-                    InternalGoSGF.parseSGFValue(propN.list[0], this.tree.charset, warnings)
+                    InternalGoSGF.parseSGFValue(propN.values[0], this.tree.charset, warnings)
             if (move != null) {
                 move.isForced = forceMove
                 when {
@@ -1151,7 +1159,7 @@ sealed class GoSGFNode {
                         else MoveAnnotation.BAD.toExtent(parse1or2(propBM, warnings))
                 }
                 if (propMN != null) {
-                    val bytes: SGFBytes = propMN.list[0].list[0]
+                    val bytes: SGFBytes = propMN.values[0].parts[0]
                     val s = bytes.toString()
                     var num = 0
                     val isParsed = try {
@@ -1172,10 +1180,10 @@ sealed class GoSGFNode {
                 move.white.parseTimeRemaining(propWL, propOW)
             }
             if (propC != null)
-                currentNode.comment = InternalGoSGF.parseSGFValue(propC.list[0], this.tree.charset, warnings)
+                currentNode.comment = InternalGoSGF.parseSGFValue(propC.values[0], this.tree.charset, warnings)
             if (propHO != null) currentNode.hotspot = parse1or2(propHO, warnings)
             if (propFG != null) {
-                val bytesList = propFG.list[0].list
+                val bytesList = propFG.values[0].parts
                 var bytes = bytesList[0]
                 val s = bytes.toString()
                 if (s.isBlank() && bytesList.size == 1) {
@@ -1213,7 +1221,7 @@ sealed class GoSGFNode {
                 positionState = positionState.toExtent(parse1or2(positionProp, warnings))
                 currentNode.positionState = positionState
             }
-            propV?.list?.get(0)?.list?.get(0)?.let { bytes: SGFBytes ->
+            propV?.values?.get(0)?.parts?.get(0)?.let { bytes: SGFBytes ->
                 val s = bytes.toString()
                 var d = 0.0
                 val isParsed = try {
@@ -1235,7 +1243,7 @@ sealed class GoSGFNode {
                 currentNode.newVisiblePoints = parsePointSet(fileFormat, MutableGoPointSet(), propVW)
             if (propDD != null)
                 currentNode.newDimPoints = parsePointSet(MutableGoPointSet(), propDD)
-            propPM?.list?.get(0)?.list?.get(0)?.let { bytes: SGFBytes ->
+            propPM?.values?.get(0)?.parts?.get(0)?.let { bytes: SGFBytes ->
                 currentNode.newPrintMethod = PrintMethod.parseOrdinal(bytes.toString())
             }
             parsePointSet(territoryPoints[0], propTB)
@@ -1253,8 +1261,8 @@ sealed class GoSGFNode {
             val markupLB = markupPoints[0]
             val markupMA = markupPoints[2]
             val markupTR = markupPoints[3]
-            propLB?.list?.forEach next@{ value ->
-                val bytesList = value.list
+            propLB?.values?.forEach next@{ value ->
+                val bytesList = value.parts
                 val bytes = bytesList[0]
                 val point = InternalGoSGF.parsePoint(bytes, ignoreCase)
                 if (point == null) {
@@ -1283,12 +1291,12 @@ sealed class GoSGFNode {
                 warnings += SGFWarning(bytes.row, bytes.column,
                     "Empty label: LB[$s]")
             }
-            propL?.list?.let { valueList ->
+            propL?.values?.let { valueList ->
                 var i = 0
                 for(value in valueList) {
                     val s = Parse.LABELS[i]
                     if (++i >= 52) i = 0
-                    val bytes = value.list[0]
+                    val bytes = value.parts[0]
                     val point = InternalGoSGF.parsePoint(bytes, ignoreCase)
                     if (point == null) {
                         warnings += SGFWarning(bytes.row, bytes.column,
@@ -1345,8 +1353,8 @@ sealed class GoSGFNode {
                     currentNode.pointMarkup[point] = PointMarkup.ordinal(i)
             for(i in 0..1) {
                 val prop = lineMarkupProps[i] ?: continue
-                for(value in prop.list) {
-                    val bytesList = value.list
+                for(value in prop.values) {
+                    val bytesList = value.parts
                     if (bytesList.size < 2) {
                         warnings += SGFWarning(value.row, value.column,
                                 Parse.WARNING_REQUIRE_2_POINTS[i])
@@ -1425,7 +1433,7 @@ sealed class GoSGFNode {
     }
 
     private fun parse1or2(prop: SGFProperty?, warnings: SGFWarningList): Int {
-        val s = prop?.list?.get(0)?.let { value ->
+        val s = prop?.values?.get(0)?.let { value ->
             InternalGoSGF.parseSGFValue(value, null, warnings)
         } ?: return 0
         var i = 0
@@ -1439,10 +1447,10 @@ sealed class GoSGFNode {
 
     private fun parsePointSet(fileFormat: Int, points: MutableGoPointSet?, prop: SGFProperty?): MutableGoPointSet? {
         if (fileFormat < 4 && prop != null) {
-            val values = prop.list
+            val values = prop.values
             if (values.size == 2) {
-                val v1 = values[0].list
-                val v2 = values[1].list
+                val v1 = values[0].parts
+                val v2 = values[1].parts
                 if (v1.size == 1 && v2.size == 1)
                     return parsePointRect(points, v1[0], v2[0])
             }
@@ -1453,8 +1461,8 @@ sealed class GoSGFNode {
     private fun parsePointSet(points: MutableGoPointSet?, prop: SGFProperty?): MutableGoPointSet? {
         if (prop == null) return points
         var pointSet = points
-        for(value in prop.list) {
-            val bytes = value.list
+        for(value in prop.values) {
+            val bytes = value.parts
             val s1 = bytes[0]
             val s2 = if (bytes.size >= 2) bytes[1] else null
             pointSet = parsePointRect(pointSet, s1, s2)

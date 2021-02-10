@@ -2,17 +2,15 @@ package com.computernerd1101.goban.desktop;
 
 import com.computernerd1101.goban.*;
 import com.computernerd1101.goban.markup.*;
+import kotlin.jvm.internal.Intrinsics;
 import kotlin.text.StringsKt;
-import org.jetbrains.annotations.Contract;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.*;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.awt.geom.*;
 import java.util.Locale;
-import java.util.Objects;
 
 @SuppressWarnings("unused")
 public class GobanView extends JComponent {
@@ -22,11 +20,15 @@ public class GobanView extends JComponent {
     private int startX, startY;
 
     public GobanView() {
-        this(null);
+        this((AbstractGoban)null);
     }
 
     public GobanView(@Nullable AbstractGoban goban) {
         this(goban, Locale.getDefault(Locale.Category.FORMAT));
+    }
+
+    public GobanView(@Nullable Locale locale) {
+        this(null, locale);
     }
 
     public GobanView(@Nullable AbstractGoban goban, @Nullable Locale locale) {
@@ -37,7 +39,7 @@ public class GobanView extends JComponent {
     }
 
     private AbstractGoban goban;
-    @Nullable public final AbstractGoban getGoban() { return goban; }
+    public @Nullable final AbstractGoban getGoban() { return goban; }
     public void setGoban(@Nullable AbstractGoban goban) {
         AbstractGoban old = this.goban;
         this.goban = goban;
@@ -50,11 +52,11 @@ public class GobanView extends JComponent {
     }
 
     private Locale formatLocale;
-    @Nullable public final Locale getFormatLocale() { return formatLocale; }
+    public final @Nullable Locale getFormatLocale() { return formatLocale; }
     public void setFormatLocale(@Nullable Locale locale) {
         Locale old = formatLocale;
         formatLocale = locale;
-        if (!Objects.equals(locale, old)) {
+        if (!Intrinsics.areEqual(locale, old)) {
             revalidate();
             repaint();
         }
@@ -68,14 +70,14 @@ public class GobanView extends JComponent {
             setFormatLocale(Locale.getDefault(Locale.Category.FORMAT));
     }
 
-    @NotNull protected String formatX(int x) {
+    protected @NotNull String formatX(int x) {
         AbstractGoban goban = this.goban;
         if (goban == null) return "";
         Locale locale = formatLocale;
         if (locale == null) locale = Locale.getDefault(Locale.Category.FORMAT);
         return GoPoint.formatX(x, goban.width, locale);
     }
-    @NotNull protected String formatY(int y) {
+    protected @NotNull String formatY(int y) {
         AbstractGoban goban = this.goban;
         if (goban == null) return "";
         Locale locale = formatLocale;
@@ -84,9 +86,8 @@ public class GobanView extends JComponent {
     }
 
     private Paint gobanBackground = Color.ORANGE;
-    @NotNull public final Paint getGobanBackground() { return Objects.requireNonNull(gobanBackground); }
+    public final @NotNull Paint getGobanBackground() { return gobanBackground; }
     public void setGobanBackground(@NotNull Paint paint) {
-        Objects.requireNonNull(paint);
         Paint old = gobanBackground;
         gobanBackground = paint;
         if (!old.equals(paint)) {
@@ -96,9 +97,8 @@ public class GobanView extends JComponent {
     }
 
     private Color defaultMarkupColor = Color.RED;
-    @NotNull public final Color getDefaultMarkupColor() { return Objects.requireNonNull(defaultMarkupColor); }
+    public final @NotNull Color getDefaultMarkupColor() { return defaultMarkupColor; }
     public void setDefaultMarkupColor(@NotNull Color color) {
-        Objects.requireNonNull(color);
         Color old = defaultMarkupColor;
         defaultMarkupColor = color;
         if (!old.equals(color)) {
@@ -120,7 +120,7 @@ public class GobanView extends JComponent {
     }
 
     private PointMarkupMap pointMarkup;
-    @Nullable public final PointMarkupMap getPointMarkup() { return pointMarkup; }
+    public final @Nullable PointMarkupMap getPointMarkup() { return pointMarkup; }
     public void setPointMarkup(@Nullable PointMarkupMap map) {
         PointMarkupMap old = pointMarkup;
         pointMarkup = map;
@@ -131,7 +131,7 @@ public class GobanView extends JComponent {
     }
 
     private LineMarkupSet lineMarkup;
-    @Nullable public final LineMarkupSet getLineMarkup() { return lineMarkup; }
+    public final @Nullable LineMarkupSet getLineMarkup() { return lineMarkup; }
     public void setLineMarkup(@Nullable LineMarkupSet set) {
         LineMarkupSet old = lineMarkup;
         lineMarkup = set;
@@ -142,7 +142,7 @@ public class GobanView extends JComponent {
     }
 
     private int defaultPointMarkupThickness = 2;
-    public final int getDefaultPointMarkupThickness() {
+    public final @Range(from=1, to=Integer.MAX_VALUE) int getDefaultPointMarkupThickness() {
         return defaultPointMarkupThickness;
     }
     public void setDefaultPointMarkupThickness(int value) {
@@ -156,7 +156,7 @@ public class GobanView extends JComponent {
     }
 
     private int defaultLineMarkupThickness = 2;
-    public final int getDefaultLineMarkupThickness() {
+    public final @Range(from=1, to=Integer.MAX_VALUE) int getDefaultLineMarkupThickness() {
         return defaultLineMarkupThickness;
     }
     public void setDefaultLineMarkupThickness(int value) {
@@ -170,30 +170,27 @@ public class GobanView extends JComponent {
     }
 
     private static int filterThickness(int value) {
+        if (value == Integer.MIN_VALUE) return Integer.MAX_VALUE;
         if (value < 0) return -value;
         if (value == 0) return 1;
         return value;
     }
 
-    @NotNull
-    public static final BasicStroke thinStroke = new BasicStroke(0f);
+    public static final @NotNull BasicStroke thinStroke = new BasicStroke(0f);
 
-    @NotNull
-    public static Color applyAlpha(@NotNull Color color, float alpha) {
-        Objects.requireNonNull(color);
+    public static @NotNull Color applyAlpha(@NotNull Color color, float alpha) {
         if (alpha >= 1f) return color;
         int baseAlpha = (int)(color.getAlpha() * Math.max(alpha, 0f));
         int argb = (baseAlpha << 24) | (color.getRGB() & 0xFFFFFF);
         return new Color(argb, true);
     }
 
-    @Nullable
     @Contract("null -> null")
-    public final GoPoint toGoPoint(@Nullable MouseEvent event) {
+    public final @Nullable GoPoint toGoPoint(@Nullable MouseEvent event) {
         return event == null ? null : toGoPoint(event.getX(), event.getY());
     }
 
-    @Nullable public final GoPoint toGoPoint(int x, int y) {
+    public final @Nullable GoPoint toGoPoint(int x, int y) {
         AbstractGoban goban = this.goban;
         double scale = gridScale;
         if (goban != null && scale != 0.0) {
@@ -209,8 +206,7 @@ public class GobanView extends JComponent {
         return null;
     }
 
-    @Nullable public final GoColor getStoneAt(@NotNull GoPoint p) {
-        Objects.requireNonNull(p);
+    public final @Nullable GoColor getStoneAt(@NotNull GoPoint p) {
         AbstractGoban goban = this.goban;
         return goban == null || p.x >= goban.width || p.y >= goban.height ? null : goban.get(p);
     }
@@ -218,7 +214,6 @@ public class GobanView extends JComponent {
     @Nullable public GoColor getStoneColorAt(@NotNull GoPoint p) { return getStoneAt(p); }
 
     @Nullable public PointMarkup getPointMarkupAt(@NotNull GoPoint p) {
-        Objects.requireNonNull(p);
         AbstractGoban goban = this.goban;
         if (goban == null || p.x >= goban.width || p.y >= goban.height) return null;
         PointMarkupMap map = pointMarkup;
@@ -226,55 +221,46 @@ public class GobanView extends JComponent {
     }
 
     public boolean isVisible(@NotNull GoPoint p) {
-        Objects.requireNonNull(p);
         return true;
     }
 
     public float getAlphaAt(@NotNull GoPoint p) {
-        Objects.requireNonNull(p);
         return 1f;
     }
 
     public float getStoneAlphaAt(@NotNull GoPoint p) {
-        Objects.requireNonNull(p);
         return 1f;
     }
 
     public float getMarkupAlphaAt(@NotNull GoPoint p) {
-        Objects.requireNonNull(p);
         return 1f;
     }
 
     @NotNull public Color getMarkupColorAt(@NotNull GoPoint p) {
-        Objects.requireNonNull(p);
-        return Objects.requireNonNull(defaultMarkupColor);
+        return defaultMarkupColor;
     }
 
     public boolean isLineMarkupVisible(@NotNull LineMarkup lm) {
-        Objects.requireNonNull(lm);
         return true;
     }
 
     public final int getPointMarkupThickness(@NotNull GoPoint p) {
-        return filterThickness(computePointMarkupThickness(Objects.requireNonNull(p)));
+        return filterThickness(computePointMarkupThickness(p));
     }
 
     protected int computePointMarkupThickness(@NotNull GoPoint p) {
-        Objects.requireNonNull(p);
         return defaultPointMarkupThickness;
     }
 
     public final int getLineMarkupThickness(@NotNull LineMarkup lm) {
-        return filterThickness(computeLineMarkupThickness(Objects.requireNonNull(lm)));
+        return filterThickness(computeLineMarkupThickness(lm));
     }
 
     protected int computeLineMarkupThickness(@NotNull LineMarkup lm) {
-        Objects.requireNonNull(lm);
         return defaultLineMarkupThickness;
     }
 
     public final boolean isStarPoint(@NotNull GoPoint p) {
-        Objects.requireNonNull(p);
         AbstractGoban goban = this.goban;
         if (goban == null) return false;
         int width = goban.width;
@@ -299,7 +285,6 @@ public class GobanView extends JComponent {
     }
 
     @NotNull public Shape getMarkupX(@NotNull GoPoint p) {
-        Objects.requireNonNull(p);
         int x = p.x, y = p.y;
         Path2D.Double path = new Path2D.Double();
         path.moveTo(x - 0.25, y - 0.25);
@@ -310,7 +295,6 @@ public class GobanView extends JComponent {
     }
 
     @NotNull public Shape getMarkupTriangle(@NotNull GoPoint p) {
-        Objects.requireNonNull(p);
         final double halfWidth = 0.21650635094610965; // sqrt(3)/8
         int x = p.x, y = p.y;
         Path2D.Double path = new Path2D.Double();
@@ -322,23 +306,24 @@ public class GobanView extends JComponent {
     }
 
     @NotNull Shape getMarkupCircle(@NotNull GoPoint p) {
-        Objects.requireNonNull(p);
         int x = p.x, y = p.y;
         return new Ellipse2D.Double(x - 0.25, y - 0.25, 0.5, 0.5);
     }
 
     @NotNull Shape getMarkupSquare(@NotNull GoPoint p) {
-        Objects.requireNonNull(p);
         int x = p.x, y = p.y;
         return new Rectangle2D.Double(x - 0.25, y - 0.25, 0.5, 0.5);
     }
 
+
     @Override
-    protected void paintComponent(@Nullable Graphics g) {
+    protected void paintComponent(@NotNull Graphics g) {
         super.paintComponent(g);
         AbstractGoban goban = this.goban;
         if (goban == null) return;
-        Graphics2D g2d = (Graphics2D)Objects.requireNonNull(Objects.requireNonNull(g).create());
+        g = g.create();
+        Intrinsics.checkNotNullExpressionValue(g, "g.create()");
+        Graphics2D g2d = (Graphics2D)g;
         int gobanWidth = goban.width;
         int gobanHeight = goban.height;
         int width, height, translate;
@@ -385,7 +370,6 @@ public class GobanView extends JComponent {
     }
 
     protected void paintGoban(@NotNull Graphics2D g) {
-        Objects.requireNonNull(g);
         AbstractGoban goban = this.goban;
         int width = goban.width, height = goban.height;
         g.setPaint(getForeground());
@@ -412,7 +396,6 @@ public class GobanView extends JComponent {
     }
 
     protected void paintAllGobanPoints(@NotNull Graphics2D g) {
-        Objects.requireNonNull(g);
         AbstractGoban goban = this.goban;
         if (goban == null) return;
         int width = goban.width;
@@ -426,8 +409,6 @@ public class GobanView extends JComponent {
     }
 
     protected void paintGoPoint(@NotNull Graphics2D g, @NotNull GoPoint p) {
-        Objects.requireNonNull(g);
-        Objects.requireNonNull(p);
         if (!isVisible(p)) return;
         AbstractGoban goban = this.goban;
         if (goban == null) return;
@@ -612,7 +593,6 @@ public class GobanView extends JComponent {
     }
 
     protected void paintAllPointMarkups(@NotNull Graphics2D g) {
-        Objects.requireNonNull(g);
         AbstractGoban goban = this.goban;
         if (goban == null || pointMarkup == null) return;
         int width = goban.width;
@@ -632,8 +612,6 @@ public class GobanView extends JComponent {
     }
 
     protected void paintPointMarkup(@NotNull Graphics2D g, @NotNull GoPoint p, @NotNull PointMarkup m) {
-        Objects.requireNonNull(g);
-        Objects.requireNonNull(p);
         String label = m.label();
         if (!label.isEmpty()) paintLabel(g, p, label);
         else if (m == PointMarkup.SELECT) paintMarkupSelect(g, p);
@@ -644,13 +622,11 @@ public class GobanView extends JComponent {
     }
 
     protected void paintLabel(@NotNull Graphics2D g, @NotNull GoPoint p, @NotNull String label) {
-        paintLabel(Objects.requireNonNull(g), p.x, p.y, Objects.requireNonNull(label));
+        paintLabel(g, p.x, p.y, label);
     }
 
     @SuppressWarnings("SuspiciousNameCombination")
     protected void paintLabel(@NotNull Graphics2D g, int x, int y, @NotNull String label) {
-        Objects.requireNonNull(g);
-        Objects.requireNonNull(label);
         if (StringsKt.isBlank(label)) return;
         FontMetrics metrics = g.getFontMetrics();
         Graphics2D fontGraphics = (Graphics2D)g.create();
@@ -673,27 +649,26 @@ public class GobanView extends JComponent {
     }
 
     protected void paintMarkupSelect(@NotNull Graphics2D g, @NotNull GoPoint p) {
-        Objects.requireNonNull(g).draw(getMarkupCircle(Objects.requireNonNull(p)));
+        g.draw(getMarkupCircle(p));
     }
 
     protected void paintMarkupX(@NotNull Graphics2D g, @NotNull GoPoint p) {
-        Objects.requireNonNull(g).draw(getMarkupX(Objects.requireNonNull(p)));
+        g.draw(getMarkupX(p));
     }
 
     protected void paintMarkupTriangle(@NotNull Graphics2D g, @NotNull GoPoint p) {
-        Objects.requireNonNull(g).fill(getMarkupTriangle(Objects.requireNonNull(p)));
+        g.fill(getMarkupTriangle(p));
     }
 
     protected void paintMarkupCircle(@NotNull Graphics2D g, @NotNull GoPoint p) {
-        Objects.requireNonNull(g).fill(getMarkupCircle(Objects.requireNonNull(p)));
+        g.fill(getMarkupCircle(p));
     }
 
     protected void paintMarkupSquare(@NotNull Graphics2D g, @NotNull GoPoint p) {
-        Objects.requireNonNull(g).fill(getMarkupSquare(Objects.requireNonNull(p)));
+        g.fill(getMarkupSquare(p));
     }
 
     protected void paintAllLineMarkups(@NotNull Graphics2D g) {
-        Objects.requireNonNull(g);
         LineMarkupSet set = lineMarkup;
         if (set != null) {
             g.setPaint(defaultMarkupColor);
@@ -708,7 +683,6 @@ public class GobanView extends JComponent {
     }
 
     protected void paintLineMarkup(@NotNull Graphics2D g, @NotNull LineMarkup lm) {
-        Objects.requireNonNull(g);
         GoPoint start = lm.start, end = lm.end;
         int x1 = start.x, y1 = start.y;
         int x2 = end.x, y2 = end.y;

@@ -7,8 +7,8 @@ class SGFProperty: RowColumn, Serializable {
 
     private var sequence: Sequence
 
-    val list: MutableList<SGFValue>
-        @JvmName("list") get() = sequence
+    val values: MutableList<SGFValue>
+        @JvmName("values") get() = sequence
 
     fun copy(level: SGFCopyLevel? = null): SGFProperty {
         return SGFProperty(this, level ?: SGFCopyLevel.VALUE)

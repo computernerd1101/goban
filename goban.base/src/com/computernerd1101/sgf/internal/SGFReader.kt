@@ -258,7 +258,7 @@ sealed class SGFReader(val warnings: SGFWarningList) {
             prop.row = r
             prop.column = c
             map[name]?.apply {
-                list.addAll(prop.list)
+                values.addAll(prop.values)
             } ?: map.put(name, prop)
             ch = lastRead
             r = row
@@ -283,7 +283,7 @@ sealed class SGFReader(val warnings: SGFWarningList) {
         // last returned character is guaranteed to be '['
         var value = readValue()
         val prop = SGFProperty(value)
-        val list = prop.list
+        val list = prop.values
         while(true) {
             val ch = skipSpaces()
             if (ch != '['.toInt()) return prop
@@ -301,7 +301,7 @@ sealed class SGFReader(val warnings: SGFWarningList) {
         val value = SGFValue(bytes)
         value.row =  r
         value.column = c
-        val list = value.list
+        val list = value.parts
         // previously read character is guaranteed to be '['
         while(true) {
             val ch = readText(bytes)

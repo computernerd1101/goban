@@ -1,18 +1,16 @@
 package com.computernerd1101.goban.players
 
-import com.computernerd1101.goban.GoColor
+import com.computernerd1101.goban.*
 import com.computernerd1101.goban.sgf.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.selects.select
 
 class GoPlayerManager {
 
     val gameJob = Job()
-    val blackPlayerJob = Job(gameJob)
-    val whitePlayerJob = Job(gameJob)
 
     val gameScope: CoroutineScope
-    val blackPlayerScope = CoroutineScope(Dispatchers.IO + blackPlayerJob)
-    val whitePlayerScope = CoroutineScope(Dispatchers.IO + whitePlayerJob)
 
     @get:JvmName("getSGF")
     val sgf: GoSGF
@@ -26,11 +24,10 @@ class GoPlayerManager {
     val blackPlayer: GoPlayer
     val whitePlayer: GoPlayer
 
-    private fun CoroutineDispatcher.notIO(): CoroutineDispatcher =
-        if (this == Dispatchers.IO) Dispatchers.Default else this
+    fun getPlayer(color: GoColor) = if (color == GoColor.BLACK) blackPlayer else whitePlayer
 
     constructor(dispatcher: CoroutineDispatcher, setup: GoGameSetup) {
-        gameScope = CoroutineScope(dispatcher.notIO() + gameJob)
+        gameScope = CoroutineScope(dispatcher + gameJob)
         val width = setup.width
         val height = setup.height
         sgf = GoSGF(width, height)
@@ -55,23 +52,65 @@ class GoPlayerManager {
         }
         blackPlayer = player1.createPlayer(this, GoColor.BLACK)
         whitePlayer = player2.createPlayer(this, GoColor.WHITE)
-        startGame()
     }
 
     @Throws(GoSGFResumeException::class)
     constructor(dispatcher: CoroutineDispatcher, blackPlayer: GoPlayer, whitePlayer: GoPlayer, sgf: GoSGF) {
-        gameScope = CoroutineScope(dispatcher.notIO() + gameJob)
+        gameScope = CoroutineScope(dispatcher + gameJob)
         this.sgf = sgf
-        node = sgf.rootNode
         gameInfo = sgf.onResume()
+        node = sgf.primaryLeafNode()
         this.blackPlayer = blackPlayer
         this.whitePlayer = whitePlayer
-        startGame()
     }
 
-    private fun startGame() {
+    fun startGame() {
         gameScope.launch {
-            // TODO
+            val handicap = gameInfo.handicap
+            if (handicap != 0 && node == sgf.rootNode) {
+                val goban = Goban(sgf.width, sgf.height)
+                while(true) {
+                    blackPlayer.generateHandicapStones(handicap, goban)
+                    if (goban.blackCount < handicap)
+                        continue
+                    if (goban.blackCount == handicap && whitePlayer.acceptHandicapStones(goban))
+                        break
+                    goban.clear()
+                }
+                if (goban.whiteCount > 0)
+                    goban.clear(GoColor.WHITE)
+                node = node.createNextSetupNode(goban).also {
+                    it.turnPlayer = GoColor.WHITE
+                }
+                blackPlayer.update()
+                whitePlayer.update()
+            }
+            val moveChannel = Channel<GoPoint?>(1)
+            while(gameJob.isActive) {
+                val turnPlayer: GoColor = node.turnPlayer?.let {
+                    if (node is GoSGFMoveNode) it.opponent
+                    else it
+                } ?: GoColor.BLACK
+                val player: GoPlayer
+                val opponent: GoPlayer
+                if (turnPlayer == GoColor.BLACK) {
+                    player = blackPlayer
+                    opponent = whitePlayer
+                } else {
+                    player = whitePlayer
+                    opponent = blackPlayer
+                }
+                player.requestMove(moveChannel)
+                select<Unit> {
+                    moveChannel.onReceive { move ->
+                        if (opponent.acceptOpponentMove(move)) {
+                            node = node.createNextMoveNode(move, turnPlayer)
+                            player.update()
+                            opponent.update()
+                        }
+                    }
+                }
+            }
         }
     }
 

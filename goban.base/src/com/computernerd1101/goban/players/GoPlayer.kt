@@ -1,8 +1,10 @@
 package com.computernerd1101.goban.players
 
-import com.computernerd1101.goban.GoColor
-import com.computernerd1101.goban.GoPointSet
+import com.computernerd1101.goban.*
+import com.computernerd1101.goban.sgf.GoSGFNode
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.SendChannel
+import kotlin.coroutines.CoroutineContext
 
 abstract class GoPlayer(val manager: GoPlayerManager, val color: GoColor) {
 
@@ -13,20 +15,21 @@ abstract class GoPlayer(val manager: GoPlayerManager, val color: GoColor) {
     }
 
     @Suppress("unused")
-    val job: CompletableJob
-        get() = if (color == GoColor.BLACK) manager.blackPlayerJob else manager.whitePlayerJob
-
-    @Suppress("unused")
-    val scope: CoroutineScope
-        get() = if (color == GoColor.BLACK) manager.blackPlayerScope else manager.whitePlayerScope
-
     val opponent: GoPlayer
         get() = if (color == GoColor.BLACK) manager.whitePlayer else manager.blackPlayer
 
+    abstract suspend fun generateHandicapStones(handicap: Int, goban: Goban)
+
+    abstract suspend fun requestMove(channel: SendChannel<GoPoint?>)
+
+    open suspend fun update() = Unit
+
+    open suspend fun acceptHandicapStones(goban: Goban): Boolean = true
+
+    open suspend fun acceptOpponentMove(move: GoPoint?): Boolean = true
+
     open suspend fun acceptOpponentTimeExtension(millis: Long): Boolean = false
 
-    abstract suspend fun generateHandicapStones(handicap: Int): GoPointSet
-
-    open suspend fun acceptHandicapStones(blackStones: GoPointSet): Boolean = true
+    open suspend fun acceptUndoMove(resumeNode: GoSGFNode): Boolean = false
 
 }
