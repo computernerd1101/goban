@@ -342,6 +342,13 @@ sealed class AbstractMutableGoban: AbstractGoban {
         return changed
     }
 
+    fun copyFrom(goban: AbstractGoban): Boolean {
+        if (width != goban.width || height != goban.height) return false
+        val diff = InternalGoban.copyRows(goban.rows, rows)
+        InternalGoban.count.addAndGet(this, diff)
+        return true
+    }
+
     @JvmOverloads
     fun clear(color: GoColor? = null) {
         val rows = this.rows

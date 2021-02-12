@@ -37,6 +37,7 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
         return current
     }
 
+    @Suppress("unused")
     @Synchronized
     fun leafNodes(): List<GoSGFNode> {
         val list = mutableListOf<GoSGFNode>()
@@ -253,6 +254,8 @@ sealed class GoSGFNode {
     }
 
     private var nullableTree: GoSGF?
+
+    val treeOrNull: GoSGF? get() = nullableTree
 
     @get:JvmName("tree")
     val tree: GoSGF get() = nullableTree ?: throw IllegalStateException()
@@ -1554,6 +1557,116 @@ class GoSGFMoveNode internal constructor(
             }
             updateFlags.getAndAccumulate(this, flag, op)
         }
+
+    @Suppress("unused")
+    val isLegal: Boolean get() = isLegal()
+
+    fun isLegal(rules: GoRules? = null): Boolean {
+        val point = playStoneAt ?: return true
+        val tree = treeOrNull ?: return false
+        return synchronized(tree) {
+            var parent: GoSGFNode? = this.parent
+            if (parent == null) return@synchronized false
+            val parentGoban = parent.goban
+            val goban = this.goban
+            //  override stone                single-stone suicide
+            if (parentGoban[point] != null || parentGoban == goban) return@synchronized false
+            val gameRules = rules ?: gameInfo?.rules ?: GoRules.DEFAULT
+            if (!gameRules.allowSuicide && goban[point] == null) return@synchronized false
+            val superko = gameRules.superko
+            while(parent is GoSGFMoveNode) {
+                if (parent.goban == goban &&
+                    (superko == Superko.POSITIONAL ||
+                            InternalGoSGF.violatesSituationalSuperko(turnPlayer, parent,
+                                superko == Superko.NATURAL)))
+                    return@synchronized false
+                parent = parent.parent
+            }
+            return true
+        }
+    }
+
+    val isLegalOrForced: Boolean get() = isLegalOrForced()
+
+    fun isLegalOrForced(rules: GoRules? = null): Boolean = isForced || isLegal(rules)
+
+    @Suppress("unused")
+    val superkoRestrictions: GoPointSet get() = getSuperkoRestrictions()
+
+    @Suppress("unused")
+    fun getSuperkoRestrictions(rules: GoRules?): GoPointSet = getSuperkoRestrictions(null, rules)
+
+    fun getSuperkoRestrictions(set: MutableGoPointSet?): GoPointSet = getSuperkoRestrictions(set, null)
+
+    fun getSuperkoRestrictions(set: MutableGoPointSet? = null, rules: GoRules? = null): GoPointSet {
+        val tree = treeOrNull ?: return set ?: GoPointSet.EMPTY
+        return synchronized(tree) {
+            if (!isAlive) return@synchronized set ?: GoPointSet.EMPTY
+            val tmpSet: MutableGoPointSet = ThreadLocalSuperko.get()
+            tmpSet.clear()
+            val nextPlayer = turnPlayer.opponent
+            val gameRules = rules ?: gameInfo?.rules ?: GoRules.DEFAULT
+            val superko = gameRules.superko
+            val natural = superko == Superko.NATURAL
+            val repetitions: MutableMap<GoSGFMoveNode, GoSGFMoveNode?>? =
+                if (superko == Superko.POSITIONAL) null else mutableMapOf()
+            val goban = this.goban
+            val nextGoban = Goban(goban.width, goban.height)
+            for(y in 0 until goban.height) {
+                for(x in 0 until goban.width) {
+                    val point = GoPoint(x, y)
+                    if (goban[point] != null) continue
+                    nextGoban.copyFrom(goban)
+                    nextGoban.play(point, nextPlayer)
+                    if (nextGoban contentEquals goban) continue // single-stone suicide
+                    var parent = this.parent
+                    while(parent is GoSGFMoveNode) {
+                        if (nextGoban contentEquals parent.goban) {
+                            if (repetitions == null) {
+                                tmpSet.add(point)
+                                break
+                            }
+                            if (InternalGoSGF.violatesSituationalSuperko(nextPlayer, parent, natural))
+                                tmpSet.add(point)
+                            if (repetitions.containsKey(parent)) {
+                                var lastRepetition = repetitions[parent]
+                                while(lastRepetition != null) {
+                                    if (InternalGoSGF.violatesSituationalSuperko(nextPlayer, lastRepetition, natural))
+                                        tmpSet.add(point)
+                                    lastRepetition = repetitions[lastRepetition]
+                                }
+                                break
+                            }
+                            repetitions[parent] = null
+                            var lastRepetition: GoSGFMoveNode = parent
+                            parent = parent.parent
+                            while(parent is GoSGFMoveNode) {
+                                if (nextGoban contentEquals parent.goban) {
+                                    if (InternalGoSGF.violatesSituationalSuperko(nextPlayer, parent, natural))
+                                        tmpSet.add(point)
+                                    repetitions[lastRepetition] = parent
+                                    lastRepetition = parent
+                                }
+                                parent = parent.parent
+                            }
+                            break
+                        }
+                        parent = parent.parent
+                    }
+                }
+            }
+            if (set == null) return@synchronized tmpSet.readOnly()
+            set.copyFrom(tmpSet)
+            set
+        }
+
+    }
+
+    private object ThreadLocalSuperko: ThreadLocal<MutableGoPointSet>() {
+
+        override fun initialValue() = MutableGoPointSet()
+
+    }
 
     @get:JvmName("black")
     val black = PlayerTime(this, GoColor.BLACK, marker)

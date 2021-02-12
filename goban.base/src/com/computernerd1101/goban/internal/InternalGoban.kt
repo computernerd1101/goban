@@ -23,8 +23,8 @@ internal object InternalGoban: LongBinaryOperator {
         var count = 0L
         for(i in 0 until src.size) {
             val row = src[i]
-            dst[i] = row
-            count += countStonesInRow(row)
+            val oldRow = GobanRows.updaters[i].getAndSet(dst, row)
+            count += countStonesInRow(row) - countStonesInRow(oldRow)
         }
         return count
     }

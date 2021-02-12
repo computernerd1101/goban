@@ -16,7 +16,7 @@ abstract class GoPlayer(val manager: GoPlayerManager, val color: GoColor) {
 
     @Suppress("unused")
     val opponent: GoPlayer
-        get() = if (color == GoColor.BLACK) manager.whitePlayer else manager.blackPlayer
+        get() = manager.getPlayer(color.opponent)
 
     abstract suspend fun generateHandicapStones(handicap: Int, goban: Goban)
 

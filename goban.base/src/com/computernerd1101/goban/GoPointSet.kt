@@ -6,9 +6,6 @@ package com.computernerd1101.goban
 import com.computernerd1101.goban.internal.*
 import com.computernerd1101.sgf.*
 
-@Suppress("unused")
-val emptyGoPointSet get() = GoPointSet.EMPTY
-
 fun GoPointSet(vararg points: Iterable<GoPoint>) = GoPointSet.readOnly(*points)
 
 open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPoint> {
@@ -225,61 +222,64 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
 
     fun copy(): MutableGoPointSet {
         val copy = MutableGoPointSet()
-        val set: GoPointSet = copy
-        set.row0 = row0
-        set.row1 = row1
-        set.row2 = row2
-        set.row3 = row3
-        set.row4 = row4
-        set.row5 = row5
-        set.row6 = row6
-        set.row7 = row7
-        set.row8 = row8
-        set.row9 = row9
-        set.row10 = row10
-        set.row11 = row11
-        set.row12 = row12
-        set.row13 = row13
-        set.row14 = row14
-        set.row15 = row15
-        set.row16 = row16
-        set.row17 = row17
-        set.row18 = row18
-        set.row19 = row19
-        set.row20 = row20
-        set.row21 = row21
-        set.row22 = row22
-        set.row23 = row23
-        set.row24 = row24
-        set.row25 = row25
-        set.row26 = row26
-        set.row27 = row27
-        set.row28 = row28
-        set.row29 = row29
-        set.row30 = row30
-        set.row31 = row31
-        set.row32 = row32
-        set.row33 = row33
-        set.row34 = row34
-        set.row35 = row35
-        set.row36 = row36
-        set.row37 = row37
-        set.row38 = row38
-        set.row39 = row39
-        set.row40 = row40
-        set.row41 = row41
-        set.row42 = row42
-        set.row43 = row43
-        set.row44 = row44
-        set.row45 = row45
-        set.row46 = row46
-        set.row47 = row47
-        set.row48 = row48
-        set.row49 = row49
-        set.row50 = row50
-        set.row51 = row51
-        set.sizeAndHash = InternalGoPointSet.sizeAndHash(set)
+        copyInto(copy, InternalGoPointSet)
         return copy
+    }
+
+    internal fun copyInto(dst: GoPointSet, intern: InternalGoPointSet) {
+        dst.row0 = row0
+        dst.row1 = row1
+        dst.row2 = row2
+        dst.row3 = row3
+        dst.row4 = row4
+        dst.row5 = row5
+        dst.row6 = row6
+        dst.row7 = row7
+        dst.row8 = row8
+        dst.row9 = row9
+        dst.row10 = row10
+        dst.row11 = row11
+        dst.row12 = row12
+        dst.row13 = row13
+        dst.row14 = row14
+        dst.row15 = row15
+        dst.row16 = row16
+        dst.row17 = row17
+        dst.row18 = row18
+        dst.row19 = row19
+        dst.row20 = row20
+        dst.row21 = row21
+        dst.row22 = row22
+        dst.row23 = row23
+        dst.row24 = row24
+        dst.row25 = row25
+        dst.row26 = row26
+        dst.row27 = row27
+        dst.row28 = row28
+        dst.row29 = row29
+        dst.row30 = row30
+        dst.row31 = row31
+        dst.row32 = row32
+        dst.row33 = row33
+        dst.row34 = row34
+        dst.row35 = row35
+        dst.row36 = row36
+        dst.row37 = row37
+        dst.row38 = row38
+        dst.row39 = row39
+        dst.row40 = row40
+        dst.row41 = row41
+        dst.row42 = row42
+        dst.row43 = row43
+        dst.row44 = row44
+        dst.row45 = row45
+        dst.row46 = row46
+        dst.row47 = row47
+        dst.row48 = row48
+        dst.row49 = row49
+        dst.row50 = row50
+        dst.row51 = row51
+        dst.sizeAndHash = intern.sizeAndHash(dst)
     }
 
     open fun readOnly() = this
@@ -391,12 +391,8 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
     override fun readOnly(): GoPointSet {
         if (isEmpty()) return EMPTY
         val copy = GoPointSet(InternalGoPointSet)
-        for(updater in InternalGoPointSet.rowUpdaters)
-            updater[copy] = updater[this]
-        val sizeAndHash = InternalGoPointSet.sizeAndHash(copy)
-        if (sizeAndHash == 0L) return EMPTY
-        InternalGoPointSet.sizeAndHash[copy] = InternalGoPointSet.sizeAndHash(copy)
-        return copy
+        copyInto(copy, InternalGoPointSet)
+        return if (copy.isEmpty()) EMPTY else copy
     }
 
     override fun iterator(): MutableIterator<GoPoint> = object :
@@ -439,6 +435,15 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                 -((x + y*52L) shl 32) - 1L)
             true
         } else false
+    }
+
+    fun copyFrom(elements: Collection<GoPoint>) {
+        if (elements is GoPointSet) {
+            elements.copyInto(this, InternalGoPointSet)
+        } else {
+            clear()
+            addAll(elements)
+        }
     }
 
     override fun addAll(elements: Collection<GoPoint>): Boolean {

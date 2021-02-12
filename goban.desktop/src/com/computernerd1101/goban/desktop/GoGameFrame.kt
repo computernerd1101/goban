@@ -3,6 +3,7 @@ package com.computernerd1101.goban.desktop
 import com.computernerd1101.goban.*
 import com.computernerd1101.goban.desktop.resources.*
 import com.computernerd1101.goban.players.*
+import com.computernerd1101.goban.sgf.GoSGFMoveNode
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 import java.awt.*
@@ -45,6 +46,7 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
     }
 
     private val sgf = manager.sgf
+    private val superkoRestrictions = MutableGoPointSet()
 
     private var gameAction = AtomicReference<GameAction?>(null)
     private var handicap = 0
@@ -58,6 +60,7 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
             goban.clear(GoColor.WHITE)
         withContext(Dispatchers.IO) {
             if (gameAction.compareAndSet(null, GameAction.HANDICAP)) {
+                superkoRestrictions.clear()
                 this@GoGameFrame.handicap = handicap
                 gobanView.goban = goban
                 updateHandicapText(handicap, blackCount)
@@ -80,7 +83,14 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
     }
 
     suspend fun update() = withContext(Dispatchers.IO) {
-        gobanView.goban = manager.node.goban
+        val node = manager.node
+        if (node is GoSGFMoveNode) {
+            node.getSuperkoRestrictions(superkoRestrictions)
+        } else {
+            superkoRestrictions.clear()
+        }
+        gobanView.goban = node.goban
+        gobanView.repaint()
     }
 
     private val gobanView = object: GobanView(manager.node.goban) {
@@ -110,7 +120,7 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
             val goban = this.goban ?: return null
             val color = goban[p]
             if (color != null) return color
-            if (p != goCursor) return null
+            if (p != goCursor || superkoRestrictions.contains(p)) return null
             val action = gameAction.get() ?: return null
             return when(action) {
                 GameAction.PLAY_BLACK -> GoColor.BLACK
@@ -133,7 +143,18 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
                     }
                 }
                 // PLAY_BLACK, PLAY_WHITE
-                else -> if (goban[p] == null) 0.5f else 1f
+                else -> if (goban[p] == null && !superkoRestrictions.contains(p)) 0.5f else 1f
+            }
+        }
+
+        override fun paintGoban(g: Graphics2D) {
+            super.paintGoban(g)
+            val goban = this.goban ?: return
+            g.paint = foreground
+            for(point in superkoRestrictions) {
+                if (point.x < goban.width && point.y < goban.height && goban[point] == null) {
+                    g.draw(getMarkupSquare(point))
+                }
             }
         }
 
@@ -142,6 +163,7 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
     private val actionButton = JButton(GoPoint.formatPoint(null, sgf.width, sgf.height))
 
     init {
+        actionButton.isEnabled = false
         actionButton.addActionListener {
             if (gameAction.get() == GameAction.HANDICAP)
                 actionButton.text = GoPoint.formatPoint(null, sgf.width, sgf.height)

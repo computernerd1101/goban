@@ -104,10 +104,14 @@ class GoPlayerManager {
                 select<Unit> {
                     moveChannel.onReceive { move ->
                         if (opponent.acceptOpponentMove(move)) {
-                            node = node.createNextMoveNode(move, turnPlayer)
-                            player.update()
-                            opponent.update()
+                            val node = this@GoPlayerManager.node.createNextMoveNode(move, turnPlayer)
+                            if (node.isLegalOrForced) {
+                                node.moveVariation(0)
+                                this@GoPlayerManager.node = node
+                            } else node.delete()
                         }
+                        player.update()
+                        opponent.update()
                     }
                 }
             }

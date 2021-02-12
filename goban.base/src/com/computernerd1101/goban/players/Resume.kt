@@ -111,7 +111,7 @@ private fun GoSGFNode.onResume(
                         throw GoSGFResumeException.Superko(node, previousNode, Superko.POSITIONAL)
                     repetitions[node] = previousNode
                     if (!isForced) while (previousNode != null) {
-                        if (violatesSituationalSuperko(node, previousNode, isNaturalSuperko))
+                        if (violatesSituationalSuperko(node.turnPlayer, previousNode, isNaturalSuperko))
                             throw GoSGFResumeException.Superko(node, previousNode, superko)
                         previousNode = repetitions[previousNode]
                     }
