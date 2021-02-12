@@ -50,11 +50,11 @@ internal object InternalGoPointSet {
     fun sizeAndHash(set: GoPointSet): Long  {
         var words = 0L
         for(y in 0..51)
-            words += sizeAndHash(rowUpdaters[y][set], y)
+            words += sizeAndHash(y, rowUpdaters[y][set])
         return words
     }
 
-    fun sizeAndHash(row: Long, y: Int): Long {
+    fun sizeAndHash(y: Int, row: Long): Long {
         var words = 0L
         val inc = (52L shl 32)*y + 1L
         var unseen = row
