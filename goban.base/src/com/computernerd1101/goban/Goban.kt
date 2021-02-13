@@ -566,45 +566,50 @@ class Goban: AbstractMutableGoban {
     }
 
     @Suppress("unused")
-    val territory: MutableGoban get() = getTerritory()
+    val scoreGoban: MutableGoban get() = getScoreGoban()
 
-    fun getTerritory(areaScore: Boolean = true) = getTerritory(areaScore, null)
+    fun getScoreGoban(territory: Boolean = false) = getScoreGoban(territory, null)
 
     @Suppress("unused")
-    fun getTerritory(territory: MutableGoban?) = getTerritory(true, territory)
+    fun getScoreGoban(score: MutableGoban?) = getScoreGoban(false, score)
 
-    fun getTerritory(areaScore: Boolean, territory: MutableGoban?): MutableGoban {
+    fun getScoreGoban(territory: Boolean, score: MutableGoban?): MutableGoban {
         GobanBulk.threadLocalGoban(width, height, rows)
         val arrays: Array<LongArray> = GobanThreadLocals.arrays()
         val group = arrays[GobanThreadLocals.GROUP]
         val black = arrays[GobanThreadLocals.BLACK]
         val white = arrays[GobanThreadLocals.WHITE]
-        val blackTerritory = arrays[GobanThreadLocals.BLACK_TERRITORY]
-        val whiteTerritory = arrays[GobanThreadLocals.WHITE_TERRITORY]
+        val blackScore = arrays[GobanThreadLocals.BLACK_SCORE]
+        val whiteScore = arrays[GobanThreadLocals.WHITE_SCORE]
         val mask = (1L shl width) - 1L
         for(y in 0 until height)
             group[y] = mask xor (black[y] or white[y])
         for(y in height..51)
             group[y] = 0L
-        for(y in 0 until height) {
-            while(group[y] != 0L) {
-                nextTerritory(y)
-            }
+        for(y in 0 until height)
+            while(group[y] != 0L) nextScore(y)
+        if (territory) {
+            do {
+                for (y in 0 until height)
+                    group[y] = black[y] or white[y]
+                var hasFalseEyes = false
+                for (y in 0 until height) while (group[y] != 0L)
+                    if (nextFalseEye(y)) hasFalseEyes = true
+            } while(hasFalseEyes)
+        } else for(y in 0 until height) {
+            blackScore[y] = blackScore[y] or black[y]
+            whiteScore[y] = whiteScore[y] or white[y]
         }
-        if (areaScore) for(y in 0 until height) {
-            blackTerritory[y] = blackTerritory[y] or black[y]
-            whiteTerritory[y] = whiteTerritory[y] or white[y]
-        }
-        val territoryGoban = if (territory != null && width == territory.width && height == territory.height) {
-            territory.clear()
-            territory
+        val scoreGoban = if (score != null && width == score.width && height == score.height) {
+            score.clear()
+            score
         } else MutableGoban(width, height)
-        GobanBulk.setAll(territoryGoban, blackTerritory, GoColor.BLACK)
-        GobanBulk.setAll(territoryGoban, whiteTerritory, GoColor.WHITE)
-        return territoryGoban
+        GobanBulk.setAll(scoreGoban, blackScore, GoColor.BLACK)
+        GobanBulk.setAll(scoreGoban, whiteScore, GoColor.WHITE)
+        return scoreGoban
     }
 
-    private fun nextTerritory(y: Int) {
+    private fun nextScore(y: Int) {
         val maxBit = 1L shl (width - 1)
         val arrays: Array<LongArray> = GobanThreadLocals.arrays()
         val group = arrays[GobanThreadLocals.GROUP]
@@ -612,8 +617,8 @@ class Goban: AbstractMutableGoban {
         val pending = arrays[GobanThreadLocals.PENDING]
         val black = arrays[GobanThreadLocals.BLACK]
         val white = arrays[GobanThreadLocals.WHITE]
-        val blackTerritory = arrays[GobanThreadLocals.BLACK_TERRITORY]
-        val whiteTerritory = arrays[GobanThreadLocals.WHITE_TERRITORY]
+        val blackScore = arrays[GobanThreadLocals.BLACK_SCORE]
+        val whiteScore = arrays[GobanThreadLocals.WHITE_SCORE]
         GobanBulk.clear(chain)
         GobanBulk.clear(pending)
         var groupRow = group[y]
@@ -689,11 +694,40 @@ class Goban: AbstractMutableGoban {
             }
             // no more points
             if (hasBlack xor hasWhite) for(i in y..y1) {
-                if (hasBlack) blackTerritory[i] = blackTerritory[i] or chain[i]
-                else whiteTerritory[i] = whiteTerritory[i] or chain[i]
+                if (hasBlack) blackScore[i] = blackScore[i] or chain[i]
+                else whiteScore[i] = whiteScore[i] or chain[i]
             }
             return
         }
+    }
+
+    private fun nextFalseEye(y: Int): Boolean {
+        val arrays: Array<LongArray> = GobanThreadLocals.arrays()
+        val group = arrays[GobanThreadLocals.GROUP]
+        val chain = arrays[GobanThreadLocals.CHAIN]
+        val black = arrays[GobanThreadLocals.BLACK]
+        var row = group[y]
+        val xBit = row and -row
+        val player: Int
+        val opponent: Int
+        val score: Int
+        if (black[y] and xBit != 0L) {
+            player = GobanThreadLocals.BLACK
+            opponent = GobanThreadLocals.WHITE
+            score = GobanThreadLocals.BLACK_SCORE
+        } else {
+            player = GobanThreadLocals.WHITE
+            opponent = GobanThreadLocals.BLACK
+            score = GobanThreadLocals.WHITE_SCORE
+        }
+        val hasFalseEye = !GobanBulk.isAlive(width, height, xBit, y, player, opponent,
+            falseEyeScore = score, shortCircuit = false)
+        for(y1 in y..height) {
+            row = chain[y1]
+            if (row == 0L) break
+            group[y1] = group[y1] and row.inv()
+        }
+        return hasFalseEye
     }
 
 }

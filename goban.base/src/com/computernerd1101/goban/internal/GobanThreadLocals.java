@@ -30,7 +30,7 @@ public final class GobanThreadLocals extends ThreadLocal<long[][]> {
     public static final int PENDING = 2;
     public static final int BLACK = 3;
     public static final int WHITE = 4;
-    public static final int BLACK_TERRITORY = 5;
-    public static final int WHITE_TERRITORY = 6;
+    public static final int BLACK_SCORE = 5;
+    public static final int WHITE_SCORE = 6;
 
 }
