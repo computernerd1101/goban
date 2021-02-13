@@ -237,11 +237,16 @@ internal object GobanBulk: LongBinaryOperator {
         return (row or add) and remove.inv()
     }
 
-    fun isAlive(width: Int, height: Int, xBit: Long, y: Int, player: Int, opponent: Int): Boolean {
+    fun isAlive(width: Int, height: Int,
+                xBit: Long, y: Int,
+                player: Int, opponent: Int,
+                onlyChain: Boolean = true,
+                shortCircuit: Boolean = true
+    ): Boolean {
         val arrays: Array<LongArray> = GobanThreadLocals.arrays()
-        val cluster = arrays[GobanThreadLocals.CLUSTER]
-        clear(cluster)
-        cluster[y] = xBit
+        val chain = arrays[GobanThreadLocals.CHAIN]
+        clear(chain)
+        chain[y] = xBit
         val playerRows = arrays[player]
         val opponentRows = arrays[opponent]
         // I tried making this a recursive function, but sometimes got a StackOverflowError.
@@ -254,20 +259,25 @@ internal object GobanBulk: LongBinaryOperator {
         var bit = xBit
         var y1 = y
         var pendingY = y
+        var isAlive = false
         pop@ while(true) {
             // check the points above, below, and to the left and right of the current point
             var y2 = y1 - 1 // above
-            var clusterRow: Long
+            var chainRow: Long
             if (y2 >= 0 && opponentRows[y2] and bit == 0L) {
-                if (playerRows[y2] and bit == 0L) return true
-                clusterRow = cluster[y2]
-                if (clusterRow and bit == 0L) {
-                    cluster[y2] = clusterRow or bit
-                    // pendingY is the first (top to bottom) non-zero row in pending.
-                    // If the row before (above) it gained a bit, then that
-                    // must be the new pendingY.
-                    pendingY = y2
-                    pending[y2] = pending[y2] or bit
+                if (onlyChain && playerRows[y2] and bit == 0L) {
+                    if (shortCircuit) return true
+                    isAlive = true
+                } else {
+                    chainRow = chain[y2]
+                    if (chainRow and bit == 0L) {
+                        chain[y2] = chainRow or bit
+                        // pendingY is the first (top to bottom) non-zero row in pending.
+                        // If the row before (above) it gained a bit, then that
+                        // must be the new pendingY.
+                        pendingY = y2
+                        pending[y2] = pending[y2] or bit
+                    }
                 }
             }
             var bits = 0L
@@ -277,30 +287,38 @@ internal object GobanBulk: LongBinaryOperator {
             // see it that way (big endian vs little endian), but enough human mathematicians
             // have agreed to name the operations "left shift" and "right shift" accordingly.
             var bit2 = bit shr 1 // left
-            clusterRow = cluster[y1]
+            chainRow = chain[y1]
             if (bit2 > 0 && opponentRows[y1] and bit2 == 0L) {
-                if (playerRows[y1] and bit2 == 0L) return true
-                if (clusterRow and bit2 == 0L) {
-                    cluster[y1] = clusterRow or bit2
+                if (onlyChain && playerRows[y1] and bit2 == 0L) {
+                    if (shortCircuit) return true
+                    isAlive = true
+                } else if (chainRow and bit2 == 0L) {
+                    chain[y1] = chainRow or bit2
                     bits = bit2
                 }
             }
             bit2 = bit shl 1 // right
             if (bit2 <= maxBit && opponentRows[y1] and bit2 == 0L) {
-                if (playerRows[y1] and bit2 == 0L) return true
-                if (clusterRow and bit2 == 0L) {
-                    cluster[y1] = clusterRow or bit2
+                if (onlyChain && playerRows[y1] and bit2 == 0L) {
+                    if (shortCircuit) return true
+                    isAlive = true
+                } else if (chainRow and bit2 == 0L) {
+                    chain[y1] = chainRow or bit2
                     bits = bits or bit2
                 }
             }
             if (bits != 0L) pending[y1] = pending[y1] or bits
-            y2 = y1 + 1 // down
+            y2 = y1 + 1 // below
             if (y2 < height && opponentRows[y2] and bit == 0L) {
-                if (playerRows[y2] and bit == 0L) return true
-                clusterRow = cluster[y2]
-                if (clusterRow and bit == 0L) {
-                    cluster[y2] = clusterRow or bit
-                    pending[y2] = pending[y2] or bit
+                if (onlyChain && playerRows[y2] and bit == 0L) {
+                    if (shortCircuit) return true
+                    isAlive = true
+                } else {
+                    chainRow = chain[y2]
+                    if (chainRow and bit == 0L) {
+                        chain[y2] = chainRow or bit
+                        pending[y2] = pending[y2] or bit
+                    }
                 }
             }
             // pop next point
@@ -316,7 +334,7 @@ internal object GobanBulk: LongBinaryOperator {
                 pendingY++
             }
             // no more points
-            return false
+            return isAlive
         }
     }
 
@@ -344,12 +362,12 @@ internal object GobanBulk: LongBinaryOperator {
         for(i in array.indices) array[i] = 0L
     }
 
-    fun updateMetaCluster(height: Int) {
+    fun addChainToGroup(height: Int) {
         val arrays: Array<LongArray> = GobanThreadLocals.arrays()
-        val metaCluster = arrays[GobanThreadLocals.META_CLUSTER]
-        val cluster = arrays[GobanThreadLocals.CLUSTER]
+        val group = arrays[GobanThreadLocals.GROUP]
+        val chain = arrays[GobanThreadLocals.CHAIN]
         for(y in 0 until height) {
-            metaCluster[y] = metaCluster[y] or cluster[y]
+            group[y] = group[y] or chain[y]
         }
     }
 

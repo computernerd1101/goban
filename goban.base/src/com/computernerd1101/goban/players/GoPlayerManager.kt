@@ -86,7 +86,8 @@ class GoPlayerManager {
                 whitePlayer.update()
             }
             val moveChannel = Channel<GoPoint?>(1)
-            while(gameJob.isActive) {
+            var passCount = 0
+            while(passCount < 2) {
                 val turnPlayer: GoColor = node.turnPlayer?.let {
                     if (node is GoSGFMoveNode) it.opponent
                     else it
@@ -103,7 +104,9 @@ class GoPlayerManager {
                 player.requestMove(moveChannel)
                 select<Unit> {
                     moveChannel.onReceive { move ->
-                        if (opponent.acceptOpponentMove(move)) {
+                        if (move == null) passCount++
+                        else passCount = 0
+                        if (move == null || opponent.acceptOpponentMove(move)) {
                             val node = this@GoPlayerManager.node.createNextMoveNode(move, turnPlayer)
                             if (node.isLegalOrForced) {
                                 node.moveVariation(0)

@@ -1607,9 +1607,6 @@ class GoSGFMoveNode internal constructor(
             val nextPlayer = turnPlayer.opponent
             val gameRules = rules ?: gameInfo?.rules ?: GoRules.DEFAULT
             val superko = gameRules.superko
-            val natural = superko == Superko.NATURAL
-            val repetitions: MutableMap<GoSGFMoveNode, GoSGFMoveNode?>? =
-                if (superko == Superko.POSITIONAL) null else mutableMapOf()
             val goban = this.goban
             val nextGoban = Goban(goban.width, goban.height)
             for(y in 0 until goban.height) {
@@ -1622,34 +1619,12 @@ class GoSGFMoveNode internal constructor(
                     var parent = this.parent
                     while(parent is GoSGFMoveNode) {
                         if (nextGoban contentEquals parent.goban) {
-                            if (repetitions == null) {
+                            if (superko == Superko.POSITIONAL || InternalGoSGF.violatesSituationalSuperko(
+                                    nextPlayer, parent, superko == Superko.NATURAL
+                            )) {
                                 tmpSet.add(point)
                                 break
                             }
-                            if (InternalGoSGF.violatesSituationalSuperko(nextPlayer, parent, natural))
-                                tmpSet.add(point)
-                            if (repetitions.containsKey(parent)) {
-                                var lastRepetition = repetitions[parent]
-                                while(lastRepetition != null) {
-                                    if (InternalGoSGF.violatesSituationalSuperko(nextPlayer, lastRepetition, natural))
-                                        tmpSet.add(point)
-                                    lastRepetition = repetitions[lastRepetition]
-                                }
-                                break
-                            }
-                            repetitions[parent] = null
-                            var lastRepetition: GoSGFMoveNode = parent
-                            parent = parent.parent
-                            while(parent is GoSGFMoveNode) {
-                                if (nextGoban contentEquals parent.goban) {
-                                    if (InternalGoSGF.violatesSituationalSuperko(nextPlayer, parent, natural))
-                                        tmpSet.add(point)
-                                    repetitions[lastRepetition] = parent
-                                    lastRepetition = parent
-                                }
-                                parent = parent.parent
-                            }
-                            break
                         }
                         parent = parent.parent
                     }

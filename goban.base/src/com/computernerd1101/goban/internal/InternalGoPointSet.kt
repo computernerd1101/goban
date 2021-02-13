@@ -68,6 +68,18 @@ internal object InternalGoPointSet {
         return words
     }
 
+    fun copyRowFrom(set: GoPointSet, y: Int, newBits: Long): Boolean {
+        val oldBits = rowUpdaters[y].getAndSet(set, newBits)
+        return if (newBits != oldBits) {
+            sizeAndHash.addAndGet(
+                set,
+                sizeAndHash(y, newBits) -
+                        sizeAndHash(y, oldBits)
+            )
+            true
+        } else false
+    }
+
 }
 
 internal open class GoPointItr(val set: GoPointSet) : Iterator<GoPoint> {

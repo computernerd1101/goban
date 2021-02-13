@@ -110,6 +110,62 @@ sealed class AbstractGoban(
      */
     abstract fun editable(): AbstractMutableGoban
 
+    @JvmOverloads
+    fun getChain(p: GoPoint, chain: MutableGoPointSet? = null): GoPointSet =
+        getChain(p.x, p.y, chain)
+
+    @JvmOverloads
+    fun getChain(x: Int, y: Int, chain: MutableGoPointSet? = null): GoPointSet =
+        getChainOrGroup(x, y, chain, isChain = true)
+
+    @JvmOverloads
+    fun getGroup(p: GoPoint, group: MutableGoPointSet? = null): GoPointSet =
+        getGroup(p.x, p.y, group)
+
+    @JvmOverloads
+    fun getGroup(x: Int, y: Int, chain: MutableGoPointSet? = null): GoPointSet =
+        getChainOrGroup(x, y, chain, isChain = false)
+
+    private fun getChainOrGroup(x: Int, y: Int, chainOrGroup: MutableGoPointSet?, isChain: Boolean): GoPointSet {
+        if (x !in 0 until width)
+            throw InternalGoban.indexOutOfBoundsException(x, width)
+        if (y !in 0 until height)
+            throw InternalGoban.indexOutOfBoundsException(y, height)
+        GobanBulk.threadLocalGoban(width, height, rows)
+        val arrays: Array<LongArray> = GobanThreadLocals.arrays()
+        val black = arrays[GobanThreadLocals.BLACK]
+        val white = arrays[GobanThreadLocals.WHITE]
+        val xBit = 1L shl x
+        val playerRows: LongArray
+        val player: Int
+        val opponent: Int
+        when {
+            black[y] and xBit != 0L -> {
+                playerRows = black
+                player = GobanThreadLocals.BLACK
+                opponent = GobanThreadLocals.WHITE
+            }
+            white[y] and xBit != 0L -> {
+                playerRows = white
+                player = GobanThreadLocals.WHITE
+                opponent = GobanThreadLocals.BLACK
+            }
+            chainOrGroup == null -> return GoPointSet.EMPTY
+            else -> {
+                chainOrGroup.clear()
+                return chainOrGroup
+            }
+        }
+        GobanBulk.isAlive(width, height, xBit, y, player, opponent, onlyChain = isChain, shortCircuit = false)
+        val set = chainOrGroup ?: GoPointSet(InternalGoPointSet)
+        val rows = arrays[GobanThreadLocals.CHAIN]
+        for(i in 0..51) InternalGoPointSet.copyRowFrom(set, i, rows[i] and playerRows[i])
+        // If the parameter chainOrGroup == null, then set will be an immutable GoPointSet
+        // that is not empty because it is guaranteed to contain the starting parameter p,
+        // unless this[p] == null, in which case this method would have returned already.
+        return set
+    }
+
     fun toPointSet(color: GoColor?): GoPointSet {
         val points = GoPointSet(InternalGoPointSet) // creates a separate instance from GoPointSet.EMPTY
         initPointSet(points, color)
@@ -197,8 +253,8 @@ class FixedGoban: AbstractGoban {
         this.hash = hash
         GobanBulk.threadLocalGoban(width, height, rows)
         val arrays: Array<LongArray> = GobanThreadLocals.arrays()
-        val metaCluster = arrays[GobanThreadLocals.META_CLUSTER]
-        GobanBulk.clear(metaCluster)
+        val group = arrays[GobanThreadLocals.GROUP]
+        GobanBulk.clear(group)
         val blackRows = arrays[GobanThreadLocals.BLACK]
         val whiteRows = arrays[GobanThreadLocals.WHITE]
         for(y in 0 until height) {
@@ -207,7 +263,7 @@ class FixedGoban: AbstractGoban {
             while(unseen != 0L) {
                 val xBit = unseen and -unseen
                 unseen -= xBit
-                if (metaCluster[y] and xBit != 0L) continue
+                if (group[y] and xBit != 0L) continue
                 val player: Int
                 val opponent: Int
                 if (black and xBit != 0L) {
@@ -221,7 +277,7 @@ class FixedGoban: AbstractGoban {
                     isPlayable = false
                     return
                 }
-                GobanBulk.updateMetaCluster(height)
+                GobanBulk.addChainToGroup(height)
             }
         }
         isPlayable = true
@@ -460,9 +516,9 @@ class Goban: AbstractMutableGoban {
             InternalGoban.set(this, x, y, stone, null) != null)
             return false
         val arrays: Array<LongArray> = GobanThreadLocals.arrays()
-        val metaCluster = arrays[GobanThreadLocals.META_CLUSTER]
-        GobanBulk.clear(metaCluster)
-        val cluster = arrays[GobanThreadLocals.CLUSTER]
+        val group = arrays[GobanThreadLocals.GROUP]
+        GobanBulk.clear(group)
+        val chain = arrays[GobanThreadLocals.CHAIN]
         val rows = this.rows
         GobanBulk.threadLocalGoban(width, height, rows)
         val player: Int
@@ -486,27 +542,158 @@ class Goban: AbstractMutableGoban {
             return false
         }
         if (!GobanBulk.isAlive(width, height, xBit, y, player, opponent))
-            GobanBulk.setAll(this, cluster, null)
+            GobanBulk.setAll(this, chain, null)
         return true
     }
 
     private fun checkNeighbor(xBit: Long, y: Int, player: Int, opponent: Int): Int {
         val arrays: Array<LongArray> = GobanThreadLocals.arrays()
-        val metaCluster = arrays[GobanThreadLocals.META_CLUSTER]
-        val cluster = arrays[GobanThreadLocals.CLUSTER]
+        val group = arrays[GobanThreadLocals.GROUP]
+        val chain = arrays[GobanThreadLocals.CHAIN]
         val playerRows = arrays[player]
         val opponentRows = arrays[opponent]
         if (playerRows[y] and xBit != 0L) return 2 // multi-stone
         if (opponentRows[y] and xBit == 0L) return 1 // alive
-        if (metaCluster[y] and xBit != 0L) return 0
+        if (group[y] and xBit != 0L) return 0
         if (GobanBulk.isAlive(width, height, xBit, y, opponent, player)) {
-            GobanBulk.updateMetaCluster(height)
+            GobanBulk.addChainToGroup(height)
             return 0
         }
-        GobanBulk.setAll(this, cluster, null)
+        GobanBulk.setAll(this, chain, null)
         for(i in 0 until height)
-            opponentRows[i] = opponentRows[i] and cluster[i].inv()
+            opponentRows[i] = opponentRows[i] and chain[i].inv()
         return 1 // alive
+    }
+
+    @Suppress("unused")
+    val territory: MutableGoban get() = getTerritory()
+
+    fun getTerritory(areaScore: Boolean = true) = getTerritory(areaScore, null)
+
+    @Suppress("unused")
+    fun getTerritory(territory: MutableGoban?) = getTerritory(true, territory)
+
+    fun getTerritory(areaScore: Boolean, territory: MutableGoban?): MutableGoban {
+        GobanBulk.threadLocalGoban(width, height, rows)
+        val arrays: Array<LongArray> = GobanThreadLocals.arrays()
+        val group = arrays[GobanThreadLocals.GROUP]
+        val black = arrays[GobanThreadLocals.BLACK]
+        val white = arrays[GobanThreadLocals.WHITE]
+        val blackTerritory = arrays[GobanThreadLocals.BLACK_TERRITORY]
+        val whiteTerritory = arrays[GobanThreadLocals.WHITE_TERRITORY]
+        val mask = (1L shl width) - 1L
+        for(y in 0 until height)
+            group[y] = mask xor (black[y] or white[y])
+        for(y in height..51)
+            group[y] = 0L
+        for(y in 0 until height) {
+            while(group[y] != 0L) {
+                nextTerritory(y)
+            }
+        }
+        if (areaScore) for(y in 0 until height) {
+            blackTerritory[y] = blackTerritory[y] or black[y]
+            whiteTerritory[y] = whiteTerritory[y] or white[y]
+        }
+        val territoryGoban = if (territory != null && width == territory.width && height == territory.height) {
+            territory.clear()
+            territory
+        } else MutableGoban(width, height)
+        GobanBulk.setAll(territoryGoban, blackTerritory, GoColor.BLACK)
+        GobanBulk.setAll(territoryGoban, whiteTerritory, GoColor.WHITE)
+        return territoryGoban
+    }
+
+    private fun nextTerritory(y: Int) {
+        val maxBit = 1L shl (width - 1)
+        val arrays: Array<LongArray> = GobanThreadLocals.arrays()
+        val group = arrays[GobanThreadLocals.GROUP]
+        val chain = arrays[GobanThreadLocals.CHAIN]
+        val pending = arrays[GobanThreadLocals.PENDING]
+        val black = arrays[GobanThreadLocals.BLACK]
+        val white = arrays[GobanThreadLocals.WHITE]
+        val blackTerritory = arrays[GobanThreadLocals.BLACK_TERRITORY]
+        val whiteTerritory = arrays[GobanThreadLocals.WHITE_TERRITORY]
+        GobanBulk.clear(chain)
+        GobanBulk.clear(pending)
+        var groupRow = group[y]
+        var xBit = groupRow and -groupRow
+        group[y] = groupRow - xBit
+        chain[y] = xBit
+        var y1 = y
+        var pendingY = y
+        var hasBlack = false
+        var hasWhite = false
+        pop@ while(true) {
+            var y2 = y1 - 1 // above
+            if (y2 >= 0) {
+                groupRow = group[y2]
+                when {
+                    black[y2] and xBit != 0L -> hasBlack = true
+                    white[y2] and xBit != 0L -> hasWhite = true
+                    groupRow and xBit != 0L -> {
+                        group[y2] = groupRow and xBit.inv()
+                        chain[y2] = chain[y2] or xBit
+                        pendingY = y2
+                        pending[y2] = pending[y2] or xBit
+                    }
+                }
+            }
+            var bits = 0L
+            var xBit2 = xBit shr 1 // left
+            groupRow = group[y1]
+            if (xBit2 > 0) when {
+                black[y1] and xBit2 != 0L -> hasBlack = true
+                white[y1] and xBit2 != 0L -> hasWhite = true
+                groupRow and xBit2 != 0L -> {
+                    group[y1] = groupRow and xBit2.inv()
+                    chain[y1] = chain[y1] or xBit2
+                    bits = xBit2
+                }
+            }
+            xBit2 = xBit shl 1 // right
+            if (xBit2 <= maxBit) when {
+                black[y1] and xBit2 != 0L -> hasBlack = true
+                white[y1] and xBit2 != 0L -> hasWhite = true
+                groupRow and xBit2 != 0L -> {
+                    group[y1] = groupRow and xBit2.inv()
+                    chain[y1] = chain[y1] or xBit2
+                    bits = bits or xBit2
+                }
+            }
+            if (bits != 0L) pending[y1] = pending[y1] or bits
+            y2 = y1 + 1 // below
+            if (y2 < height) {
+                groupRow = group[y2]
+                when {
+                    black[y2] and xBit != 0L -> hasBlack = true
+                    white[y2] and xBit != 0L -> hasWhite = true
+                    groupRow and xBit != 0L -> {
+                        group[y2] = groupRow and xBit.inv()
+                        chain[y2] = chain[y2] or xBit
+                        pending[y2] = pending[y2] or xBit
+                    }
+                }
+            }
+            // pop next point
+            while(pendingY < height) {
+                val row = pending[pendingY]
+                if (row != 0L) {
+                    xBit = row and -row
+                    pending[pendingY] = row - xBit
+                    y1 = pendingY
+                    // found next point
+                    continue@pop
+                }
+                pendingY++
+            }
+            // no more points
+            if (hasBlack xor hasWhite) for(i in y..y1) {
+                if (hasBlack) blackTerritory[i] = blackTerritory[i] or chain[i]
+                else whiteTerritory[i] = whiteTerritory[i] or chain[i]
+            }
+            return
+        }
     }
 
 }

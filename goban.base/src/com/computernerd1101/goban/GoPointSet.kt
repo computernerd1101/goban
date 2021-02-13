@@ -644,7 +644,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
             is GoPointSet -> {
                 for(y in 0..51) {
                     val newBits = InternalGoPointSet.rowUpdaters[y][elements]
-                    if (copyRowFrom(y, newBits))
+                    if (InternalGoPointSet.copyRowFrom(this, y, newBits))
                         modified = true
                 }
             }
@@ -652,7 +652,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                 elements.expungeStaleRows()
                 for(y in 0..51) {
                     val newBits = elements.rowBits(y)
-                    if (copyRowFrom(y, newBits))
+                    if (InternalGoPointSet.copyRowFrom(this, y, newBits))
                         modified = true
                 }
             }
@@ -661,7 +661,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                 val y1 = elements.start.y
                 val y2 = elements.end.y
                 for(y in 0 until y1) if (clearRow(y)) modified = true
-                for(y in y1..y2) if (copyRowFrom(y, newBits)) modified = true
+                for(y in y1..y2) if (InternalGoPointSet.copyRowFrom(this, y, newBits)) modified = true
                 for(y in (y2+1)..51) if (clearRow(y)) modified = true
             }
             else -> {
@@ -670,23 +670,11 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                     rows[y] = rows[y] xor (1L shl x)
                 for(y in 0..51) {
                     val newBits = rows[y]
-                    if (copyRowFrom(y, newBits)) modified = true
+                    if (InternalGoPointSet.copyRowFrom(this, y, newBits)) modified = true
                 }
             }
         }
         return modified
-    }
-
-    private fun copyRowFrom(y: Int, newBits: Long): Boolean {
-        val oldBits = InternalGoPointSet.rowUpdaters[y].getAndSet(this, newBits)
-        return if (newBits != oldBits) {
-            InternalGoPointSet.sizeAndHash.addAndGet(
-                this,
-                InternalGoPointSet.sizeAndHash(y, newBits) -
-                        InternalGoPointSet.sizeAndHash(y, oldBits)
-            )
-            true
-        } else false
     }
 
     fun invertAll(elements: Collection<GoPoint>): Boolean {

@@ -21,7 +21,7 @@ class GoGameSetupView private constructor(
 
     constructor(): this(gobanDesktopResources(), gobanDesktopFormatResources())
 
-    private val playerFactory = ClientPlayer.Factory()
+    private val playerFactory = GoGameFrame.PlayerFactory()
     private val gameSetup: GoGameSetup
 
     private val comboSize = JComboBox<Any>()

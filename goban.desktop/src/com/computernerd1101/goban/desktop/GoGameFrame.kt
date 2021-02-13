@@ -21,7 +21,7 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
         setLocationRelativeTo(null)
     }
 
-    abstract class Player(manager: GoPlayerManager, color: GoColor): GoPlayer(manager, color) {
+    abstract class AbstractPlayer(manager: GoPlayerManager, color: GoColor): GoPlayer(manager, color) {
 
         abstract val frame: GoGameFrame
 
@@ -39,6 +39,32 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
 
     }
 
+    class Player(
+        private val factory: PlayerFactory,
+        manager: GoPlayerManager,
+        color: GoColor
+    ): AbstractPlayer(manager, color) {
+
+        override val frame: GoGameFrame get() = factory.frame
+
+    }
+
+    class PlayerFactory: GoPlayer.Factory {
+
+        override fun createPlayer(manager: GoPlayerManager, color: GoColor) =
+            Player(this, manager, color)
+
+        private val atomicFrame = AtomicReference<GoGameFrame>()
+
+        var frame: GoGameFrame
+            get() = atomicFrame.get() ?:
+                throw UninitializedPropertyAccessException("property frame has not been initialized")
+            set(frame) {
+                if (!atomicFrame.compareAndSet(null, frame))
+                    throw IllegalStateException("property frame has already been initialized")
+            }
+    }
+
     private enum class GameAction {
         HANDICAP,
         PLAY_BLACK,
@@ -47,6 +73,8 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
 
     private val sgf = manager.sgf
     private val superkoRestrictions = MutableGoPointSet()
+    private val suicideRestrictions = MutableGoPointSet()
+    private val prototypeGoban = Goban(sgf.width, sgf.height)
 
     private var gameAction = AtomicReference<GameAction?>(null)
     private var handicap = 0
@@ -76,7 +104,18 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
     suspend fun requestMove(player: GoColor, channel: SendChannel<GoPoint?>): Unit = withContext(Dispatchers.IO) {
         val action = if (player == GoColor.BLACK) GameAction.PLAY_BLACK else GameAction.PLAY_WHITE
         if (gameAction.compareAndSet(null, action)) {
-            gobanView.goban = manager.node.goban
+            val goban = manager.node.goban
+            val allowSuicide = manager.gameInfo.rules.allowSuicide
+            suicideRestrictions.clear()
+            for(y in 0 until goban.height) for(x in 0 until goban.width) {
+                val p = GoPoint(x, y)
+                if (goban[p] != null) continue
+                prototypeGoban.copyFrom(goban)
+                prototypeGoban.play(p, player)
+                if ((!allowSuicide && prototypeGoban[p] == null) || prototypeGoban contentEquals goban)
+                    suicideRestrictions.add(p)
+            }
+            gobanView.goban = goban
             actionButton.isEnabled = true
             this@GoGameFrame.channel = channel
         }
@@ -120,7 +159,7 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
             val goban = this.goban ?: return null
             val color = goban[p]
             if (color != null) return color
-            if (p != goCursor || superkoRestrictions.contains(p)) return null
+            if (p != goCursor || suicideRestrictions.contains(p) || superkoRestrictions.contains(p)) return null
             val action = gameAction.get() ?: return null
             return when(action) {
                 GameAction.PLAY_BLACK -> GoColor.BLACK
@@ -143,7 +182,8 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
                     }
                 }
                 // PLAY_BLACK, PLAY_WHITE
-                else -> if (goban[p] == null && !superkoRestrictions.contains(p)) 0.5f else 1f
+                else -> if (goban[p] == null && !suicideRestrictions.contains(p) &&
+                    !superkoRestrictions.contains(p)) 0.5f else 1f
             }
         }
 

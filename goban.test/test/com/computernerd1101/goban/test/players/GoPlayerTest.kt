@@ -10,7 +10,7 @@ import java.awt.Toolkit
 import javax.swing.SwingUtilities
 import javax.swing.WindowConstants
 
-class TestPlayer(manager: GoPlayerManager, color: GoColor): GoGameFrame.Player(manager, color) {
+class TestPlayer(manager: GoPlayerManager, color: GoColor): GoGameFrame.AbstractPlayer(manager, color) {
 
     companion object Factory: GoPlayer.Factory {
 
@@ -24,9 +24,7 @@ class TestPlayer(manager: GoPlayerManager, color: GoColor): GoGameFrame.Player(m
 }
 
 fun main() {
-    val setup = GoGameSetup(TestPlayer, TestPlayer)
-    setup.gameInfo.handicap = 3
-    setup.isFreeHandicap = true
+    val setup = GoGameSetup(TestPlayer, TestPlayer, 5)
     val manager = GoPlayerManager(Dispatchers.Default, setup)
     val blackPlayer = manager.blackPlayer as TestPlayer
     val whitePlayer = manager.whitePlayer as TestPlayer
