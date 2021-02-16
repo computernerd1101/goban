@@ -273,7 +273,7 @@ class FixedGoban: AbstractGoban {
                     player = GobanThreadLocals.WHITE
                     opponent = GobanThreadLocals.BLACK
                 }
-                if (!GobanBulk.isAlive(width, height, xBit, y, player, opponent)) { // updates cluster
+                if (!GobanBulk.isAlive(width, height, xBit, y, player, opponent)) { // updates chain
                     isPlayable = false
                     return
                 }
@@ -487,10 +487,8 @@ class Goban: AbstractMutableGoban {
 
     constructor(width: Int, height: Int): super(width, height)
 
-    @Suppress("unused")
     constructor(size: Int): super(size)
 
-    @Suppress("unused")
     constructor(): super()
 
     constructor(other: AbstractGoban): super(other)
@@ -565,15 +563,14 @@ class Goban: AbstractMutableGoban {
         return 1 // alive
     }
 
-    @Suppress("unused")
     val scoreGoban: MutableGoban get() = getScoreGoban()
 
-    fun getScoreGoban(territory: Boolean = false) = getScoreGoban(territory, null)
+    fun getScoreGoban(territory: Boolean) = getScoreGoban(territory, null)
 
     @Suppress("unused")
     fun getScoreGoban(score: MutableGoban?) = getScoreGoban(false, score)
 
-    fun getScoreGoban(territory: Boolean, score: MutableGoban?): MutableGoban {
+    fun getScoreGoban(territory: Boolean = false, score: MutableGoban? = null): MutableGoban {
         GobanBulk.threadLocalGoban(width, height, rows)
         val arrays: Array<LongArray> = GobanThreadLocals.arrays()
         val group = arrays[GobanThreadLocals.GROUP]
@@ -581,6 +578,8 @@ class Goban: AbstractMutableGoban {
         val white = arrays[GobanThreadLocals.WHITE]
         val blackScore = arrays[GobanThreadLocals.BLACK_SCORE]
         val whiteScore = arrays[GobanThreadLocals.WHITE_SCORE]
+        GobanBulk.clear(blackScore)
+        GobanBulk.clear(whiteScore)
         val mask = (1L shl width) - 1L
         for(y in 0 until height)
             group[y] = mask xor (black[y] or white[y])
@@ -637,7 +636,7 @@ class Goban: AbstractMutableGoban {
                     black[y2] and xBit != 0L -> hasBlack = true
                     white[y2] and xBit != 0L -> hasWhite = true
                     groupRow and xBit != 0L -> {
-                        group[y2] = groupRow and xBit.inv()
+                        group[y2] = groupRow - xBit
                         chain[y2] = chain[y2] or xBit
                         pendingY = y2
                         pending[y2] = pending[y2] or xBit
@@ -651,7 +650,7 @@ class Goban: AbstractMutableGoban {
                 black[y1] and xBit2 != 0L -> hasBlack = true
                 white[y1] and xBit2 != 0L -> hasWhite = true
                 groupRow and xBit2 != 0L -> {
-                    group[y1] = groupRow and xBit2.inv()
+                    group[y1] = groupRow - xBit2
                     chain[y1] = chain[y1] or xBit2
                     bits = xBit2
                 }
@@ -661,7 +660,7 @@ class Goban: AbstractMutableGoban {
                 black[y1] and xBit2 != 0L -> hasBlack = true
                 white[y1] and xBit2 != 0L -> hasWhite = true
                 groupRow and xBit2 != 0L -> {
-                    group[y1] = groupRow and xBit2.inv()
+                    group[y1] = groupRow - xBit2
                     chain[y1] = chain[y1] or xBit2
                     bits = bits or xBit2
                 }
@@ -674,7 +673,7 @@ class Goban: AbstractMutableGoban {
                     black[y2] and xBit != 0L -> hasBlack = true
                     white[y2] and xBit != 0L -> hasWhite = true
                     groupRow and xBit != 0L -> {
-                        group[y2] = groupRow and xBit.inv()
+                        group[y2] = groupRow - xBit
                         chain[y2] = chain[y2] or xBit
                         pending[y2] = pending[y2] or xBit
                     }

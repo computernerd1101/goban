@@ -32,8 +32,8 @@ internal object InternalGoban: LongBinaryOperator {
     /**
      * @param row The lowest 32 bits represent the positions of black stones,
      * while the highest 32 bits represent the positions of white stones.
-     * @return The lowest 5 bits represent the number of black stones, while
-     * the lowest 5 bits among the highest 32 bits represent the number of white stones.
+     * @return The lowest 6 bits represent the number of black stones, while
+     * the lowest 6 bits among the highest 32 bits represent the number of white stones.
      */
     fun countStonesInRow(row: Long): Long {
         var i = row - ((row ushr 1) and 0x5555_5555_5555_5555L)
@@ -349,7 +349,7 @@ internal object GobanBulk: LongBinaryOperator {
     }
 
     fun threadLocalGoban(width: Int, height: Int, rows: GobanRows1) {
-        // 5 arrays of 52 longs each
+        // 7 arrays of 52 longs each
         val arrays: Array<LongArray> = GobanThreadLocals.arrays()
         val blackRows = arrays[GobanThreadLocals.BLACK]
         val whiteRows = arrays[GobanThreadLocals.WHITE]

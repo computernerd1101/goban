@@ -9,21 +9,27 @@ interface GobanDimensionFormatter {
     companion object {
         @JvmField val X = Default.X
         @JvmField val Y = Default.Y
+
+        fun formatX(x: Int): Char {
+            val base: Char = when(x) {
+                in 0..7 -> 'A'
+                in 8..24 -> 'B'
+                in 25..32 -> 'a' - 25
+                in 33..49 -> 'a' - 24
+                50 -> return 'I'
+                51 -> return 'i'
+                else -> return '\u0000'
+            }
+            return base + x
+        }
+
     }
 
     enum class Default: GobanDimensionFormatter {
         X {
             override fun format(index: Int, size: Int): String {
-                val base: Char = when(index) {
-                    in 0..7 -> 'A'
-                    in 8..24 -> 'B'
-                    in 25..32 -> 'a' - 25
-                    in 33..49 -> 'a' - 24
-                    50 -> return "I"
-                    51 -> return "i"
-                    else -> return ""
-                }
-                return "${base + index}"
+                val ch = formatX(index)
+                return if (ch == '\u0000') "" else "$ch"
             }
         },
         Y {

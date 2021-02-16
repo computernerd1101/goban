@@ -25,7 +25,7 @@ fun interface GoSGFResumeExceptionFormat {
         },
         OverrideStone {
             override fun format(vararg args: Any?): String {
-                val point = GoPoint.formatPoint(args[0] as GoPoint?, args[1] as Int, args[2] as Int)
+                val point = GoPoint.format(args[0] as GoPoint?, args[1] as Int, args[2] as Int)
                 return "There is already a stone at $point"
             }
         },

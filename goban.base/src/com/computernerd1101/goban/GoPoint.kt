@@ -19,8 +19,11 @@ fun String.toGoPoint() = GoPoint.parse(this) ?: throw IllegalArgumentException(t
 fun String.toGoPointOrNull() = GoPoint.parse(this)
 fun Int.toGoPointChar() = GoPoint.toChar(this)
 fun Char.toGoPointInt() = GoPoint.parseChar(this)
-fun GoPoint?.formatPointOrPass(x: Int, y: Int, locale: Locale): String = GoPoint.formatPoint(this, x, y, locale)
-fun GoPoint?.formatPointOrPass(x: Int, y: Int): String = GoPoint.formatPoint(this, x, y)
+fun GoPoint?.formatOrPass(x: Int, y: Int, locale: Locale): String = GoPoint.format(this, x, y, locale)
+fun GoPoint?.formatOrPass(x: Int, y: Int): String = GoPoint.format(this, x, y)
+fun Int.gtpFormatX() = GoPoint.gtpFormatX(this)
+fun Char.gtpParseXOrThrow(width: Int) = GoPoint.gtpParseXOrThrow(this, width)
+fun Char.gtpParseX(width: Int) = GoPoint.gtpParseX(this, width)
 
 // Implement all the same methods as a data class, with the same behavior,
 // except that all instances are cached.
@@ -138,26 +141,30 @@ class GoPoint private constructor(
 
         @JvmStatic
         @JvmOverloads
-        fun formatX(x: Int, width: Int, locale: Locale = Locale.getDefault(Locale.Category.FORMAT)): String {
-            return formatDimension(x, width, locale, "GobanDimensionFormatter.X")
-        }
+        fun formatX(x: Int, width: Int, locale: Locale = Locale.getDefault(Locale.Category.FORMAT)): String =
+            formatDimension(x, width, locale, horizontal = true)
 
         @JvmStatic
         @JvmOverloads
-        fun formatY(y: Int, height: Int, locale: Locale = Locale.getDefault(Locale.Category.FORMAT)): String {
-            return formatDimension(y, height, locale, "GobanDimensionFormatter.Y")
-        }
+        fun formatY(y: Int, height: Int, locale: Locale = Locale.getDefault(Locale.Category.FORMAT)): String =
+            formatDimension(y, height, locale, horizontal = false)
 
-        private fun formatDimension(index: Int, size: Int, locale: Locale, key: String): String {
-            if (size !in 1..52) throw IllegalArgumentException("width=$size is not in the range [1,52]")
-            if (index !in 0 until size) throw IndexOutOfBoundsException("$index is not in the range [0,$size)")
-            return (gobanFormatResources(locale).getObject(key) as GobanDimensionFormatter)
+        private fun formatDimension(index: Int, size: Int, locale: Locale, horizontal: Boolean): String {
+            if (size !in 1..52) throw IllegalArgumentException(
+                "${if (horizontal) "width=" else "height="}$size is not in the range [1,52]"
+            )
+            if (index !in 0 until size) throw IndexOutOfBoundsException(
+                "${if (horizontal) "x=" else "y="}$index is not in the range [0,$size)"
+            )
+            return (gobanFormatResources(locale).getObject(
+                if (horizontal) "GobanDimensionFormatter.X" else "GobanDimensionFormatter.Y"
+            ) as GobanDimensionFormatter)
                 .format(index, size)
         }
 
         @JvmStatic
         @JvmOverloads
-        fun formatPoint(
+        fun format(
             point: GoPoint?,
             width: Int,
             height: Int,
@@ -165,16 +172,99 @@ class GoPoint private constructor(
         ): String {
             if (width !in 1..52) throw IllegalArgumentException("width=$width is not in the range [1,52]")
             if (height !in 1..52) throw IllegalArgumentException("height=$height is not in the range [1,52]")
+            if (point != null) {
+                val (x, y) = point
+                if (x >= width) throw IndexOutOfBoundsException("x=$x is not in the range [0,$width)")
+                if (y >= height) throw IndexOutOfBoundsException("y=$y is not in the range [0,$height)")
+            }
             return (gobanFormatResources(locale).getObject("GoPointFormatter") as GoPointFormatter)
                 .format(point, width, height)
+        }
+
+        @JvmStatic
+        fun gtpFormatX(x: Int): Char = GobanDimensionFormatter.formatX(x)
+
+        @JvmStatic
+        fun gtpParse(string: String, width: Int, height: Int): GoPoint =
+            gtpParse(string, width, height, throws = true)!!
+
+        @JvmStatic
+        fun gtpParseOrNull(string: String, width: Int, height: Int): GoPoint? =
+            gtpParse(string, width, height, throws = false)
+
+        @JvmStatic
+        fun gtpParseXOrThrow(ch: Char, width: Int): Int = gtpParseX(ch, width, throws = true)
+
+        @JvmStatic
+        fun gtpParseX(ch: Char, width: Int): Int = gtpParseX(ch, width, throws = false)
+
+        private fun gtpParse(string: String, width: Int, height: Int, throws: Boolean): GoPoint? {
+            if (width !in 1..52) {
+                if (throws) throw IllegalArgumentException("width=$width is not in the range [1,52]")
+                return null
+            }
+            if (height !in 1..52) {
+                if (throws) throw IllegalArgumentException("height=$height is not in the range [1,52]")
+                return null
+            }
+            if (string.isEmpty()) {
+                if (throws) throw IllegalArgumentException("cannot parse empty string")
+                return null
+            }
+            val x = gtpParseX(string[0], width, throws)
+            if (x < 0) return null
+            val y: Int
+            try {
+                y = string.substring(1).toInt()
+            } catch(e: Exception) {
+                if (throws) throw e
+                return null
+            }
+            if (y !in 1..height) {
+                if (throws) throw IllegalArgumentException("y=$y is not in the range [1,$height]")
+                return null
+            }
+            return pointAt(x, height - y)
+        }
+
+        private fun gtpParseX(ch: Char, width: Int, throws: Boolean): Int {
+            val base: Char = when(ch) {
+                'I', 'i' -> return when {
+                    width == 51 -> 50
+                    // Minimize opcodes: (ch + 1527) / 32
+                    // 50 + (ch - 'I') / ('i' - 'I') = (ch - 'I' + 50*'i' - 50*'I') / ('i' - 'I')
+                    width == 52 -> (ch.toInt() + (50*'i'.toInt() - 51*'I'.toInt())) / ('i' - 'I')
+                    throws -> throw IllegalArgumentException("x-coordinate 'i' illegal for width < 51")
+                    else -> -1
+                }
+                in 'A'..'H' -> 'A'
+                in 'J'..'Z' -> 'B'
+                in 'a'..'h' -> 'a' - 25
+                in 'j'..'z' -> 'a' - 24
+                else -> {
+                    if (throws) throw IllegalArgumentException("'$ch' is not a letter")
+                    return -1
+                }
+            }
+            var x = ch - base
+            if (width in 26..x)
+                x -= 25
+            if (x >= width) x = -1
+            return x
         }
 
         private const val serialVersionUID = 1L
 
     }
 
-    fun formatPoint(width: Int, height: Int, locale: Locale): String = formatPoint(this, width, height, locale)
-    fun formatPoint(width: Int, height: Int): String = formatPoint(this, width, height)
+    fun gtpFormat(height: Int): String {
+        if (height !in 1..52) throw IllegalArgumentException("height=$height is not in the range [1,52]")
+        if (y >= height) throw IndexOutOfBoundsException("y=$y is not in the range [0,$height)")
+        return GoPointFormatter.format(this, 52, height)
+    }
+
+    fun format(width: Int, height: Int, locale: Locale): String = format(this, width, height, locale)
+    fun format(width: Int, height: Int): String = format(this, width, height)
 
     override fun toString() = string
 

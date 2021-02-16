@@ -30,10 +30,18 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
         set(vv) { field = vv and 3 }
 
     @Synchronized
-    fun primaryLeafNode(): GoSGFNode {
+    fun lastNodeBeforePasses(): GoSGFNode {
         var current: GoSGFNode = rootNode
-        while(current.children > 0)
+        var notPass = current
+        var passes = 0
+        while(current.children > 0) {
             current = current.child(0)
+            if (current !is GoSGFMoveNode || current.playStoneAt != null) {
+                notPass = current
+                passes = 0
+            } else if (++passes >= 2)
+                return notPass
+        }
         return current
     }
 

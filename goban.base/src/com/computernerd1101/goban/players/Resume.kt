@@ -63,9 +63,8 @@ private fun GoSGF.findGameInfo(targetHandicap: Int): GameInfo {
         info = next.gameInfo
         if (info != null) {
             handicap = info.handicap
-            if (handicap == targetHandicap) {
+            if (handicap == targetHandicap)
                 return info
-            }
             if (handicap == 1 && targetHandicap == 0 && info1 == null)
                 info1 = info
         }

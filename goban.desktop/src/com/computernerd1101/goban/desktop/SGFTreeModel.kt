@@ -47,7 +47,7 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
             }
             is GoSGFMoveNode -> {
                 node = value
-                move = value.playStoneAt.formatPointOrPass(sgf.width, sgf.height)
+                move = value.playStoneAt.formatOrPass(sgf.width, sgf.height)
                 icon = if (value.turnPlayer == GoColor.BLACK) iconPlayBlack
                 else iconPlayWhite
             }

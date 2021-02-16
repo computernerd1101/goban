@@ -70,9 +70,10 @@ fun main() {
     goban[4, 8] = GoColor.BLACK
     goban[5, 8] = GoColor.WHITE
     goban[7, 8] = GoColor.WHITE
+    val scoreGoban = goban.getScoreGoban(true)
     SwingUtilities.invokeLater {
         val gobanView = GobanView(goban)
-        val territoryView = GobanView(goban.getScoreGoban(true))
+        val territoryView = GobanView(scoreGoban)
         val panel = JPanel(GridLayout(1, 2))
         panel.add(gobanView)
         panel.add(territoryView)

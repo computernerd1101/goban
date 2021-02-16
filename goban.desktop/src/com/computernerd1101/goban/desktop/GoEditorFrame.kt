@@ -320,8 +320,8 @@ class GoEditorFrame private constructor(
 
         override fun isLineMarkupVisible(lm: LineMarkup): Boolean {
             if (!buttonDeleteLineMarkup.isSelected) return true
-            val p: GoPoint = startLine?.apply {
-                if (this@apply == goCursor) return true
+            val p: GoPoint = startLine?.also {
+                if (it == goCursor) return true
             } ?: goCursor ?: return true
             val markupSet = lineMarkup
             return if (markupSet != null && lm.end == p)
@@ -1431,6 +1431,7 @@ class GoEditorFrame private constructor(
                 } else {
                     this.startLine = null
                     val lm = when {
+                        startLine == p -> return@markup
                         addLine -> startLine lineMarkup p
                         addArrow -> startLine arrowMarkup p
                         else -> null

@@ -59,7 +59,7 @@ class GoPlayerManager {
         gameScope = CoroutineScope(dispatcher + gameJob)
         this.sgf = sgf
         gameInfo = sgf.onResume()
-        node = sgf.primaryLeafNode()
+        node = sgf.lastNodeBeforePasses()
         this.blackPlayer = blackPlayer
         this.whitePlayer = whitePlayer
     }
@@ -85,7 +85,7 @@ class GoPlayerManager {
                 blackPlayer.update()
                 whitePlayer.update()
             }
-            val moveChannel = Channel<GoPoint?>(1)
+            val moveChannel = Channel<GoPoint?>(Channel.CONFLATED)
             var passCount = 0
             while(passCount < 2) {
                 val turnPlayer: GoColor = node.turnPlayer?.let {
@@ -118,8 +118,14 @@ class GoPlayerManager {
                     }
                 }
             }
+            val scoreManager = GoScoreManager(this@GoPlayerManager)
+            this@GoPlayerManager.scoreManager = scoreManager
+            scoreManager.computeScore()
+            // TODO
         }
     }
+
+    var scoreManager: GoScoreManager? = null; private set
 
 }
 

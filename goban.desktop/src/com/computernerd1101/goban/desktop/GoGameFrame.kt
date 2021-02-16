@@ -68,7 +68,8 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
     private enum class GameAction {
         HANDICAP,
         PLAY_BLACK,
-        PLAY_WHITE
+        PLAY_WHITE,
+        COUNT_SCORE
     }
 
     private val sgf = manager.sgf
@@ -93,7 +94,7 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
                 gobanView.goban = goban
                 updateHandicapText(handicap, blackCount)
                 actionButton.isEnabled = blackCount == handicap
-                val channel = Channel<GoPoint?>(1)
+                val channel = Channel<GoPoint?>()
                 this@GoGameFrame.channel = channel
                 channel.receive()
                 channel.close(null)
@@ -164,6 +165,9 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
             return when(action) {
                 GameAction.PLAY_BLACK -> GoColor.BLACK
                 GameAction.PLAY_WHITE -> GoColor.WHITE
+                GameAction.COUNT_SCORE -> {
+                    null // TODO
+                }
                 // HANDICAP
                 else -> if (goban.blackCount < handicap) GoColor.BLACK else null
             }
@@ -180,6 +184,9 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
                         goban.blackCount < handicap -> 0.5f
                         else -> 1f
                     }
+                }
+                GameAction.COUNT_SCORE -> {
+                    1f // TODO
                 }
                 // PLAY_BLACK, PLAY_WHITE
                 else -> if (goban[p] == null && !suicideRestrictions.contains(p) &&
@@ -200,17 +207,17 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
 
     }
 
-    private val actionButton = JButton(GoPoint.formatPoint(null, sgf.width, sgf.height))
+    private val actionButton = JButton(GoPoint.format(null, sgf.width, sgf.height))
 
     init {
         actionButton.isEnabled = false
         actionButton.addActionListener {
             if (gameAction.get() == GameAction.HANDICAP)
-                actionButton.text = GoPoint.formatPoint(null, sgf.width, sgf.height)
+                actionButton.text = GoPoint.format(null, sgf.width, sgf.height)
             gameAction.set(null)
             gobanView.repaint()
             actionButton.isEnabled = false
-            actionButton.text = GoPoint.formatPoint(null, sgf.width, sgf.height)
+            actionButton.text = GoPoint.format(null, sgf.width, sgf.height)
             val channel = this.channel
             this.channel = null
             if (channel != null) manager.gameScope.launch(Dispatchers.IO) {
@@ -248,6 +255,9 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
                     updateHandicapText(targetHandicap, currentHandicap)
                     actionButton.isEnabled = currentHandicap == targetHandicap
                 }
+            }
+            GameAction.COUNT_SCORE -> {
+                // TODO
             }
             // PLAY_BLACK, PLAY_WHITE
             else -> {
