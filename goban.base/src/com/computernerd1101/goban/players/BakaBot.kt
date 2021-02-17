@@ -3,28 +3,34 @@ package com.computernerd1101.goban.players
 import com.computernerd1101.goban.*
 import com.computernerd1101.goban.sgf.GoSGFMoveNode
 import kotlinx.coroutines.channels.SendChannel
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.random.*
 
 /**
  * A very stupid robot that chooses its moves completely at random
  * amongst all legal moves except for multi-stone suicide.
  */
-class BakaBot(
-    manager: GoPlayerManager,
-    color: GoColor,
-    @get:JvmName("getKotlinRandom")
-    val random: Random
-): GoPlayer(manager, color) {
+class BakaBot: GoPlayer {
 
     constructor(manager: GoPlayerManager, color: GoColor): this(manager, color, Random)
 
-    @Suppress("unused")
-    constructor(manager: GoPlayerManager, color: GoColor, random: java.util.Random):
-            this(manager, color, random.asKotlinRandom())
+    constructor(manager: GoPlayerManager, color: GoColor, random: Random): super(manager, color) {
+        this.random = random
+        javaRandom = random.asJavaRandom()
+    }
 
     @Suppress("unused")
+    constructor(manager: GoPlayerManager, color: GoColor, random: java.util.Random): super(manager, color) {
+        this.random = random.asKotlinRandom()
+        javaRandom = random
+    }
+
+    @get:JvmName("getKotlinRandom")
+    val random: Random
+
+    @Suppress("unused")
+    @get:JvmName("getRandom")
     val javaRandom: java.util.Random
-        @JvmName("getRandom") get() = random.asJavaRandom()
 
     companion object DefaultFactory: GoPlayer.Factory {
 
@@ -34,24 +40,38 @@ class BakaBot(
     }
 
     @Suppress("unused")
-    class Factory(
-        @get:JvmName("getKotlinRandom")
-        @set:JvmName("setKotlinRandom")
-        var random: Random
-    ): GoPlayer.Factory {
+    class Factory(random: Random): GoPlayer.Factory {
 
         constructor(): this(Random)
 
-        constructor(random: java.util.Random): this(random.asKotlinRandom())
+        @get:JvmName("getKotlinRandom")
+        var random: Random = random
+            @JvmName("setKotlinRandom")
+            set(random) {
+                if (field !== random) {
+                    field = random
+                    lazyRandom.set(null)
+                }
+            }
+
+        private val lazyRandom = AtomicReference<java.util.Random>()
+
+        constructor(random: java.util.Random): this(random.asKotlinRandom()) {
+            lazyRandom.set(random)
+        }
 
         var javaRandom: java.util.Random
-            @JvmName("getRandom") get() = random.asJavaRandom()
+            @JvmName("getRandom") get() =
+                lazyRandom.get() ?: lazyRandom.compareAndExchange(null, random.asJavaRandom())
             @JvmName("setRandom") set(random) {
+                lazyRandom.set(random)
                 this.random = random.asKotlinRandom()
             }
 
-        override fun createPlayer(manager: GoPlayerManager, color: GoColor) =
-            BakaBot(manager, color, random)
+        override fun createPlayer(manager: GoPlayerManager, color: GoColor): BakaBot {
+            val javaRandom = lazyRandom.get() ?: return BakaBot(manager, color, random)
+            return BakaBot(manager, color, javaRandom)
+        }
 
     }
 
@@ -81,9 +101,7 @@ class BakaBot(
         val node = manager.node
         val nodeGoban = node.goban
         superkoRestrictions.clear()
-        if (node is GoSGFMoveNode) {
-            node.getSuperkoRestrictions(superkoRestrictions, manager.gameInfo.rules)
-        }
+        (node as? GoSGFMoveNode)?.getSuperkoRestrictions(superkoRestrictions, manager.gameInfo.rules)
         for(y in 0 until goban.height) for(x in 0 until goban.width) {
             val p = GoPoint(x, y)
             if (superkoRestrictions.contains(p) || nodeGoban[p] != null) continue
