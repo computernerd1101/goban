@@ -393,7 +393,7 @@ sealed class AbstractMutableGoban: AbstractGoban {
             return GobanBulk.setAll(this, points, color)
         var changed = false
         for(p in points)
-            if (InternalGoban.set(this, p.x, p.y, color, color) != color)
+            if (p.x < width && p.y < height && InternalGoban.set(this, p.x, p.y, color, color) != color)
                 changed = true
         return changed
     }

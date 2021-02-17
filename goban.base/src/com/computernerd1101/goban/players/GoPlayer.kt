@@ -32,4 +32,14 @@ abstract class GoPlayer(val manager: GoPlayerManager, val color: GoColor) {
 
     open suspend fun acceptUndoMove(resumeNode: GoSGFNode): Boolean = false
 
+    open suspend fun startScoring(scoreManager: GoScoreManager) {
+        scoreManager.finishVerdict.send(color)
+    }
+
+    open suspend fun updateScoring(scoreManager: GoScoreManager, stones: GoPointSet, alive: Boolean) {
+        scoreManager.finishVerdict.send(color)
+    }
+
+    open suspend fun finishScoring() = Unit
+
 }

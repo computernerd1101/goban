@@ -127,5 +127,20 @@ class GoPlayerManager {
 
     var scoreManager: GoScoreManager? = null; private set
 
+    suspend fun startScoring(scoreManager: GoScoreManager) {
+        blackPlayer.startScoring(scoreManager)
+        whitePlayer.startScoring(scoreManager)
+    }
+
+    suspend fun updateScoring(scoreManager: GoScoreManager, stones: GoPointSet, alive: Boolean) {
+        blackPlayer.updateScoring(scoreManager, stones, alive)
+        whitePlayer.updateScoring(scoreManager, stones, alive)
+    }
+
+    suspend fun finishScoring() {
+        blackPlayer.finishScoring()
+        whitePlayer.finishScoring()
+    }
+
 }
 
