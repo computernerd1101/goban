@@ -1,7 +1,11 @@
 package com.computernerd1101.goban.players
 
 import com.computernerd1101.goban.*
+import com.computernerd1101.goban.internal.InternalMarker
 import kotlinx.coroutines.channels.*
+import kotlinx.coroutines.selects.SelectClause0
+import kotlinx.coroutines.selects.SelectClause1
+import kotlinx.coroutines.selects.SelectInstance
 import kotlinx.coroutines.selects.select
 
 class GoScoreManager(val playerManager: GoPlayerManager) {
@@ -12,8 +16,12 @@ class GoScoreManager(val playerManager: GoPlayerManager) {
     private val _livingStones = Channel<GoPointSet>(Channel.UNLIMITED)
     val livingStones: SendChannel<GoPointSet> get() = _livingStones
 
-    private val _finishVerdict = Channel<GoColor>(Channel.CONFLATED)
-    val finishVerdict: SendChannel<GoColor> get() = _finishVerdict
+    private val finish = Channel<GoColor>(Channel.CONFLATED)
+
+    internal fun getFinish(marker: InternalMarker): Channel<GoColor> {
+        marker.ignore()
+        return finish
+    }
 
     private val _resumePlay = Channel<GoColor>(Channel.RENDEZVOUS)
     val resumePlay: SendChannel<GoColor> get() = _resumePlay
@@ -59,7 +67,7 @@ class GoScoreManager(val playerManager: GoPlayerManager) {
                     }
                     playerManager.updateScoring(this@GoScoreManager, sendStones.readOnly(), true)
                 }
-                _finishVerdict.onReceive {
+                finish.onReceive {
                     if (it == GoColor.BLACK)
                         blackDone = true
                     else whiteDone = true

@@ -130,3 +130,20 @@ internal fun ObjectInputStream.GetField.getString(name: String): String {
         null
     } ?: ""
 }
+
+internal class ThreadLocalGoban(
+    @JvmField val width: Int,
+    @JvmField val height: Int
+) {
+
+    private inner class Local: ThreadLocal<Goban>() {
+
+        override fun initialValue() = Goban(width, height)
+
+    }
+
+    private val local = Local()
+
+    val goban: Goban get() = local.get()
+
+}

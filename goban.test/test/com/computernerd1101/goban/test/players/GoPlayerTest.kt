@@ -3,7 +3,6 @@ package com.computernerd1101.goban.test.players
 import com.computernerd1101.goban.*
 import com.computernerd1101.goban.desktop.GoGameFrame
 import com.computernerd1101.goban.players.*
-import kotlinx.coroutines.Dispatchers
 import java.awt.Dimension
 import java.awt.Frame
 import java.awt.Toolkit
@@ -25,7 +24,7 @@ class TestPlayer(manager: GoPlayerManager, color: GoColor): GoGameFrame.Abstract
 
 fun main() {
     val setup = GoGameSetup(TestPlayer, TestPlayer, 5)
-    val manager = GoPlayerManager(Dispatchers.Default, setup)
+    val manager = GoPlayerManager(setup)
     val blackPlayer = manager.blackPlayer as TestPlayer
     val whitePlayer = manager.whitePlayer as TestPlayer
     val blackFrame = blackPlayer.frame

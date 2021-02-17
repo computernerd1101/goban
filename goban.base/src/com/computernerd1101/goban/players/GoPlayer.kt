@@ -1,10 +1,10 @@
 package com.computernerd1101.goban.players
 
 import com.computernerd1101.goban.*
+import com.computernerd1101.goban.internal.InternalMarker
 import com.computernerd1101.goban.sgf.GoSGFNode
-import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.SendChannel
-import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.selects.SelectBuilder
 
 abstract class GoPlayer(val manager: GoPlayerManager, val color: GoColor) {
 
@@ -33,13 +33,33 @@ abstract class GoPlayer(val manager: GoPlayerManager, val color: GoColor) {
     open suspend fun acceptUndoMove(resumeNode: GoSGFNode): Boolean = false
 
     open suspend fun startScoring(scoreManager: GoScoreManager) {
-        scoreManager.finishVerdict.send(color)
+        sendFinishScoring(scoreManager)
     }
 
     open suspend fun updateScoring(scoreManager: GoScoreManager, stones: GoPointSet, alive: Boolean) {
-        scoreManager.finishVerdict.send(color)
+        sendFinishScoring(scoreManager)
     }
 
     open suspend fun finishScoring() = Unit
+
+    fun checkPermissions() {
+        if (manager.getPlayer(color) != this)
+            throw SecurityException()
+    }
+
+    protected suspend fun sendFinishScoring(scoreManager: GoScoreManager) {
+        checkPermissions()
+        scoreManager.getFinish(InternalMarker).send(color)
+    }
+
+    protected fun <R> SelectBuilder<R>.onSendFinishScoring(
+        scoreManager: GoScoreManager,
+        block: suspend (GoScoreManager) -> R
+    ) {
+        checkPermissions()
+        scoreManager.getFinish(InternalMarker).onSend(color) {
+            block(scoreManager)
+        }
+    }
 
 }

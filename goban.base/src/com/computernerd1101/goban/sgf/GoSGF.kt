@@ -29,6 +29,8 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
     var variationView: Int = SUCCESSOR_VARIATION
         set(vv) { field = vv and 3 }
 
+    internal val threadLocalGoban = ThreadLocalGoban(width, height)
+
     @Synchronized
     fun lastNodeBeforePasses(): GoSGFNode {
         var current: GoSGFNode = rootNode
@@ -1602,21 +1604,20 @@ class GoSGFMoveNode internal constructor(
     val superkoRestrictions: GoPointSet get() = getSuperkoRestrictions()
 
     @Suppress("unused")
-    fun getSuperkoRestrictions(rules: GoRules?): GoPointSet = getSuperkoRestrictions(null, rules)
+    fun getSuperkoRestrictions(superko: Superko?): GoPointSet = getSuperkoRestrictions(superko, null)
 
-    fun getSuperkoRestrictions(set: MutableGoPointSet?): GoPointSet = getSuperkoRestrictions(set, null)
+    fun getSuperkoRestrictions(set: MutableGoPointSet?): GoPointSet = getSuperkoRestrictions(null, set)
 
-    fun getSuperkoRestrictions(set: MutableGoPointSet? = null, rules: GoRules? = null): GoPointSet {
+    fun getSuperkoRestrictions(superko: Superko? = null, set: MutableGoPointSet? = null): GoPointSet {
         val tree = treeOrNull ?: return set ?: GoPointSet.EMPTY
         return synchronized(tree) {
             if (!isAlive) return@synchronized set ?: GoPointSet.EMPTY
             val tmpSet: MutableGoPointSet = ThreadLocalSuperko.get()
             tmpSet.clear()
             val nextPlayer = turnPlayer.opponent
-            val gameRules = rules ?: gameInfo?.rules ?: GoRules.DEFAULT
-            val superko = gameRules.superko
+            val superkoType = superko ?: gameInfo?.rules?.superko ?: Superko.NATURAL
             val goban = this.goban
-            val nextGoban = Goban(goban.width, goban.height)
+            val nextGoban = tree.threadLocalGoban.goban
             for(y in 0 until goban.height) {
                 for(x in 0 until goban.width) {
                     val point = GoPoint(x, y)
@@ -1627,8 +1628,8 @@ class GoSGFMoveNode internal constructor(
                     var parent = this.parent
                     while(parent is GoSGFMoveNode) {
                         if (nextGoban contentEquals parent.goban) {
-                            if (superko == Superko.POSITIONAL || InternalGoSGF.violatesSituationalSuperko(
-                                    nextPlayer, parent, superko == Superko.NATURAL
+                            if (superkoType == Superko.POSITIONAL || InternalGoSGF.violatesSituationalSuperko(
+                                    nextPlayer, parent, superkoType == Superko.NATURAL
                             )) {
                                 tmpSet.add(point)
                                 break

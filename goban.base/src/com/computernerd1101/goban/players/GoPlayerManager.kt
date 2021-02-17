@@ -10,7 +10,7 @@ class GoPlayerManager {
 
     val gameJob = Job()
 
-    val gameScope: CoroutineScope
+    val gameScope: CoroutineScope = CoroutineScope(gameJob)
 
     @get:JvmName("getSGF")
     val sgf: GoSGF
@@ -26,8 +26,7 @@ class GoPlayerManager {
 
     fun getPlayer(color: GoColor) = if (color == GoColor.BLACK) blackPlayer else whitePlayer
 
-    constructor(dispatcher: CoroutineDispatcher, setup: GoGameSetup) {
-        gameScope = CoroutineScope(dispatcher + gameJob)
+    constructor(setup: GoGameSetup) {
         val width = setup.width
         val height = setup.height
         sgf = GoSGF(width, height)
@@ -55,8 +54,7 @@ class GoPlayerManager {
     }
 
     @Throws(GoSGFResumeException::class)
-    constructor(dispatcher: CoroutineDispatcher, blackPlayer: GoPlayer, whitePlayer: GoPlayer, sgf: GoSGF) {
-        gameScope = CoroutineScope(dispatcher + gameJob)
+    constructor(blackPlayer: GoPlayer, whitePlayer: GoPlayer, sgf: GoSGF) {
         this.sgf = sgf
         gameInfo = sgf.onResume()
         node = sgf.lastNodeBeforePasses()
@@ -64,8 +62,8 @@ class GoPlayerManager {
         this.whitePlayer = whitePlayer
     }
 
-    fun startGame() {
-        gameScope.launch {
+    fun startGame(dispatcher: CoroutineDispatcher = Dispatchers.Default) {
+        gameScope.launch(dispatcher) {
             val handicap = gameInfo.handicap
             if (handicap != 0 && node == sgf.rootNode) {
                 val goban = Goban(sgf.width, sgf.height)
@@ -87,7 +85,7 @@ class GoPlayerManager {
             }
             val moveChannel = Channel<GoPoint?>(Channel.CONFLATED)
             var passCount = 0
-            while(passCount < 2) {
+            while(true) {
                 val turnPlayer: GoColor = node.turnPlayer?.let {
                     if (node is GoSGFMoveNode) it.opponent
                     else it
@@ -117,11 +115,14 @@ class GoPlayerManager {
                         opponent.update()
                     }
                 }
+                if (passCount >= 2) {
+                    val scoreManager = GoScoreManager(this@GoPlayerManager)
+                    this@GoPlayerManager.scoreManager = scoreManager
+                    scoreManager.computeScore()
+                    // TODO
+                    break
+                }
             }
-            val scoreManager = GoScoreManager(this@GoPlayerManager)
-            this@GoPlayerManager.scoreManager = scoreManager
-            scoreManager.computeScore()
-            // TODO
         }
     }
 

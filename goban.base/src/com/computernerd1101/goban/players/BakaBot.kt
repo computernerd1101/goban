@@ -75,43 +75,53 @@ class BakaBot: GoPlayer {
 
     }
 
-    private val pointList = mutableListOf<GoPoint>()
+    private val points: Array<GoPoint?>
 
-    private val goban: Goban = manager.sgf.let { sgf -> Goban(sgf.width, sgf.height) }
+    private val goban: Goban
+
+    init {
+        val sgf = manager.sgf
+        val width = sgf.width
+        val height = sgf.height
+        points = arrayOfNulls(width * height)
+        goban = Goban(width, height)
+    }
 
     private val superkoRestrictions = MutableGoPointSet()
 
     override suspend fun generateHandicapStones(handicap: Int, goban: Goban) {
         goban.clear()
-        pointList.clear()
         val width = goban.width
         val height = goban.height
         val size = width * height
         for(y in 0 until height) for(x in 0 until width)
-            pointList.add(GoPoint(x, y))
+            points[x + y*width] = GoPoint(x, y)
         for(i in size - 1 downTo size - handicap) {
             val j = random.nextInt(i + 1)
-            val point = pointList.set(j, pointList.set(i, pointList[j]))
-            goban[point] = GoColor.BLACK
+            val p = points[j]!!
+            points[j] = points[i]
+            points[i] = p
+            goban[p] = GoColor.BLACK
         }
     }
 
     override suspend fun requestMove(channel: SendChannel<GoPoint?>) {
-        pointList.clear()
         val node = manager.node
         val nodeGoban = node.goban
         superkoRestrictions.clear()
-        (node as? GoSGFMoveNode)?.getSuperkoRestrictions(superkoRestrictions, manager.gameInfo.rules)
+        (node as? GoSGFMoveNode)?.getSuperkoRestrictions(manager.gameInfo.rules.superko, superkoRestrictions)
+        var count = 0
         for(y in 0 until goban.height) for(x in 0 until goban.width) {
             val p = GoPoint(x, y)
             if (superkoRestrictions.contains(p) || nodeGoban[p] != null) continue
             goban.copyFrom(nodeGoban)
             goban.play(p, color)
-            if (goban[p] != null)
-                pointList.add(p)
+            if (goban[p] != null) {
+                points[count++] = p
+            }
         }
-        val point = if (pointList.isEmpty()) null
-        else pointList[random.nextInt(pointList.size)]
+        val point = if (count == 0) null
+        else points[random.nextInt(count)]
         channel.send(point)
     }
 
