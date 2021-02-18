@@ -1,4 +1,4 @@
-package com.computernerd1101.goban.desktop
+package com.computernerd1101.goban.test.desktop
 
 import com.computernerd1101.goban.time.*
 import java.awt.*
@@ -28,12 +28,16 @@ class TimeLimitFrame(
     private val buttonSubmit = JButton("Submit move")
 
     init {
-        blackTimeLimit.addTimeListener(DisplayTimeListener(
+        blackTimeLimit.addTimeListener(
+            DisplayTimeListener(
             labelBlack, labelBlackTime, labelBlackOvertime
-        ))
-        whiteTimeLimit.addTimeListener(DisplayTimeListener(
+        )
+        )
+        whiteTimeLimit.addTimeListener(
+            DisplayTimeListener(
             labelWhite, labelWhiteTime, labelWhiteOvertime
-        ))
+        )
+        )
         labelBlack.foreground = Color.RED
         buttonSubmit.addActionListener {
             if (isBlack) {

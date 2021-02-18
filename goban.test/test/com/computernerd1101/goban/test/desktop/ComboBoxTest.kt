@@ -1,4 +1,4 @@
-package com.computernerd1101.goban.desktop
+package com.computernerd1101.goban.test.desktop
 
 import java.awt.BorderLayout
 import java.awt.CardLayout
@@ -10,13 +10,13 @@ fun main() {
     }
 }
 
-private fun testComboBox(useCards: Boolean) {
+fun testComboBox(useCards: Boolean) {
     val frame = JFrame("TestComboBox")
     frame.setSize(500, 500)
     frame.defaultCloseOperation = WindowConstants.DISPOSE_ON_CLOSE
     frame.setLocationRelativeTo(null)
     frame.layout = BorderLayout()
-    val combo = JComboBox<String>(arrayOf("A", "B", "C", "D"))
+    val combo = JComboBox(arrayOf("A", "B", "C", "D"))
     if (useCards) {
         val cardLayout = CardLayout()
         val cardPanel = JPanel(cardLayout)

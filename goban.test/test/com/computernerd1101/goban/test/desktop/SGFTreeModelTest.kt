@@ -1,8 +1,9 @@
-package com.computernerd1101.goban.desktop
+package com.computernerd1101.goban.test.desktop
 
 import com.computernerd1101.goban.GoColor
 import com.computernerd1101.goban.Goban
 import com.computernerd1101.goban.GoPoint
+import com.computernerd1101.goban.desktop.SGFTreeModel
 import com.computernerd1101.goban.sgf.*
 import org.junit.*
 
