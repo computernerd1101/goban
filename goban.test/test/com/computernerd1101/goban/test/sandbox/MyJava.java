@@ -1,14 +1,11 @@
-package com.computernerd1101.goban;
+package com.computernerd1101.goban.test.sandbox;
 
+
+import com.computernerd1101.goban.*;
 import java.util.*;
-
-import kotlin.jvm.JvmWildcard;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-// import org.jetbrains.annotations.NotNull;
 
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicLongArray;
 
 public class MyJava {
 

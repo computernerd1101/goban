@@ -29,7 +29,7 @@ interface GobanDimensionFormatter {
         X {
             override fun format(index: Int, size: Int): String {
                 val ch = formatX(index)
-                return if (ch == '\u0000') "" else "$ch"
+                return if (ch.toInt() == 0) "" else "$ch"
             }
         },
         Y {

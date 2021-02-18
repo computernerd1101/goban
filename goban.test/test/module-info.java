@@ -14,4 +14,6 @@ module computernerd1101.goban.test {
 
     requires junit;
 
+    requires org.jetbrains.annotations;
+
 }

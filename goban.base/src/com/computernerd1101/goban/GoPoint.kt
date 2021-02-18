@@ -212,7 +212,7 @@ class GoPoint private constructor(
                 return null
             }
             val x = gtpParseX(string[0], width, throws)
-            if (x < 0) return null
+            if (x < 0) return null // x will never be < 0 if throws == true
             val y: Int
             try {
                 y = string.substring(1).toInt()
@@ -229,13 +229,15 @@ class GoPoint private constructor(
 
         private fun gtpParseX(ch: Char, width: Int, throws: Boolean): Int {
             val base: Char = when(ch) {
-                'I', 'i' -> return when {
-                    width == 51 -> 50
+                'I', 'i' -> return when (width) {
+                    51 -> 50
                     // Minimize opcodes: (ch + 1527) / 32
                     // 50 + (ch - 'I') / ('i' - 'I') = (ch - 'I' + 50*'i' - 50*'I') / ('i' - 'I')
-                    width == 52 -> (ch.toInt() + (50*'i'.toInt() - 51*'I'.toInt())) / ('i' - 'I')
-                    throws -> throw IllegalArgumentException("x-coordinate 'i' illegal for width < 51")
-                    else -> -1
+                    52 -> (ch.toInt() + (50*'i'.toInt() - 51*'I'.toInt())) / ('i' - 'I')
+                    else -> {
+                        if (throws) throw IllegalArgumentException("x-coordinate 'i' illegal for width < 51")
+                        -1
+                    }
                 }
                 in 'A'..'H' -> 'A'
                 in 'J'..'Z' -> 'B'
@@ -249,7 +251,19 @@ class GoPoint private constructor(
             var x = ch - base
             if (width in 26..x)
                 x -= 25
-            if (x >= width) x = -1
+            if (x >= width) {
+                if (throws) throw IllegalArgumentException(
+                    "'$ch' is the ${x + 1}${
+                        when(x) {         // x + 1
+                            0, 20 -> "st" // 1st, 21st
+                            1, 21 -> "nd" // 2nd, 22nd
+                            2, 22 -> "rd" // 3rd, 23rd
+                            else -> "th" // 10th, 11th, 12th, 13th, 20th, or anything else
+                        }
+                    } letter of the alphabet, which is out of range for width = $width"
+                )
+                x = -1
+            }
             return x
         }
 

@@ -1,8 +1,7 @@
 @file:Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
 
-package com.computernerd1101.goban
+package com.computernerd1101.goban.test.sandbox
 
-import com.computernerd1101.goban.sgf.*
 import kotlin.reflect.*
 
 fun main() {
