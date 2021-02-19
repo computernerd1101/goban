@@ -49,7 +49,7 @@ private const val KANJI_DIGITS = "\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u51
 enum class GobanDimensionFormatter_ja: GobanDimensionFormatter {
 
     X {
-        override fun format(index: Int, size: Int) =
+        override fun format(index: Int, size: Int): String =
             if (index in 0..51) GobanDimensionFormatter.NUMBERS[index] else "${index + 1}"
     },
     Y {
@@ -76,7 +76,7 @@ enum class GobanDimensionFormatter_ja: GobanDimensionFormatter {
             }
         }
 
-        override fun format(index: Int, size: Int) =
+        override fun format(index: Int, size: Int): String =
             if (index in 0..98) kanji[index] else "${index + 1}"
     };
 

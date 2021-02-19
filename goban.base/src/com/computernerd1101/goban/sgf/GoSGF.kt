@@ -1652,6 +1652,41 @@ class GoSGFMoveNode internal constructor(
 
     }
 
+    @JvmOverloads
+    fun getPrisonerScores(scores: IntArray? = null): IntArray {
+        var scores2: IntArray = scores ?: IntArray(2)
+        val tree = treeOrNull ?: return scores2
+        synchronized(tree) {
+            if (!isAlive) return@synchronized
+            if (scores2.size < 2) scores2 = IntArray(2)
+            var blackScore = 0
+            var whiteScore = 0
+            var current: GoSGFNode = this
+            while(current is GoSGFMoveNode) {
+                val player = current.turnPlayer
+                val goban = current.goban
+                current = current.parent!!
+                val prev = current.goban
+                var prisoners = prev.whiteCount - goban.whiteCount
+                if (player == GoColor.WHITE) prisoners++
+                blackScore += prisoners
+                prisoners = prev.blackCount - goban.blackCount
+                if (player == GoColor.BLACK) prisoners++
+                whiteScore += prisoners
+            }
+        }
+        return scores2
+    }
+
+    fun getPrisonerScore(captor: GoColor): Int =
+        getPrisonerScores(ThreadLocalPrisonerScores.get())[
+                if (captor == GoColor.BLACK) 0 else 1
+        ]
+
+    private object ThreadLocalPrisonerScores: ThreadLocal<IntArray>() {
+        override fun initialValue() = IntArray(2)
+    }
+
     @get:JvmName("black")
     val black = PlayerTime(this, GoColor.BLACK, marker)
     @get:JvmName("white")

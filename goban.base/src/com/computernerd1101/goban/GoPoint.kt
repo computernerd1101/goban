@@ -5,9 +5,7 @@
 package com.computernerd1101.goban
 
 import com.computernerd1101.goban.internal.*
-import com.computernerd1101.goban.resources.GoPointFormatter
-import com.computernerd1101.goban.resources.GobanDimensionFormatter
-import com.computernerd1101.goban.resources.gobanFormatResources
+import com.computernerd1101.goban.resources.*
 import com.computernerd1101.sgf.SGFBytes
 import java.io.*
 import java.util.*

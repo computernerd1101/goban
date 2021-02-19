@@ -1,9 +1,10 @@
 package com.computernerd1101.goban.players
 
 import com.computernerd1101.goban.*
+import com.computernerd1101.goban.internal.atomicUpdater
+import com.computernerd1101.goban.internal.getOrDefault
 import com.computernerd1101.goban.sgf.GoSGFMoveNode
 import kotlinx.coroutines.channels.SendChannel
-import java.util.concurrent.atomic.AtomicReference
 import kotlin.random.*
 
 /**
@@ -50,28 +51,30 @@ class BakaBot: GoPlayer {
             set(random) {
                 if (field !== random) {
                     field = random
-                    lazyRandom.set(null)
+                    randomUpdater[this] = null
                 }
             }
 
-        private val lazyRandom = AtomicReference<java.util.Random>()
+        private companion object {
+            val randomUpdater = atomicUpdater<Factory, java.util.Random?>("lazyRandom")
+        }
+
+        @Volatile private var lazyRandom: java.util.Random? = null
 
         constructor(random: java.util.Random): this(random.asKotlinRandom()) {
-            lazyRandom.set(random)
+            lazyRandom = random
         }
 
         var javaRandom: java.util.Random
             @JvmName("getRandom") get() =
-                lazyRandom.get() ?: lazyRandom.compareAndExchange(null, random.asJavaRandom())
+                lazyRandom ?: randomUpdater.getOrDefault(this, random.asJavaRandom())
             @JvmName("setRandom") set(random) {
-                lazyRandom.set(random)
+                randomUpdater[this] = random
                 this.random = random.asKotlinRandom()
             }
 
-        override fun createPlayer(manager: GoPlayerManager, color: GoColor): BakaBot {
-            val javaRandom = lazyRandom.get() ?: return BakaBot(manager, color, random)
-            return BakaBot(manager, color, javaRandom)
-        }
+        override fun createPlayer(manager: GoPlayerManager, color: GoColor): BakaBot =
+            BakaBot(manager, color, random)
 
     }
 

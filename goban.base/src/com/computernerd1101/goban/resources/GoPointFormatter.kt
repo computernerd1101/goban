@@ -31,8 +31,6 @@ object GoPointFormatter_ja: GoPointFormatter {
     @Suppress("SpellCheckingInspection")
     override fun format(point: GoPoint?, width: Int, height: Int): String =
         if (point == null) "\u30d1\u30b9" // katakana "pasu" (pass)
-        else cache[point.hashCode()]
-
-
+        else cache[point.x + point.y*52]
 
 }

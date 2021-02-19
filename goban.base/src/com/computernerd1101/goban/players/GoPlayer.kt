@@ -62,4 +62,19 @@ abstract class GoPlayer(val manager: GoPlayerManager, val color: GoColor) {
         }
     }
 
+    protected suspend fun requestResumePlay(scoreManager: GoScoreManager) {
+        checkPermissions()
+        scoreManager.getResumePlay(InternalMarker).send(color)
+    }
+
+    protected fun <R> SelectBuilder<R>.onRequestResumePlay(
+        scoreManager: GoScoreManager,
+        block: suspend (GoScoreManager) -> R
+    ) {
+        checkPermissions()
+        scoreManager.getResumePlay(InternalMarker).onSend(color) {
+            block(scoreManager)
+        }
+    }
+
 }

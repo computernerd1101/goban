@@ -9,6 +9,7 @@ import kotlinx.coroutines.channels.*
 import java.awt.*
 import java.awt.event.*
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater
 import javax.swing.*
 
 class GoGameFrame(val manager: GoPlayerManager): JFrame() {
@@ -54,13 +55,22 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
         override fun createPlayer(manager: GoPlayerManager, color: GoColor) =
             Player(this, manager, color)
 
-        private val atomicFrame = AtomicReference<GoGameFrame>()
+        private companion object {
+            val updateFrame: AtomicReferenceFieldUpdater<PlayerFactory, GoGameFrame?> =
+                AtomicReferenceFieldUpdater.newUpdater(
+                    PlayerFactory::class.java,
+                    GoGameFrame::class.java,
+                    "atomicFrame"
+                )
+        }
+
+        @Volatile private var atomicFrame: GoGameFrame? = null
 
         var frame: GoGameFrame
-            get() = atomicFrame.get() ?:
+            get() = atomicFrame ?:
                 throw UninitializedPropertyAccessException("property frame has not been initialized")
             set(frame) {
-                if (!atomicFrame.compareAndSet(null, frame))
+                if (!updateFrame.compareAndSet(this, null, frame))
                     throw IllegalStateException("property frame has already been initialized")
             }
     }

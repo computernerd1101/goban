@@ -2,10 +2,9 @@ package com.computernerd1101.goban.players
 
 import com.computernerd1101.goban.*
 import com.computernerd1101.goban.internal.InternalMarker
+import com.computernerd1101.goban.sgf.GameResult
+import com.computernerd1101.goban.sgf.GoSGFMoveNode
 import kotlinx.coroutines.channels.*
-import kotlinx.coroutines.selects.SelectClause0
-import kotlinx.coroutines.selects.SelectClause1
-import kotlinx.coroutines.selects.SelectInstance
 import kotlinx.coroutines.selects.select
 
 class GoScoreManager(val playerManager: GoPlayerManager) {
@@ -17,27 +16,29 @@ class GoScoreManager(val playerManager: GoPlayerManager) {
     val livingStones: SendChannel<GoPointSet> get() = _livingStones
 
     private val finish = Channel<GoColor>(Channel.CONFLATED)
-
-    internal fun getFinish(marker: InternalMarker): Channel<GoColor> {
+    internal fun getFinish(marker: InternalMarker): SendChannel<GoColor> {
         marker.ignore()
         return finish
     }
 
-    private val _resumePlay = Channel<GoColor>(Channel.RENDEZVOUS)
-    val resumePlay: SendChannel<GoColor> get() = _resumePlay
+    private val resumePlay = Channel<GoColor>(Channel.RENDEZVOUS)
+    internal fun getResumePlay(marker: InternalMarker): SendChannel<GoColor> {
+        marker.ignore()
+        return resumePlay
+    }
 
     suspend fun computeScore(): GoColor? {
         playerManager.startScoring(this)
         var blackDone = false
         var whiteDone = false
-        var resumeRequest: GoColor? = null
         val node = playerManager.node
         val goban: FixedGoban = node.goban
         val finalGoban: Goban = goban.playable()
         val receiveStones = MutableGoPointSet()
         val sendStones = MutableGoPointSet()
         val group = MutableGoPointSet()
-        while(resumeRequest == null && !(blackDone && whiteDone)) {
+        while(!(blackDone && whiteDone)) {
+            var resumeRequest: GoColor? = null
             select<Unit> {
                 _deadStones.onReceive {
                     blackDone = false
@@ -72,18 +73,24 @@ class GoScoreManager(val playerManager: GoPlayerManager) {
                         blackDone = true
                     else whiteDone = true
                 }
-                _resumePlay.onReceive {
+                resumePlay.onReceive {
                     resumeRequest = it
                 }
             }
+            if (resumeRequest != null) return resumeRequest
         }
-        if (resumeRequest == null) {
-            val territory = playerManager.gameInfo.rules.territoryScore
-            val scoreGoban = finalGoban.getScoreGoban(territory, node.territory)
-            // TODO
-            playerManager.finishScoring()
+        val territory: Boolean = playerManager.gameInfo.rules.territoryScore
+        val scoreGoban: MutableGoban = finalGoban.getScoreGoban(territory, node.territory)
+        val gameInfo = playerManager.gameInfo
+        var score = gameInfo.komi.toFloat() + scoreGoban.whiteCount - scoreGoban.blackCount
+        if (territory && node is GoSGFMoveNode) {
+            val prisoners = node.getPrisonerScores()
+            score += prisoners[1] - prisoners[0]
         }
-        return resumeRequest
+        gameInfo.result = if (score == 0.0f) GameResult.DRAW
+        else GameResult(GoColor.WHITE, score) // negative score means Black wins
+        playerManager.finishScoring()
+        return null
     }
 
 }
