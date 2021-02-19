@@ -10,6 +10,9 @@ interface GobanDimensionFormatter {
         @JvmField val X = Default.X
         @JvmField val Y = Default.Y
 
+        @JvmField val LETTERS: Array<String> = Array(52) { x -> "${formatX(x)}".intern() }
+        @JvmField val NUMBERS: Array<String> = Array(52) { y -> "${y + 1}".intern() }
+
         fun formatX(x: Int): Char {
             val base: Char = when(x) {
                 in 0..7 -> 'A'
@@ -27,54 +30,54 @@ interface GobanDimensionFormatter {
 
     enum class Default: GobanDimensionFormatter {
         X {
-            override fun format(index: Int, size: Int): String {
-                val ch = formatX(index)
-                return if (ch.toInt() == 0) "" else "$ch"
-            }
+            override fun format(index: Int, size: Int): String =
+                if (index in 0..51) LETTERS[index] else ""
         },
         Y {
-            override fun format(index: Int, size: Int) = "${size - index}"
+            override fun format(index: Int, size: Int): String {
+                val y = size - index
+                return if (y in 1..52) NUMBERS[y - 1] else "$y"
+            }
         }
     }
 
 }
 
+//                                1     2     3     4     5     6     7     8     9
+private const val KANJI_DIGITS = "\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d"
+
 enum class GobanDimensionFormatter_ja: GobanDimensionFormatter {
 
     X {
-        override fun format(index: Int, size: Int) = "${index + 1}"
+        override fun format(index: Int, size: Int) =
+            if (index in 0..51) GobanDimensionFormatter.NUMBERS[index] else "${index + 1}"
     },
     Y {
-        override fun format(index: Int, size: Int): String {
-            if (index !in 0..98) return "" // index + 1 !in 1..99
-            val buffer: CharArray = Kanji.get()
-            val start = when {
-                index >= 19 -> { // index + 1 >= 20
-                    buffer[0] = Kanji.DIGITS[(index - 9) / 10] // (index + 1)/10 - 1
-                    0
+
+        private val kanji: Array<String> = CharArray(3).let { buffer ->
+            buffer[1] = '\u5341' // 10
+            Array(99) { y ->
+                val start = when {
+                    y >= 19 -> { // y + 1 >= 20
+                        buffer[0] = KANJI_DIGITS[(y - 9) / 10] // (y + 1)/10 - 1
+                        0
+                    }
+                    y >= 9 -> 1 // y + 1 >= 10
+                    else -> 2
                 }
-                index >= 9 -> 1 // index + 1 >= 10
-                else -> 2
-            }
-            val end = when(val digit = (index + 1) % 10) {
-                0 -> 2
-                else -> {
-                    buffer[2] = Kanji.DIGITS[digit - 1]
-                    3
+                val end = when(val digit = (y + 1) % 10) {
+                    0 -> 2
+                    else -> {
+                        buffer[2] = KANJI_DIGITS[digit - 1]
+                        3
+                    }
                 }
+                String(buffer, start, end - start).intern()
             }
-            return String(buffer, start, end - start)
         }
+
+        override fun format(index: Int, size: Int) =
+            if (index in 0..98) kanji[index] else "${index + 1}"
     };
-    private object Kanji: ThreadLocal<CharArray>() {
-
-        //                   1     2     3     4     5     6     7     8     9
-        const val DIGITS = "\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d"
-
-        override fun initialValue() = CharArray(3).apply {
-            this[1] = '\u5341' // 10
-        }
-
-    }
 
 }
