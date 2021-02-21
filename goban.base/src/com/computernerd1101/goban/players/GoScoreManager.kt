@@ -82,10 +82,9 @@ class GoScoreManager(val playerManager: GoPlayerManager) {
         val territory: Boolean = playerManager.gameInfo.rules.territoryScore
         val scoreGoban: MutableGoban = finalGoban.getScoreGoban(territory, node.territory)
         val gameInfo = playerManager.gameInfo
-        var score = gameInfo.komi.toFloat() + scoreGoban.whiteCount - scoreGoban.blackCount
+        var score = gameInfo.komi.toFloat() + (scoreGoban.whiteCount - scoreGoban.blackCount)
         if (territory && node is GoSGFMoveNode) {
-            val prisoners = node.getPrisonerScores()
-            score += prisoners[1] - prisoners[0]
+            score += node.getPrisonerScoreMargin(GoColor.WHITE)
         }
         gameInfo.result = if (score == 0.0f) GameResult.DRAW
         else GameResult(GoColor.WHITE, score) // negative score means Black wins

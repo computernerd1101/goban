@@ -1674,6 +1674,8 @@ class GoSGFMoveNode internal constructor(
                 if (player == GoColor.BLACK) prisoners++
                 whiteScore += prisoners
             }
+            scores2[0] = blackScore
+            scores2[1] = whiteScore
         }
         return scores2
     }
@@ -1682,6 +1684,12 @@ class GoSGFMoveNode internal constructor(
         getPrisonerScores(ThreadLocalPrisonerScores.get())[
                 if (captor == GoColor.BLACK) 0 else 1
         ]
+
+    fun getPrisonerScoreMargin(expectedWinner: GoColor): Int {
+        val scores = getPrisonerScores(ThreadLocalPrisonerScores.get())
+        val margin = scores[1] - scores[0]
+        return if (expectedWinner == GoColor.BLACK) -margin else margin
+    }
 
     private object ThreadLocalPrisonerScores: ThreadLocal<IntArray>() {
         override fun initialValue() = IntArray(2)
