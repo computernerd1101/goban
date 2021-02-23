@@ -2,6 +2,8 @@
 
 package com.computernerd1101.goban.resources
 
+import com.computernerd1101.goban.GoPoint
+
 interface GobanDimensionFormatter {
 
     fun format(index: Int, size: Int): String
@@ -10,21 +12,8 @@ interface GobanDimensionFormatter {
         @JvmField val X = Default.X
         @JvmField val Y = Default.Y
 
-        @JvmField val LETTERS: Array<String> = Array(52) { x -> "${formatX(x)}".intern() }
+        @JvmField val LETTERS: Array<String> = Array(52) { x -> "${GoPoint.gtpFormatX(x)}".intern() }
         @JvmField val NUMBERS: Array<String> = Array(52) { y -> "${y + 1}".intern() }
-
-        fun formatX(x: Int): Char {
-            val base: Char = when(x) {
-                in 0..7 -> 'A'
-                in 8..24 -> 'B'
-                in 25..32 -> 'a' - 25
-                in 33..49 -> 'a' - 24
-                50 -> return 'I'
-                51 -> return 'i'
-                else -> return '\u0000'
-            }
-            return base + x
-        }
 
     }
 

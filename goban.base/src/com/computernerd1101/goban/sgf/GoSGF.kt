@@ -1652,7 +1652,9 @@ class GoSGFMoveNode internal constructor(
 
     }
 
-    @JvmOverloads
+    @Suppress("unused")
+    val prisonerScores: IntArray get() = getPrisonerScores()
+
     fun getPrisonerScores(scores: IntArray? = null): IntArray {
         var scores2: IntArray = scores ?: IntArray(2)
         val tree = treeOrNull ?: return scores2
@@ -1680,15 +1682,20 @@ class GoSGFMoveNode internal constructor(
         return scores2
     }
 
+    @Suppress("unused")
     fun getPrisonerScore(captor: GoColor): Int =
         getPrisonerScores(ThreadLocalPrisonerScores.get())[
                 if (captor == GoColor.BLACK) 0 else 1
         ]
 
-    fun getPrisonerScoreMargin(expectedWinner: GoColor): Int {
+    /**
+     * A positive return value favor's the player specified by [favor]. A negative
+     * return value favor's that player's opponent.
+     */
+    fun getPrisonerScoreMargin(favor: GoColor): Int {
         val scores = getPrisonerScores(ThreadLocalPrisonerScores.get())
         val margin = scores[1] - scores[0]
-        return if (expectedWinner == GoColor.BLACK) -margin else margin
+        return if (favor == GoColor.BLACK) -margin else margin
     }
 
     private object ThreadLocalPrisonerScores: ThreadLocal<IntArray>() {

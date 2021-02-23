@@ -244,7 +244,7 @@ internal object GobanBulk: LongBinaryOperator {
                 onlyChain: Boolean = true,
                 shortCircuit: Boolean = true
     ): Boolean {
-        val arrays: Array<LongArray> = GobanThreadLocals.arrays()
+        val arrays: Array<LongArray> = GobanThreadLocals.INSTANCE.get()
         val chain = arrays[GobanThreadLocals.CHAIN]
         clear(chain)
         chain[y] = xBit
@@ -299,10 +299,8 @@ internal object GobanBulk: LongBinaryOperator {
                     if (shortCircuit) return true
                     if (falseEyes) FalseEyeDetector.add(bit2, y1)
                     else isAlive = true
-                } else if (chainRow and bit2 == 0L) {
-                    chain[y1] = chainRow or bit2
+                } else if (chainRow and bit2 == 0L)
                     bits = bit2
-                }
             }
             bit2 = bit shl 1 // right
             if (bit2 <= maxBit && opponentRows[y1] and bit2 == 0L) {
@@ -310,12 +308,13 @@ internal object GobanBulk: LongBinaryOperator {
                     if (shortCircuit) return true
                     if (falseEyes) FalseEyeDetector.add(bit2, y1)
                     else isAlive = true
-                } else if (chainRow and bit2 == 0L) {
-                    chain[y1] = chainRow or bit2
+                } else if (chainRow and bit2 == 0L)
                     bits = bits or bit2
-                }
             }
-            if (bits != 0L) pending[y1] = pending[y1] or bits
+            if (bits != 0L) {
+                chain[y1] = chainRow or bits
+                pending[y1] = pending[y1] or bits
+            }
             y2 = y1 + 1 // below
             if (y2 < height && opponentRows[y2] and bit == 0L) {
                 if (onlyChain && playerRows[y2] and bit == 0L) {
@@ -350,7 +349,7 @@ internal object GobanBulk: LongBinaryOperator {
 
     fun threadLocalGoban(width: Int, height: Int, rows: GobanRows1) {
         // 7 arrays of 52 longs each
-        val arrays: Array<LongArray> = GobanThreadLocals.arrays()
+        val arrays: Array<LongArray> = GobanThreadLocals.INSTANCE.get()
         val blackRows = arrays[GobanThreadLocals.BLACK]
         val whiteRows = arrays[GobanThreadLocals.WHITE]
         var i = 0
@@ -373,7 +372,7 @@ internal object GobanBulk: LongBinaryOperator {
     }
 
     fun addChainToGroup(height: Int) {
-        val arrays: Array<LongArray> = GobanThreadLocals.arrays()
+        val arrays: Array<LongArray> = GobanThreadLocals.INSTANCE.get()
         val group = arrays[GobanThreadLocals.GROUP]
         val chain = arrays[GobanThreadLocals.CHAIN]
         for(y in 0 until height) {
@@ -430,7 +429,7 @@ internal object FalseEyeDetector: ThreadLocal<FalseEyeDetector.Liberties>() {
         val it: Liberties = get()
         val count = it.count
         if (count == 1 || count == 2) {
-            val arrays: Array<LongArray> = GobanThreadLocals.arrays()
+            val arrays: Array<LongArray> = GobanThreadLocals.INSTANCE.get()
             val score = arrays[it.falseEyeScore]
             if (score[it.y1] and it.xBit1 != 0L) {
                 if (count == 1 || score[it.y2] and it.xBit2 == 0L) {

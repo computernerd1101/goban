@@ -4,6 +4,47 @@ import com.computernerd1101.goban.*
 import com.computernerd1101.goban.sgf.*
 import com.computernerd1101.goban.sgf.internal.InternalGoSGF.violatesSituationalSuperko
 
+
+fun GoSGF.resumeNode(): GoSGFNode = synchronized(this) {
+    val root = rootNode
+    var children = root.children
+    val handicapNode: GoSGFSetupNode?
+    val handicap: Int
+    if (children != 1) {
+        handicapNode = null
+        handicap = 0
+    }
+    else {
+        val node = root.child(0) as? GoSGFSetupNode
+        if (node == null) {
+            handicapNode = null
+            handicap = 0
+        }
+        else {
+            val goban = node.goban
+            val blackCount = goban.blackCount
+            if (blackCount <= 1 || goban.whiteCount != 0 || goban.emptyCount == 0) {
+                handicapNode = null
+                handicap = 0
+            } else {
+                handicapNode = node
+                handicap = blackCount
+            }
+        }
+    }
+    val node: GoSGFSetupNode
+    val firstPlayer: GoColor
+    if (handicapNode != null) {
+        node = handicapNode
+        firstPlayer = GoColor.WHITE
+    } else {
+        node = root
+        firstPlayer = GoColor.BLACK
+    }
+    val repetitions = mutableMapOf<GoSGFMoveNode, GoSGFMoveNode>()
+    TODO()
+}
+
 fun GoSGF.tryResume(): GoSGFResumeException? = try {
     onResume()
     null

@@ -119,7 +119,7 @@ sealed class AbstractGoban(
         getChainOrGroup(x, y, chain, isChain = true)
 
     @JvmOverloads
-    fun getGroup(p: GoPoint, group: MutableGoPointSet? = null): GoPointSet =
+    fun  getGroup(p: GoPoint, group: MutableGoPointSet? = null): GoPointSet =
         getGroup(p.x, p.y, group)
 
     @JvmOverloads
@@ -132,7 +132,7 @@ sealed class AbstractGoban(
         if (y !in 0 until height)
             throw InternalGoban.indexOutOfBoundsException(y, height)
         GobanBulk.threadLocalGoban(width, height, rows)
-        val arrays: Array<LongArray> = GobanThreadLocals.arrays()
+        val arrays: Array<LongArray> = GobanThreadLocals.INSTANCE.get()
         val black = arrays[GobanThreadLocals.BLACK]
         val white = arrays[GobanThreadLocals.WHITE]
         val xBit = 1L shl x
@@ -252,7 +252,7 @@ class FixedGoban: AbstractGoban {
         }
         this.hash = hash
         GobanBulk.threadLocalGoban(width, height, rows)
-        val arrays: Array<LongArray> = GobanThreadLocals.arrays()
+        val arrays: Array<LongArray> = GobanThreadLocals.INSTANCE.get()
         val group = arrays[GobanThreadLocals.GROUP]
         GobanBulk.clear(group)
         val blackRows = arrays[GobanThreadLocals.BLACK]
@@ -398,9 +398,48 @@ sealed class AbstractMutableGoban: AbstractGoban {
         return changed
     }
 
-    fun copyFrom(goban: AbstractGoban): Boolean {
+    @JvmOverloads
+    fun copyFrom(goban: AbstractGoban, mask: Set<GoPoint>? = null): Boolean {
         if (width != goban.width || height != goban.height) return false
-        val diff = InternalGoban.copyRows(goban.rows, rows)
+        val rows = this.rows
+        var diff: Long
+        if (mask == null) {
+            diff = InternalGoban.copyRows(goban.rows, rows)
+        } else {
+            diff = 0
+            GobanBulk.threadLocalGoban(width, height, goban.rows)
+            val locals = GobanThreadLocals.INSTANCE
+            val group: LongArray = locals.get()[GobanThreadLocals.GROUP]
+            when(mask) {
+                is GoPointSet -> for(y in 0 until height)
+                    group[y] = InternalGoPointSet.rowUpdaters[y][mask]
+                is GoRectangle -> {
+                    val rowBits = InternalGoRectangle.rowBits(mask)
+                    val y1 = mask.start.y
+                    val y2 = mask.end.y
+                    for(y in 0 until y1) group[y] = 0L
+                    for(y in y1..minOf(y2, height - 1)) group[y] = rowBits
+                    for(y in y2 + 1 until height) group[y] = 0L
+                }
+                else -> {
+                    for(y in 0 until height) group[y] = 0L
+                    @Suppress("USELESS_CAST")
+                    for (element in (mask as Collection<*>)) if (element is GoPoint) {
+                        val y = element.y
+                        if (y < height) group[y] = group[y] or (1L shl element.x)
+                    }
+                }
+            }
+            val wide = width > 32
+            for(y in 0 until rows.size) {
+                var pos = y.toLong()
+                pos = if (wide) pos.and(-2L).shl(31) or pos.and(1L).shl(5)
+                else pos shl 32
+                val oldRow = GobanRows.updaters[y].getAndAccumulate(rows, pos, locals)
+                val newRow = locals.applyAsLong(oldRow, pos)
+                diff += InternalGoban.countStonesInRow(newRow) - InternalGoban.countStonesInRow(oldRow)
+            }
+        }
         InternalGoban.count.addAndGet(this, diff)
         return true
     }
@@ -513,7 +552,7 @@ class Goban: AbstractMutableGoban {
         if (x < 0 || y < 0 || x >= width || y >= height ||
             InternalGoban.set(this, x, y, stone, null) != null)
             return false
-        val arrays: Array<LongArray> = GobanThreadLocals.arrays()
+        val arrays: Array<LongArray> = GobanThreadLocals.INSTANCE.get()
         val group = arrays[GobanThreadLocals.GROUP]
         GobanBulk.clear(group)
         val chain = arrays[GobanThreadLocals.CHAIN]
@@ -545,7 +584,7 @@ class Goban: AbstractMutableGoban {
     }
 
     private fun checkNeighbor(xBit: Long, y: Int, player: Int, opponent: Int): Int {
-        val arrays: Array<LongArray> = GobanThreadLocals.arrays()
+        val arrays: Array<LongArray> = GobanThreadLocals.INSTANCE.get()
         val group = arrays[GobanThreadLocals.GROUP]
         val chain = arrays[GobanThreadLocals.CHAIN]
         val playerRows = arrays[player]
@@ -572,7 +611,7 @@ class Goban: AbstractMutableGoban {
 
     fun getScoreGoban(territory: Boolean = false, score: MutableGoban? = null): MutableGoban {
         GobanBulk.threadLocalGoban(width, height, rows)
-        val arrays: Array<LongArray> = GobanThreadLocals.arrays()
+        val arrays: Array<LongArray> = GobanThreadLocals.INSTANCE.get()
         val group = arrays[GobanThreadLocals.GROUP]
         val black = arrays[GobanThreadLocals.BLACK]
         val white = arrays[GobanThreadLocals.WHITE]
@@ -610,7 +649,7 @@ class Goban: AbstractMutableGoban {
 
     private fun nextScore(y: Int) {
         val maxBit = 1L shl (width - 1)
-        val arrays: Array<LongArray> = GobanThreadLocals.arrays()
+        val arrays: Array<LongArray> = GobanThreadLocals.INSTANCE.get()
         val group = arrays[GobanThreadLocals.GROUP]
         val chain = arrays[GobanThreadLocals.CHAIN]
         val pending = arrays[GobanThreadLocals.PENDING]
@@ -701,7 +740,7 @@ class Goban: AbstractMutableGoban {
     }
 
     private fun nextFalseEye(y: Int): Boolean {
-        val arrays: Array<LongArray> = GobanThreadLocals.arrays()
+        val arrays: Array<LongArray> = GobanThreadLocals.INSTANCE.get()
         val group = arrays[GobanThreadLocals.GROUP]
         val chain = arrays[GobanThreadLocals.CHAIN]
         val black = arrays[GobanThreadLocals.BLACK]

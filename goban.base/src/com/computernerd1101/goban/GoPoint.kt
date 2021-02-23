@@ -181,7 +181,18 @@ class GoPoint private constructor(
         }
 
         @JvmStatic
-        fun gtpFormatX(x: Int): Char = GobanDimensionFormatter.formatX(x)
+        fun gtpFormatX(x: Int): Char {
+            val base: Char = when(x) {
+                in 0..7 -> 'A'
+                in 8..24 -> 'B'
+                in 25..32 -> 'a' - 25
+                in 33..49 -> 'a' - 24
+                50 -> return 'I'
+                51 -> return 'i'
+                else -> return '\u0000'
+            }
+            return base + x
+        }
 
         @JvmStatic
         fun gtpParse(string: String, width: Int, height: Int): GoPoint =

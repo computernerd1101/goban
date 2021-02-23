@@ -165,6 +165,7 @@ class GobanDesktopResources: ListResourceBundle() {
             arrayOf("Score.Black.Suffix", ""),
             arrayOf("Score.White.Prefix", "White score: "),
             arrayOf("Score.White.Suffix", ""),
+            arrayOf("Score.Submit", "Submit score")
 
         )
     }

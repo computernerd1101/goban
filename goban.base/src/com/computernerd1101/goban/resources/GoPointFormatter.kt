@@ -13,7 +13,7 @@ fun interface GoPointFormatter {
         override fun format(point: GoPoint?, width: Int, height: Int): String {
             if (point == null) return "Pass"
             val y = height - point.y
-            return if (y in 1..52) point.gtpFormat(height) else "${GobanDimensionFormatter.formatX(point.x)}$y"
+            return if (y in 1..52) point.gtpFormat(height) else "${GoPoint.gtpFormatX(point.x)}$y"
         }
 
     }

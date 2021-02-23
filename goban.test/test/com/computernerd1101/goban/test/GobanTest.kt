@@ -68,6 +68,50 @@ internal class GobanTest {
     }
 
     @Test
+    fun getGroup() {
+        val goban = Goban(5)
+        goban[0, 0] = GoColor.BLACK
+        goban[1, 0] = GoColor.BLACK
+        goban[2, 0] = GoColor.BLACK
+        goban[0, 1] = GoColor.WHITE
+        goban[1, 1] = GoColor.BLACK
+        goban[3, 1] = GoColor.BLACK
+        goban[0, 2] = GoColor.WHITE
+        goban[1, 2] = GoColor.WHITE
+        goban[2, 2] = GoColor.WHITE
+        goban[3, 2] = GoColor.BLACK
+        goban[4, 2] = GoColor.BLACK
+        goban[2, 3] = GoColor.WHITE
+        goban[3, 3] = GoColor.WHITE
+        goban[4, 3] = GoColor.WHITE
+        val group = MutableGoPointSet()
+        val p = GoPoint(0, 0)
+        goban.getGroup(1, 0, group)
+        assert(group.contains(p))
+        goban.getGroup(2, 0, group)
+        assert(group.contains(p))
+        goban.getGroup(1, 1, group)
+        assert(group.contains(p))
+        goban.getGroup(3, 1, group)
+        assert(group.contains(p))
+        goban.getGroup(3, 2, group)
+        assert(group.contains(p))
+        goban.getGroup(4, 2, group)
+        assert(group.contains(p))
+    }
+
+    @Test
+    fun copyFrom() {
+        val p = GoPoint(34, 0)
+        val goban = Goban(52)
+        goban[p] = GoColor.WHITE
+        val goban2 = Goban(52)
+        goban2.copyFrom(goban, GoPointSet(p))
+        assertEquals(GoColor.WHITE, goban2[p])
+
+    }
+
+    @Test
     fun getScoreGoban() {
         val goban = Goban(9)
         goban[1, 0] = GoColor.WHITE
