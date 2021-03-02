@@ -40,7 +40,7 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
         fun readOnly(vararg points: Iterable<GoPoint>): GoPointSet {
             val set = GoPointSet(InternalGoPointSet)
             InternalGoPointSet.init(set, points)
-            if (set.sizeAndHash == 0L) return EMPTY
+            if (InternalGoPointSet.sizeAndHash[set] == 0L) return EMPTY
             for(elements in points) {
                 if (elements is GoPointSet && elements !is MutableGoPointSet && set == elements)
                     return elements
@@ -311,6 +311,8 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
 
     open fun readOnly() = this
 
+    open fun edit() = copy()
+
     override fun contains(element: GoPoint): Boolean {
         return InternalGoPointSet.rowUpdaters[element.y][this] and (1L shl element.x) != 0L
     }
@@ -448,6 +450,8 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
         }
         return readOnly
     }
+
+    override fun edit() = this
 
     override fun iterator(): MutableIterator<GoPoint> = object :
         GoPointItr(this), MutableIterator<GoPoint> {
@@ -726,6 +730,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
             }
             else -> {
                 val rows: LongArray = ThreadLocalRows.get()
+                for(y in 0..51) rows[y] = 0L
                 for((x, y) in elements)
                     rows[y] = rows[y] xor (1L shl x)
                 for(y in 0..51) {
@@ -761,6 +766,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
             }
             else -> {
                 val rows: LongArray = ThreadLocalRows.get()
+                for(y in 0..51) rows[y] = 0L
                 for((x, y) in elements)
                     rows[y] = rows[y] xor (1L shl x)
                 for(y in 0..51)
