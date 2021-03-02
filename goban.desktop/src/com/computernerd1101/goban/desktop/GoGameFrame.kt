@@ -5,10 +5,12 @@ import com.computernerd1101.goban.desktop.internal.InternalMarker
 import com.computernerd1101.goban.desktop.resources.*
 import com.computernerd1101.goban.players.*
 import com.computernerd1101.goban.sgf.GoSGFMoveNode
+import com.computernerd1101.goban.sgf.GoSGFNode
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 import java.awt.*
 import java.awt.event.*
+import java.awt.geom.Rectangle2D
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater
 import javax.swing.*
 
@@ -27,19 +29,27 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
         abstract val frame: GoGameFrame
 
         override suspend fun generateHandicapStones(handicap: Int, goban: Goban) = withContext(Dispatchers.IO) {
-            frame.generateHandicapStones(handicap, goban)
+            frame.generateHandicapStones(handicap, goban, InternalMarker)
         }
 
         override suspend fun requestMove(channel: SendChannel<GoPoint?>) = withContext(Dispatchers.IO) {
-            frame.requestMove(color, channel)
+            frame.requestMove(color, channel, InternalMarker)
         }
 
         override suspend fun update() = withContext(Dispatchers.IO) {
-            frame.update()
+            frame.update(InternalMarker)
+        }
+
+        override suspend fun acceptUndoMove(resumeNode: GoSGFNode): Boolean {
+            val opponent = this.opponent as? AbstractPlayer
+            if (opponent?.frame === frame) return true
+            return opponent?.frame === frame || withContext(Dispatchers.IO) {
+                frame.acceptUndoMove(resumeNode, InternalMarker)
+            }
         }
 
         override suspend fun startScoring(scoreManager: GoScoreManager) = withContext(Dispatchers.IO) {
-            frame.startScoring(scoreManager)
+            frame.startScoring(scoreManager, InternalMarker)
         }
 
         override suspend fun updateScoring(
@@ -47,16 +57,21 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
             stones: GoPointSet,
             alive: Boolean
         ) = withContext(Dispatchers.IO) {
-            frame.updateScoring(scoreManager, stones, alive)
+            frame.updateScoring(scoreManager, stones, alive, InternalMarker)
         }
 
         override suspend fun finishScoring() = withContext(Dispatchers.IO) {
-            frame.finishScoring()
+            frame.finishScoring(InternalMarker)
         }
 
-        internal suspend fun sendFinishScoring(scoreManager: GoScoreManager, marker: InternalMarker) {
+        internal suspend fun submitScore(scoreManager: GoScoreManager, marker: InternalMarker) {
             marker.ignore()
-            sendFinishScoring(scoreManager)
+            submitScore(scoreManager)
+        }
+
+        internal suspend fun requestResumePlay(scoreManager: GoScoreManager, marker: InternalMarker) {
+            marker.ignore()
+            requestResumePlay(scoreManager)
         }
 
     }
@@ -108,6 +123,9 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
             AtomicReferenceFieldUpdater.newUpdater(
                 GoGameFrame::class.java, GameAction::class.java, "gameAction"
             )
+
+        @JvmField val TRANSPARENT_BLACK = Color(0x7F000000, true)
+        @JvmField val TRANSPARENT_WHITE = Color(0x7FFFFFFF, true)
     }
 
     private val sgf = manager.sgf
@@ -115,13 +133,15 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
     private val suicideRestrictions = MutableGoPointSet()
     private val goPointGroup = MutableGoPointSet()
     private val prototypeGoban = Goban(sgf.width, sgf.height)
+    private var scoreGoban: MutableGoban = manager.node.territory
 
     @Volatile private var gameAction: GameAction? = null
     private var handicap = 0
     private var channel: SendChannel<GoPoint?>? = null
     private var scoreManager: GoScoreManager? = null
 
-    suspend fun generateHandicapStones(handicap: Int, goban: Goban) {
+    internal suspend fun generateHandicapStones(handicap: Int, goban: Goban, marker: InternalMarker) {
+        marker.ignore()
         val blackCount = goban.blackCount
         if (blackCount > handicap)
             goban.clear()
@@ -140,8 +160,8 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
         }
     }
 
-    @Suppress("RedundantSuspendModifier")
-    suspend fun requestMove(player: GoColor, channel: SendChannel<GoPoint?>) {
+    internal fun requestMove(player: GoColor, channel: SendChannel<GoPoint?>, marker: InternalMarker) {
+        marker.ignore()
         val action = if (player == GoColor.BLACK) GameAction.PLAY_BLACK else GameAction.PLAY_WHITE
         if (updateGameAction.compareAndSet(this@GoGameFrame, null, action)) {
             val goban = manager.node.goban
@@ -161,47 +181,78 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
         }
     }
 
-    @Suppress("RedundantSuspendModifier")
-    suspend fun update() {
+    internal fun update(marker: InternalMarker) {
+        marker.ignore()
         val node = manager.node
         if (node is GoSGFMoveNode) {
             node.getSuperkoRestrictions(superkoRestrictions)
         } else {
             superkoRestrictions.clear()
         }
+        if (gameAction != GameAction.COUNT_SCORE)
+            scoreGoban = node.territory
         gobanView.goban = node.goban
         gobanView.repaint()
     }
 
-    @Suppress("RedundantSuspendModifier")
-    suspend fun startScoring(scoreManager: GoScoreManager) {
+    internal suspend fun acceptUndoMove(resumeNode: GoSGFNode, marker: InternalMarker): Boolean {
+        marker.ignore()
+        // TODO
+        return false
+    }
+
+    internal fun startScoring(scoreManager: GoScoreManager, marker: InternalMarker) {
+        marker.ignore()
         if (updateGameAction.compareAndSet(this, null, GameAction.COUNT_SCORE)) {
             this.scoreManager = scoreManager
             val goban = manager.node.goban
             prototypeGoban.copyFrom(goban)
             gobanView.goban = goban
+            scoreGoban = prototypeGoban.getScoreGoban(manager.gameInfo.rules.territoryScore)
             gobanView.repaint()
             actionButton.text = gobanDesktopResources().getString("Score.Submit")
             actionButton.isEnabled = true
         }
     }
 
-    @Suppress("RedundantSuspendModifier")
-    suspend fun updateScoring(scoreManager: GoScoreManager, stones: GoPointSet, alive: Boolean) {
+    internal fun updateScoring(
+        scoreManager: GoScoreManager,
+        stones: GoPointSet,
+        alive: Boolean,
+        marker: InternalMarker
+    ) {
+        marker.ignore()
         if (gameAction == GameAction.COUNT_SCORE && this.scoreManager === scoreManager) {
             if (alive) prototypeGoban.copyFrom(manager.node.goban, stones)
             else prototypeGoban.setAll(stones, null)
+            scoreGoban = prototypeGoban.getScoreGoban(manager.gameInfo.rules.territoryScore, scoreGoban)
             gobanView.repaint()
             actionButton.isEnabled = true
         }
     }
 
-    @Suppress("RedundantSuspendModifier")
-    suspend fun finishScoring() {
+    internal fun finishScoring(marker: InternalMarker) {
+        marker.ignore()
         if (updateGameAction.compareAndSet(this, GameAction.COUNT_SCORE, null)) {
             scoreManager = null
+            scoreGoban = manager.node.territory
             gobanView.repaint()
         }
+    }
+
+    fun requestResumePlay() {
+        val scoreManager = this.scoreManager ?: return
+        val blackPlayer = (manager.blackPlayer as? AbstractPlayer)?.takeIf { it.frame === this }
+        val whitePlayer = manager.whitePlayer as? AbstractPlayer
+        val player: AbstractPlayer = when {
+            whitePlayer?.frame !== this -> blackPlayer ?: return
+            blackPlayer == null -> whitePlayer
+            else -> {
+                val node = manager.node
+                if ((node.turnPlayer == GoColor.WHITE) == (node is GoSGFMoveNode)) whitePlayer else blackPlayer
+            }
+        }
+        manager.gameScope.launch(Dispatchers.IO) { player.requestResumePlay(scoreManager, InternalMarker) }
     }
 
     private val gobanView = object: GobanView(manager.node.goban) {
@@ -287,63 +338,95 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
         }
 
         override fun getStoneAlphaAt(p: GoPoint): Float {
-            val action = gameAction ?: return 1f
+            val action = gameAction
             val goban = this.goban ?: return 1f
             return when {
                 action == GameAction.COUNT_SCORE -> if(goban[p] == null) 1f else {
                     val alive = if (goPointGroup.contains(p)) isShiftDown else prototypeGoban[p] != null
                     if (alive) 1f else 0.5f
                 }
-                p != goCursor -> 1f
                 action == GameAction.HANDICAP -> {
                     when {
+                        p != goCursor -> 1f
                         goban[p] != null -> 0.25f
                         goban.blackCount < handicap -> 0.5f
                         else -> 1f
                     }
                 }
+                action == null || p != goCursor -> {
+                    val color = goban[p]
+                    val territory = scoreGoban[p]
+                    if (color == null || territory == null || color == territory) 1f
+                    else 0.5f
+                }
                 // action == PLAY_BLACK or PLAY_WHITE
-                else -> if (goban[p] == null && !suicideRestrictions.contains(p) &&
-                    !superkoRestrictions.contains(p)) 0.5f else 1f
+                goban[p] == null && !suicideRestrictions.contains(p) && !superkoRestrictions.contains(p) -> 0.5f
+                else -> 1f
             }
         }
 
         override fun paintGoban(g: Graphics2D) {
-            super.paintGoban(g)
             val goban = this.goban ?: return
-            g.paint = foreground
-            for(point in superkoRestrictions) {
-                if (point.x < goban.width && point.y < goban.height && goban[point] == null) {
-                    g.draw(getMarkupSquare(point))
+            var rect: Rectangle2D.Double? = null
+            for(y in 0 until goban.height) for(x in 0 until goban.width) {
+                val color = scoreGoban[x, y] ?: continue
+                g.paint = if (color == GoColor.BLACK) TRANSPARENT_BLACK else TRANSPARENT_WHITE
+                if (rect == null) {
+                    rect = Rectangle2D.Double()
+                    rect.width = 1.0
+                    rect.height = 1.0
                 }
+                rect.x = x - 0.5
+                rect.y = y - 0.5
+                g.fill(rect)
+            }
+            super.paintGoban(g)
+            g.paint = foreground
+            for(p in superkoRestrictions) {
+                if (p.x < goban.width && p.y < goban.height && goban[p] == null) {
+                    g.draw(getMarkupSquare(p))
+                }
+            }
+            val p = (manager.node as? GoSGFMoveNode)?.playStoneAt
+            if (p != null) {
+                val color = goban[p]
+                if (color == GoColor.BLACK) g.paint = Color.WHITE
+                else if (color == GoColor.WHITE) g.paint = Color.BLACK
+                g.draw(getMarkupCircle(p))
             }
         }
 
     }
 
+    private val cardLayout = CardLayout()
+    private val cardPanel = JPanel(cardLayout)
     private val actionButton = JButton(GoPoint.format(null, sgf.width, sgf.height))
 
     init {
+        val split = JSplitPane(JSplitPane.HORIZONTAL_SPLIT)
+        split.leftComponent = actionButton
+        split.rightComponent = gobanView
+        SwingUtilities.invokeLater {
+            split.dividerLocation = 500
+        }
         actionButton.isEnabled = false
         actionButton.addActionListener {
             val action = gameAction
             val channel: SendChannel<GoPoint?>?
             val scoreManager: GoScoreManager?
-            var black: AbstractPlayer? = null
-            var white: AbstractPlayer? = null
+            val black: AbstractPlayer?
+            val white: AbstractPlayer?
             if (action == GameAction.COUNT_SCORE) {
                 channel = null
                 scoreManager = this.scoreManager ?: return@addActionListener
-                black = manager.blackPlayer as? AbstractPlayer
-                if (black?.frame !== this) black = null
-                white = manager.whitePlayer as? AbstractPlayer
-                if (white?.frame !== this) {
-                    if (black == null) return@addActionListener
-                    white = null
-                }
+                black = (manager.blackPlayer as? AbstractPlayer)?.takeIf { it.frame === this }
+                white = (manager.whitePlayer as? AbstractPlayer)?.takeIf { it.frame === this }
+                if (black == null && white == null) return@addActionListener
                 actionButton.isEnabled = false
             } else {
                 scoreManager = null
+                black = null
+                white = null
                 if (action == GameAction.HANDICAP)
                     actionButton.text = GoPoint.format(null, sgf.width, sgf.height)
                 gameAction = null
@@ -357,14 +440,12 @@ class GoGameFrame(val manager: GoPlayerManager): JFrame() {
             manager.gameScope.launch(Dispatchers.IO) {
                 channel?.send(null)
                 if (scoreManager != null) {
-                    black?.sendFinishScoring(scoreManager, InternalMarker)
-                    white?.sendFinishScoring(scoreManager, InternalMarker)
+                    black?.submitScore(scoreManager, InternalMarker)
+                    white?.submitScore(scoreManager, InternalMarker)
                 }
             }
         }
-        layout = BorderLayout()
-        add(gobanView, BorderLayout.CENTER)
-        add(actionButton, BorderLayout.SOUTH)
+        contentPane = split
     }
 
     private var goCursor: GoPoint? = null

@@ -408,8 +408,8 @@ sealed class AbstractMutableGoban: AbstractGoban {
         } else {
             diff = 0
             GobanBulk.threadLocalGoban(width, height, goban.rows)
-            val locals = GobanThreadLocals.INSTANCE
-            val group: LongArray = locals.get()[GobanThreadLocals.GROUP]
+            val copyRows = GobanThreadLocals.INSTANCE
+            val group: LongArray = copyRows.get()[GobanThreadLocals.GROUP]
             when(mask) {
                 is GoPointSet -> for(y in 0 until height)
                     group[y] = InternalGoPointSet.rowUpdaters[y][mask]
@@ -435,8 +435,8 @@ sealed class AbstractMutableGoban: AbstractGoban {
                 var pos = y.toLong()
                 pos = if (wide) pos.and(-2L).shl(31) or pos.and(1L).shl(5)
                 else pos shl 32
-                val oldRow = GobanRows.updaters[y].getAndAccumulate(rows, pos, locals)
-                val newRow = locals.applyAsLong(oldRow, pos)
+                val oldRow = GobanRows.updaters[y].getAndAccumulate(rows, pos, copyRows)
+                val newRow = copyRows.applyAsLong(oldRow, pos)
                 diff += InternalGoban.countStonesInRow(newRow) - InternalGoban.countStonesInRow(oldRow)
             }
         }

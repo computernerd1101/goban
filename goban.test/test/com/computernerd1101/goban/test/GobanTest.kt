@@ -102,13 +102,12 @@ internal class GobanTest {
 
     @Test
     fun copyFrom() {
-        val p = GoPoint(34, 0)
-        val goban = Goban(52)
+        val p = GoPoint(0, 0)
+        val goban = Goban(19)
         goban[p] = GoColor.WHITE
-        val goban2 = Goban(52)
+        val goban2 = Goban(19)
         goban2.copyFrom(goban, GoPointSet(p))
         assertEquals(GoColor.WHITE, goban2[p])
-
     }
 
     @Test

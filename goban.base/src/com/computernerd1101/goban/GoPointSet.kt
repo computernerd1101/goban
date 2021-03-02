@@ -31,14 +31,21 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
         }
 
         @JvmField
-        val EMPTY = GoPointSet(InternalGoPointSet)
+        val EMPTY = GoPointSet(InternalGoPointSet).apply {
+            compressed = emptyArray()
+            string = "[]"
+        }
 
         @JvmStatic
         fun readOnly(vararg points: Iterable<GoPoint>): GoPointSet {
             val set = GoPointSet(InternalGoPointSet)
             InternalGoPointSet.init(set, points)
-            return if (set.sizeAndHash == 0L) EMPTY
-            else set
+            if (set.sizeAndHash == 0L) return EMPTY
+            for(elements in points) {
+                if (elements is GoPointSet && elements !is MutableGoPointSet && set == elements)
+                    return elements
+            }
+            return set
         }
 
     }
@@ -115,7 +122,7 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
     private var compressed: Array<GoRectangle>? = null
 
     private fun compressed(): Array<GoRectangle> {
-        var compressed = if (this is MutableGoPointSet) null else this.compressed
+        var compressed = this.compressed
         if (compressed == null) {
             val rows: LongArray = Compressed.get()
             for (i in 0..51)
@@ -186,16 +193,15 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
             }
             compressed = list.toTypedArray()
             compressed.sort()
-            if (this !is MutableGoPointSet)
-                this.compressed = compressed
+            this.compressed = compressed
         }
         return compressed
     }
 
     @Suppress("unused")
     fun compress(): Array<GoRectangle> {
-        val compressed = compressed()
-        return if (this is MutableGoPointSet || compressed.isEmpty()) compressed
+        val compressed = readOnly().compressed()
+        return if (compressed.isEmpty()) compressed
         else compressed.clone()
     }
 
@@ -203,7 +209,7 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
         if (size == 0) return null
         var prop: SGFProperty? = null
         if (compress) {
-            val compressed = compressed()
+            val compressed = readOnly().compressed()
             if (compressed.isEmpty()) return null
             for((first, second) in compressed) {
                 val value = SGFValue(first.toSGFBytes())
@@ -220,11 +226,7 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
         return prop
     }
 
-    fun copy(): MutableGoPointSet {
-        val copy = MutableGoPointSet()
-        copyInto(copy, InternalGoPointSet)
-        return copy
-    }
+    fun copy() = MutableGoPointSet(this)
 
     internal fun copyInto(dst: GoPointSet, intern: InternalGoPointSet) {
         dst.row0 = row0
@@ -280,6 +282,28 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
         dst.row50 = row50
         dst.row51 = row51
         dst.sizeAndHash = intern.sizeAndHash(dst)
+    }
+
+    internal fun copyCache(other: GoPointSet, intern: InternalGoPointSet) {
+        if (sizeAndHash != other.sizeAndHash) return
+        for(y in 0..51) {
+            val updater = intern.rowUpdaters[y]
+            if (updater[this] != updater[other]) return
+        }
+        val compressed = this.compressed
+        val otherCompressed = other.compressed
+        when {
+            compressed == null -> if (otherCompressed != null) {
+                this.compressed = otherCompressed
+                if (string == null) string = other.string
+            }
+            otherCompressed == null -> {
+                other.compressed = compressed
+                if (other.string == null) other.string = string
+            }
+            string == null -> string = other.string
+            other.string == null -> other.string = string
+        }
     }
 
     open fun readOnly() = this
@@ -352,10 +376,11 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
     private var string: String? = null
 
     override fun toString(): String {
-        var s = if (this is MutableGoPointSet) null else string
-        if (s == null) {
-            val compressed = compressed()
-            s = if (compressed.size == 1) compressed[0].toString()
+        val readOnly = readOnly()
+        var string = readOnly.string
+        if (string == null) {
+            val compressed = readOnly.compressed()
+            string = if (compressed.size == 1) compressed[0].toString()
             else {
                 val buffer = StringBuilder()
                 compressed.joinTo(buffer, ", ", "[", "]") {
@@ -368,10 +393,9 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
                     }
                 }.toString()
             }
-            if (this !is MutableGoPointSet)
-                string = s
+            readOnly.string = string
         }
-        return s
+        return string
     }
 
 }
@@ -381,18 +405,45 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
 //    internal constructor(rows: AtomicLongArray, marker: InternalMarker):
 //            super(rows, InternalGoPointSet.sizeAndHash(rows), marker)
 
-    constructor(): super(InternalGoPointSet)
+    constructor(): super(InternalGoPointSet) {
+        readOnly = null
+    }
+
+    constructor(other: GoPointSet): super(InternalGoPointSet) {
+        readOnly = if (other is MutableGoPointSet) other.readOnly else other
+        other.copyInto(this, InternalGoPointSet)
+    }
 
     @Suppress("unused")
     constructor(vararg points: Iterable<GoPoint>): super(InternalGoPointSet) {
+        readOnly = if (points.size != 1) null
+        else when(val other = points[0]) {
+            is MutableGoPointSet -> other.readOnly
+            is GoPointSet -> other
+            else -> null
+        }
         InternalGoPointSet.init(this, points)
     }
 
+    private var readOnly: GoPointSet?
+
     override fun readOnly(): GoPointSet {
         if (isEmpty()) return EMPTY
-        val copy = GoPointSet(InternalGoPointSet)
-        copyInto(copy, InternalGoPointSet)
-        return if (copy.isEmpty()) EMPTY else copy
+        var readOnly = this.readOnly
+        if (readOnly != null) for(y in 0..51) {
+            val updater = InternalGoPointSet.rowUpdaters[y]
+            if (updater[this] != updater[readOnly]) {
+                readOnly = null
+                break
+            }
+        }
+        if (readOnly == null) {
+            readOnly = GoPointSet(InternalGoPointSet)
+            copyInto(readOnly, InternalGoPointSet)
+            if (readOnly.isEmpty()) return EMPTY
+            this.readOnly = readOnly
+        }
+        return readOnly
     }
 
     override fun iterator(): MutableIterator<GoPoint> = object :
@@ -647,6 +698,10 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                     if (InternalGoPointSet.copyRowFrom(this, y, newBits))
                         modified = true
                 }
+                if (elements !is MutableGoPointSet) {
+                    if (modified) readOnly = elements
+                    else readOnly?.copyCache(elements, InternalGoPointSet)
+                }
             }
             is GoPointKeys<*> -> {
                 elements.expungeStaleRows()
@@ -661,7 +716,8 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                 val y1 = elements.start.y
                 val y2 = elements.end.y
                 for(y in 0 until y1) if (clearRow(y)) modified = true
-                for(y in y1..y2) if (InternalGoPointSet.copyRowFrom(this, y, newBits)) modified = true
+                for(y in y1..y2) if (InternalGoPointSet.copyRowFrom(this, y, newBits))
+                    modified = true
                 for(y in (y2+1)..51) if (clearRow(y)) modified = true
             }
             else -> {
@@ -670,7 +726,8 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                     rows[y] = rows[y] xor (1L shl x)
                 for(y in 0..51) {
                     val newBits = rows[y]
-                    if (InternalGoPointSet.copyRowFrom(this, y, newBits)) modified = true
+                    if (InternalGoPointSet.copyRowFrom(this, y, newBits))
+                        modified = true
                 }
             }
         }
@@ -682,8 +739,8 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
         when(elements) {
             is GoPointKeys<*> -> {
                 elements.expungeStaleRows()
-                for(y in 0..51)
-                    if (invertRow(y, elements.rowBits(y))) modified = true
+                for(y in 0..51) if (invertRow(y, elements.rowBits(y)))
+                    modified = true
             }
             is GoPointEntries<*, *> -> {
                 elements.expungeStaleRows()

@@ -1,5 +1,6 @@
 package com.computernerd1101.goban.internal
 
+import kotlinx.coroutines.channels.*
 import java.util.concurrent.atomic.*
 
 /*
@@ -56,6 +57,8 @@ internal object InternalMarker {
     //inline fun <R> access(block: () -> R): R = block()
 
 }
+
+internal class SendOnlyChannel<E>(channel: Channel<E>): SendChannel<E> by channel
 
 private const val deBruijn64: Long = 0x03f79d71b4ca8b09
 

@@ -55,6 +55,12 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
         return list
     }
 
+    @Synchronized
+    fun resumeNode(): GoSGFNode {
+        val gameInfoNodeList = mutableListOf<GoSGFNode>()
+        TODO()
+    }
+
     private fun leafNodes(node: GoSGFNode, list: MutableList<GoSGFNode>) {
         var current = node
         var childCount = node.children
@@ -1664,9 +1670,14 @@ class GoSGFMoveNode internal constructor(
             var blackScore = 0
             var whiteScore = 0
             var current: GoSGFNode = this
-            while(current is GoSGFMoveNode) {
-                val player = current.turnPlayer
+            loop@while(true) {
                 val goban = current.goban
+                while(current !is GoSGFMoveNode) {
+                    val parent = current.parent ?: break@loop
+                    if (goban != parent.goban) break@loop
+                    current = parent
+                }
+                val player: GoColor = current.turnPlayer
                 current = current.parent!!
                 val prev = current.goban
                 var prisoners = prev.whiteCount - goban.whiteCount

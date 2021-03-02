@@ -621,7 +621,7 @@ class GoEditorFrame private constructor(
         textComment.lineWrap = true
         textComment.wrapStyleWord = true
         textComment.addKeyListener(TextListener.Node(textComment, GoSGFNode::comment, this::node))
-        tabs.add(resources.getString("Comment"), JScrollPane(textComment))
+        tabs.addTab(resources.getString("Comment"), JScrollPane(textComment))
     }
 
     private val cardMoveSetup = CardLayout()
@@ -745,7 +745,7 @@ class GoEditorFrame private constructor(
             spinMoveNumber.value = 0
         }
         cardMoveSetup.show(panelMoveSetup, str)
-        tabs.add(resources.getString(str), JScrollPane(panelMoveSetup))
+        tabs.addTab(resources.getString(str), JScrollPane(panelMoveSetup))
     }
 
     private val textNodeName = JTextField()

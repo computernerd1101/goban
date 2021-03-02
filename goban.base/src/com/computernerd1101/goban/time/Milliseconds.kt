@@ -278,15 +278,15 @@ class Milliseconds private constructor(
 
 }
 
-inline fun Byte.toMilliseconds() = Milliseconds.valueOf(toLong())
-inline fun Short.toMilliseconds() = Milliseconds.valueOf(toLong())
-inline fun Int.toMilliseconds() = Milliseconds.valueOf(toLong())
-inline fun Long.toMilliseconds() = Milliseconds.valueOf(this)
+fun Byte.toMilliseconds() = Milliseconds.valueOf(toLong())
+fun Short.toMilliseconds() = Milliseconds.valueOf(toLong())
+fun Int.toMilliseconds() = Milliseconds.valueOf(toLong())
+fun Long.toMilliseconds() = Milliseconds.valueOf(this)
 @ExperimentalUnsignedTypes
-inline fun UByte.toMilliseconds() = Milliseconds.valueOf(toLong())
+fun UByte.toMilliseconds() = Milliseconds.valueOf(toLong())
 @ExperimentalUnsignedTypes
-inline fun UShort.toMilliseconds() = Milliseconds.valueOf(toLong())
+fun UShort.toMilliseconds() = Milliseconds.valueOf(toLong())
 @ExperimentalUnsignedTypes
-inline fun UInt.toMilliseconds() = Milliseconds.valueOf(toLong())
+fun UInt.toMilliseconds() = Milliseconds.valueOf(toLong())
 @ExperimentalUnsignedTypes
-inline fun ULong.toMilliseconds() = Milliseconds.valueOf(toLong())
+fun ULong.toMilliseconds() = Milliseconds.valueOf(toLong())

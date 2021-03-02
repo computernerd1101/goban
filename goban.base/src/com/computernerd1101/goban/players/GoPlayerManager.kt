@@ -1,10 +1,10 @@
 package com.computernerd1101.goban.players
 
 import com.computernerd1101.goban.*
-import com.computernerd1101.goban.internal.atomicUpdater
+import com.computernerd1101.goban.internal.*
 import com.computernerd1101.goban.sgf.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.*
 import kotlinx.coroutines.selects.select
 
 class GoPlayerManager {
@@ -64,11 +64,8 @@ class GoPlayerManager {
         this.whitePlayer = whitePlayer
     }
 
-    fun startGame() {
-        startGame(Dispatchers.Default)
-    }
-
-    fun startGame(dispatcher: CoroutineDispatcher) {
+    @JvmOverloads
+    fun startGame(dispatcher: CoroutineDispatcher = Dispatchers.Default) {
         gameScope.launch(dispatcher) {
             val handicap = gameInfo.handicap
             if (handicap != 0 && node == sgf.rootNode) {
@@ -89,7 +86,10 @@ class GoPlayerManager {
                 blackPlayer.update()
                 whitePlayer.update()
             }
-            val moveChannel = Channel<GoPoint?>(Channel.CONFLATED)
+            val sendMove: SendChannel<GoPoint?>
+            val receiveMove: ReceiveChannel<GoPoint?> = Channel<GoPoint?>(Channel.CONFLATED).also {
+                sendMove = SendOnlyChannel(it)
+            }
             var passCount = 0
             var lastNonPass: GoSGFNode = node
             while(true) {
@@ -106,9 +106,9 @@ class GoPlayerManager {
                     player = whitePlayer
                     opponent = blackPlayer
                 }
-                player.requestMove(moveChannel)
+                player.requestMove(sendMove)
                 select<Unit> {
-                    moveChannel.onReceive { move ->
+                    receiveMove.onReceive { move ->
                         if (move == null || opponent.acceptOpponentMove(move)) {
                             val node = this@GoPlayerManager.node.createNextMoveNode(move, turnPlayer)
                             if (node.isLegalOrForced) {

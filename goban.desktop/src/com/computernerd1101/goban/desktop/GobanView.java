@@ -371,6 +371,7 @@ public class GobanView extends JComponent {
 
     protected void paintGoban(@NotNull Graphics2D g) {
         AbstractGoban goban = this.goban;
+        if (goban == null) return;
         int width = goban.width, height = goban.height;
         g.setPaint(getForeground());
         if (getShowCoordinates()) {

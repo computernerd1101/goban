@@ -8,9 +8,9 @@ import javax.swing.SwingUtilities
 
 fun main() {
     val clientFactory = GoGameFrame.PlayerFactory()
-    val setup = GoGameSetup(clientFactory, clientFactory, 5)
+    val setup = GoGameSetup(clientFactory, clientFactory, 9)
     val info = setup.gameInfo
-    info.rules = GoRules(superko = Superko.NATURAL)
+    info.rules = GoRules.JAPANESE
     // info.timeLimit = 30L*60L*1000L // 30 minutes
     // info.overtime = ByoYomi()
     val manager = GoPlayerManager(setup)

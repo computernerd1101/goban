@@ -14,7 +14,6 @@ abstract class GoPlayer(val manager: GoPlayerManager, val color: GoColor) {
 
     }
 
-    @Suppress("unused")
     val opponent: GoPlayer
         get() = manager.getPlayer(color.opponent)
 
@@ -33,11 +32,11 @@ abstract class GoPlayer(val manager: GoPlayerManager, val color: GoColor) {
     open suspend fun acceptUndoMove(resumeNode: GoSGFNode): Boolean = false
 
     open suspend fun startScoring(scoreManager: GoScoreManager) {
-        sendFinishScoring(scoreManager)
+        submitScore(scoreManager)
     }
 
     open suspend fun updateScoring(scoreManager: GoScoreManager, stones: GoPointSet, alive: Boolean) {
-        sendFinishScoring(scoreManager)
+        submitScore(scoreManager)
     }
 
     open suspend fun finishScoring() = Unit
@@ -47,17 +46,17 @@ abstract class GoPlayer(val manager: GoPlayerManager, val color: GoColor) {
             throw SecurityException()
     }
 
-    protected suspend fun sendFinishScoring(scoreManager: GoScoreManager) {
+    protected suspend fun submitScore(scoreManager: GoScoreManager) {
         checkPermissions()
-        scoreManager.getFinish(InternalMarker).send(color)
+        scoreManager.getSubmit(InternalMarker).send(color)
     }
 
-    protected fun <R> SelectBuilder<R>.onSendFinishScoring(
+    protected fun <R> SelectBuilder<R>.onSubmitScore(
         scoreManager: GoScoreManager,
         block: suspend (GoScoreManager) -> R
     ) {
         checkPermissions()
-        scoreManager.getFinish(InternalMarker).onSend(color) {
+        scoreManager.getSubmit(InternalMarker).onSend(color) {
             block(scoreManager)
         }
     }

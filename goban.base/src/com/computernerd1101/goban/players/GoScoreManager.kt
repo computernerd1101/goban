@@ -1,24 +1,23 @@
 package com.computernerd1101.goban.players
 
 import com.computernerd1101.goban.*
-import com.computernerd1101.goban.internal.InternalMarker
-import com.computernerd1101.goban.sgf.GameResult
-import com.computernerd1101.goban.sgf.GoSGFMoveNode
+import com.computernerd1101.goban.internal.*
+import com.computernerd1101.goban.sgf.*
 import kotlinx.coroutines.channels.*
 import kotlinx.coroutines.selects.select
 
 class GoScoreManager(val playerManager: GoPlayerManager) {
 
     private val _deadStones = Channel<GoPointSet>(Channel.UNLIMITED)
-    val deadStones: SendChannel<GoPointSet> get() = _deadStones
+    val deadStones: SendChannel<GoPointSet> = SendOnlyChannel(_deadStones)
 
     private val _livingStones = Channel<GoPointSet>(Channel.UNLIMITED)
-    val livingStones: SendChannel<GoPointSet> get() = _livingStones
+    val livingStones: SendChannel<GoPointSet> = SendOnlyChannel(_livingStones)
 
-    private val finish = Channel<GoColor>(Channel.CONFLATED)
-    internal fun getFinish(marker: InternalMarker): SendChannel<GoColor> {
+    private val submit = Channel<GoColor>(Channel.CONFLATED)
+    internal fun getSubmit(marker: InternalMarker): SendChannel<GoColor> {
         marker.ignore()
-        return finish
+        return submit
     }
 
     private val resumePlay = Channel<GoColor>(Channel.RENDEZVOUS)
@@ -29,20 +28,20 @@ class GoScoreManager(val playerManager: GoPlayerManager) {
 
     suspend fun computeScore(): GoColor? {
         playerManager.startScoring(this)
-        var blackDone = false
-        var whiteDone = false
+        var waitingForBlack = true
+        var waitingForWhite = true
         val node = playerManager.node
         val goban: FixedGoban = node.goban
         val finalGoban: Goban = goban.playable()
         val receiveStones = MutableGoPointSet()
         val sendStones = MutableGoPointSet()
         val group = MutableGoPointSet()
-        while(!(blackDone && whiteDone)) {
+        while(waitingForBlack || waitingForWhite) {
             var resumeRequest: GoColor? = null
             select<Unit> {
                 _deadStones.onReceive {
-                    blackDone = false
-                    whiteDone = false
+                    waitingForBlack = true
+                    waitingForWhite = true
                     receiveStones.copyFrom(it)
                     sendStones.clear()
                     for(point in receiveStones) {
@@ -55,8 +54,8 @@ class GoScoreManager(val playerManager: GoPlayerManager) {
                     playerManager.updateScoring(this@GoScoreManager, sendStones.readOnly(), false)
                 }
                 _livingStones.onReceive {
-                    blackDone = false
-                    whiteDone = false
+                    waitingForBlack = true
+                    waitingForWhite = true
                     receiveStones.copyFrom(it)
                     sendStones.clear()
                     for(point in receiveStones) {
@@ -68,10 +67,10 @@ class GoScoreManager(val playerManager: GoPlayerManager) {
                     }
                     playerManager.updateScoring(this@GoScoreManager, sendStones.readOnly(), true)
                 }
-                finish.onReceive {
+                submit.onReceive {
                     if (it == GoColor.BLACK)
-                        blackDone = true
-                    else whiteDone = true
+                        waitingForBlack = false
+                    else waitingForWhite = false
                 }
                 resumePlay.onReceive {
                     resumeRequest = it
