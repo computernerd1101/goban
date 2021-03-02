@@ -284,26 +284,29 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
         dst.sizeAndHash = intern.sizeAndHash(dst)
     }
 
-    internal fun copyCache(other: GoPointSet, intern: InternalGoPointSet) {
-        if (sizeAndHash != other.sizeAndHash) return
+    internal fun copyCache(other: GoPointSet, intern: InternalGoPointSet): Boolean {
+        if (sizeAndHash != other.sizeAndHash) return false
         for(y in 0..51) {
             val updater = intern.rowUpdaters[y]
-            if (updater[this] != updater[other]) return
+            if (updater[this] != updater[other]) return false
         }
         val compressed = this.compressed
         val otherCompressed = other.compressed
+        val string = this.string
+        val otherString = other.string
         when {
             compressed == null -> if (otherCompressed != null) {
                 this.compressed = otherCompressed
-                if (string == null) string = other.string
+                if (string == null && otherString != null) this.string = otherString
             }
             otherCompressed == null -> {
                 other.compressed = compressed
-                if (other.string == null) other.string = string
+                if (otherString == null && string != null) other.string = string
             }
-            string == null -> string = other.string
-            other.string == null -> other.string = string
+            string == null -> if (otherString != null) this.string = otherString
+            otherString == null -> other.string = string
         }
+        return true
     }
 
     open fun readOnly() = this
@@ -699,8 +702,9 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                         modified = true
                 }
                 if (elements !is MutableGoPointSet) {
-                    if (modified) readOnly = elements
-                    else readOnly?.copyCache(elements, InternalGoPointSet)
+                    val readOnly = this.readOnly
+                    if (modified || readOnly?.copyCache(elements, InternalGoPointSet) != true)
+                        this.readOnly = elements
                 }
             }
             is GoPointKeys<*> -> {
