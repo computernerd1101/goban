@@ -45,8 +45,7 @@ open class GoPointMap<out V> internal constructor(entries: Array<out Any>?, mark
     @Volatile
     private var _size: Int
 
-    override val size: Int
-        get() = _size
+    override val size: Int get() = _size
 
     override fun isEmpty() = size == 0
 
@@ -150,7 +149,7 @@ open class MutableGoPointMap<V> private constructor(entries: Array<out Any>?):
             val weakRows = weak.rows
             val rows = secrets.rows
             for(y in 0..51) if (rows[y] != null)
-                weakRows[y] = WeakRow(this, y)
+                weakRows[y] = WeakGoPointMap.Row(this, y)
             // now safe to leak this
             for(y in 0..51) {
                 val row = rows[y]
@@ -233,7 +232,7 @@ open class MutableGoPointMap<V> private constructor(entries: Array<out Any>?):
         val rows = secrets.rows
         var row = rows[y]
         if (row != null) return row
-        val weakRow: WeakRow<V>? = weak.rows[y]
+        val weakRow: WeakGoPointMap.Row<V>? = weak.rows[y]
         if (weakRow != null) {
             row = weakRow.get()
             if (row != null) {
@@ -243,7 +242,7 @@ open class MutableGoPointMap<V> private constructor(entries: Array<out Any>?):
         }
         row = arrayOfNulls(52)
         rows[y] = row
-        weak.rows[y] = WeakRow(this, y)
+        weak.rows[y] = WeakGoPointMap.Row(this, y)
         return row
     }
 

@@ -127,6 +127,7 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
             val rows: LongArray = Compressed.get()
             for (i in 0..51)
                 rows[i] = InternalGoPointSet.rowUpdaters[i][this]
+            rows[52] = 0L // It should always be zero, but just in case
             var bit = 1L shl 51
             var yMin = 0
             var xMax = 0
@@ -311,7 +312,7 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
 
     open fun readOnly() = this
 
-    open fun edit() = copy()
+    open fun edit() = MutableGoPointSet(this)
 
     override fun contains(element: GoPoint): Boolean {
         return InternalGoPointSet.rowUpdaters[element.y][this] and (1L shl element.x) != 0L
@@ -406,9 +407,6 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
 }
 
 class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
-
-//    internal constructor(rows: AtomicLongArray, marker: InternalMarker):
-//            super(rows, InternalGoPointSet.sizeAndHash(rows), marker)
 
     constructor(): super(InternalGoPointSet) {
         readOnly = null

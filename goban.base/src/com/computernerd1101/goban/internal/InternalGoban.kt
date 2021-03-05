@@ -237,7 +237,7 @@ internal object GobanBulk: LongBinaryOperator {
         return (row or add) and remove.inv()
     }
 
-    fun isAlive(width: Int, height: Int,
+    fun  isAlive(width: Int, height: Int,
                 xBit: Long, y: Int,
                 player: Int, opponent: Int,
                 falseEyeScore: Int = -1,
@@ -261,10 +261,11 @@ internal object GobanBulk: LongBinaryOperator {
         var y1 = y
         var pendingY = y
         var isAlive = false
-        val falseEyes = if (onlyChain && !shortCircuit && falseEyeScore >= 0) {
-            FalseEyeDetector.reset(falseEyeScore)
-            true
-        } else false
+        val falseEyes: LongArray?
+        if (onlyChain && !shortCircuit && falseEyeScore >= 0) {
+            falseEyes = arrays[GobanThreadLocals.FALSE_EYES]
+            clear(falseEyes)
+        } else falseEyes = null
         pop@ while(true) {
             // check the points above, below, and to the left and right of the current point
             var y2 = y1 - 1 // above
@@ -272,7 +273,7 @@ internal object GobanBulk: LongBinaryOperator {
             if (y2 >= 0 && opponentRows[y2] and bit == 0L) {
                 if (onlyChain && playerRows[y2] and bit == 0L) {
                     if (shortCircuit) return true
-                    if (falseEyes) FalseEyeDetector.add(bit, y2)
+                    if (falseEyes != null) falseEyes[y2] = falseEyes[y2] or bit
                     else isAlive = true
                 } else {
                     chainRow = chain[y2]
@@ -297,7 +298,7 @@ internal object GobanBulk: LongBinaryOperator {
             if (bit2 > 0 && opponentRows[y1] and bit2 == 0L) {
                 if (onlyChain && playerRows[y1] and bit2 == 0L) {
                     if (shortCircuit) return true
-                    if (falseEyes) FalseEyeDetector.add(bit2, y1)
+                    if (falseEyes != null) falseEyes[y1] = falseEyes[y1] or bit2
                     else isAlive = true
                 } else if (chainRow and bit2 == 0L)
                     bits = bit2
@@ -306,7 +307,7 @@ internal object GobanBulk: LongBinaryOperator {
             if (bit2 <= maxBit && opponentRows[y1] and bit2 == 0L) {
                 if (onlyChain && playerRows[y1] and bit2 == 0L) {
                     if (shortCircuit) return true
-                    if (falseEyes) FalseEyeDetector.add(bit2, y1)
+                    if (falseEyes != null) falseEyes[y1] = falseEyes[y1] or bit2
                     else isAlive = true
                 } else if (chainRow and bit2 == 0L)
                     bits = bits or bit2
@@ -319,7 +320,7 @@ internal object GobanBulk: LongBinaryOperator {
             if (y2 < height && opponentRows[y2] and bit == 0L) {
                 if (onlyChain && playerRows[y2] and bit == 0L) {
                     if (shortCircuit) return true
-                    if (falseEyes) FalseEyeDetector.add(bit, y2)
+                    if (falseEyes != null) falseEyes[y2] = falseEyes[y2] or bit
                     else isAlive = true
                 } else {
                     chainRow = chain[y2]
@@ -342,13 +343,24 @@ internal object GobanBulk: LongBinaryOperator {
                 pendingY++
             }
             // no more points
-            return if (falseEyes) FalseEyeDetector.isAlive()
-            else isAlive
+            if (falseEyes == null) return isAlive
+            val score = arrays[falseEyeScore]
+            y1 = -1
+            // Return true unless score and falseEyes have exactly one bit in common.
+            for(i in 0 until height) {
+                val row = score[i] and falseEyes[i]
+                if (row == 0L) continue
+                if (y1 >= 0 || row and -row != row) return true
+                y1 = i
+                bit = row
+            }
+            if (y1 < 0) return true
+            score[y1] = score[y1] and bit.inv()
+            return false
         }
     }
 
     fun threadLocalGoban(width: Int, height: Int, rows: GobanRows1) {
-        // 7 arrays of 52 longs each
         val arrays: Array<LongArray> = GobanThreadLocals.INSTANCE.get()
         val blackRows = arrays[GobanThreadLocals.BLACK]
         val whiteRows = arrays[GobanThreadLocals.WHITE]
@@ -378,70 +390,6 @@ internal object GobanBulk: LongBinaryOperator {
         for(y in 0 until height) {
             group[y] = group[y] or chain[y]
         }
-    }
-
-}
-
-internal object FalseEyeDetector: ThreadLocal<FalseEyeDetector.Liberties>() {
-
-    class Liberties {
-
-        @JvmField var xBit1: Long = 0L
-        @JvmField var xBit2: Long = 0L
-        @JvmField var y1: Int = 0
-        @JvmField var y2: Int = 0
-        @JvmField var count: Int = 0
-        @JvmField var falseEyeScore: Int = 0
-
-    }
-
-    override fun initialValue() = Liberties()
-
-    fun reset(falseEyeScore: Int) {
-        val it: Liberties = get()
-        it.xBit1 = 0L
-        it.xBit2 = 0L
-        it.y1 = 0
-        it.y2 = 0
-        it.count = 0
-        it.falseEyeScore = falseEyeScore
-    }
-
-    fun add(xBit: Long, y: Int) {
-        val it: Liberties = get()
-        when {
-            it.count == 0 -> {
-                it.xBit1 = xBit
-                it.y1 = y
-                it.count = 1
-            }
-            it.xBit1 == xBit && it.y1 == y -> Unit
-            it.count == 1 -> {
-                it.xBit2 = xBit
-                it.y2 = y
-                it.count = 2
-            }
-            it.xBit2 != xBit || it.y1 != y -> it.count = 3
-        }
-    }
-
-    fun isAlive(): Boolean {
-        val it: Liberties = get()
-        val count = it.count
-        if (count == 1 || count == 2) {
-            val arrays: Array<LongArray> = GobanThreadLocals.INSTANCE.get()
-            val score = arrays[it.falseEyeScore]
-            if (score[it.y1] and it.xBit1 != 0L) {
-                if (count == 1 || score[it.y2] and it.xBit2 == 0L) {
-                    score[it.y1] = score[it.y1] and it.xBit1.inv()
-                    return false
-                }
-            } else if (count == 2 && score[it.y2] and it.xBit2 != 0L) {
-                score[it.y2] = score[it.y2] and it.xBit2.inv()
-                return false
-            }
-        }
-        return true
     }
 
 }

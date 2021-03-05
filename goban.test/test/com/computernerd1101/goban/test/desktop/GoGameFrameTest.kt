@@ -8,7 +8,7 @@ import javax.swing.SwingUtilities
 
 fun main() {
     val clientFactory = GoGameFrame.PlayerFactory()
-    val setup = GoGameSetup(clientFactory, clientFactory, 9)
+    val setup = GoGameSetup(clientFactory, clientFactory, 5)
     val info = setup.gameInfo
     info.rules = GoRules.JAPANESE
     // info.timeLimit = 30L*60L*1000L // 30 minutes

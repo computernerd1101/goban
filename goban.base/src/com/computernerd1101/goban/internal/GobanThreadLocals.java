@@ -9,7 +9,7 @@ public final class GobanThreadLocals extends ThreadLocal<long[][]> implements Lo
     private GobanThreadLocals() { }
 
     @Override
-    // 7 arrays of 52 longs each
+    // 8 arrays of 52 longs each
     protected long[][] initialValue() {
         // I could have done this in Kotlin with Array(7) { LongArray(52) },
         // but then the compiler would have generated more opcodes than multianewarray.
@@ -18,7 +18,7 @@ public final class GobanThreadLocals extends ThreadLocal<long[][]> implements Lo
         // The implementation with more opcodes probably wouldn't take that much more time,
         // but there's a faster option available (which also takes up less space in compiled code),
         // so I'll take it. Two birds, one stone.
-        return new long[7][52];
+        return new long[8][52];
     }
 
     public static final @NotNull GobanThreadLocals INSTANCE = new GobanThreadLocals();
@@ -30,6 +30,7 @@ public final class GobanThreadLocals extends ThreadLocal<long[][]> implements Lo
     public static final int WHITE = 4;
     public static final int BLACK_SCORE = 5;
     public static final int WHITE_SCORE = 6;
+    public static final int FALSE_EYES = 7;
 
     @Override
     public long applyAsLong(long row, long pos) {

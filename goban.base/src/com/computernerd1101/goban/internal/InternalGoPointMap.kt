@@ -9,16 +9,16 @@ internal object InternalGoPointMap {
 
     /** Updates [GoPointMap._size] */
     lateinit var size: AtomicIntegerFieldUpdater<GoPointMap<*>>
-    /** Updates [WeakRow.size] */
-    val rowSize = atomicIntUpdater<WeakRow<*>>("size")
+    /** Updates [WeakGoPointMap.Row.size] */
+    val rowSize = atomicIntUpdater<WeakGoPointMap.Row<*>>("size")
 
     fun fastEquals(m1: GoPointMap<*>, m2: GoPointMap<*>): Boolean {
         if (size[m1] != size[m2])
             return false
         val rows1 = m1.secrets.rows
         val rows2 = m2.secrets.rows
-        val weak1: Array<out WeakRow<out Any?>?>? = (m1 as? MutableGoPointMap<*>)?.weak?.rows
-        val weak2: Array<out WeakRow<out Any?>?>? = (m2 as? MutableGoPointMap<*>)?.weak?.rows
+        val weak1: Array<out WeakGoPointMap.Row<*>?>? = (m1 as? MutableGoPointMap<*>)?.weak?.rows
+        val weak2: Array<out WeakGoPointMap.Row<*>?>? = (m2 as? MutableGoPointMap<*>)?.weak?.rows
         for(y in 0..51) {
             val row1 = rows1[y]
             val row2 = rows2[y]
@@ -69,32 +69,32 @@ internal class GoPointMapSecrets<out V>(
 
 internal class WeakGoPointMap<V> {
 
-    @JvmField val rows = arrayOfNulls<WeakRow<V>>(52)
+    internal class Row<V>(map: MutableGoPointMap<V>, val y: Int):
+        WeakReference<Array<Map.Entry<GoPoint, V>?>?>(
+            map.secrets.rows[y],
+            map.weak.queue
+        ) {
+
+        @Volatile
+        @JvmField
+        var size = 0
+
+    }
+
+    @JvmField val rows = arrayOfNulls<Row<V>>(52)
     @JvmField val queue = ReferenceQueue<Array<Map.Entry<GoPoint, V>?>?>()
 
     fun expungeStaleRows() {
         try {
             while(true) {
                 val ref = queue.poll() ?: break
-                if (ref is WeakRow<*>) {
+                if (ref is Row<*>) {
                     val y = ref.y
                     if (rows[y] === ref) rows[y] = null
                 }
             }
         } catch (ignored: Exception) { }
     }
-
-}
-
-internal class WeakRow<V>(map: MutableGoPointMap<V>, val y: Int):
-    WeakReference<Array<Map.Entry<GoPoint, V>?>?>(
-        map.secrets.rows[y],
-        map.weak.queue
-    ) {
-
-    @Volatile
-    @JvmField
-    var size = 0
 
 }
 
@@ -909,7 +909,7 @@ internal class MutableGoPointKeys<V>(
     private fun removeBitsFromRow(
         y: Int,
         rows: Array<Array<Map.Entry<GoPoint, V>?>?>,
-        weakRows: Array<WeakRow<V>?>,
+        weakRows: Array<WeakGoPointMap.Row<V>?>,
         row: Array<Map.Entry<GoPoint, V>?>,
         bits: Long
     ): Boolean {
@@ -939,7 +939,7 @@ internal class MutableGoPointKeys<V>(
         x2: Int,
         y: Int,
         rows: Array<Array<Map.Entry<GoPoint, V>?>?>,
-        weakRows: Array<WeakRow<V>?>,
+        weakRows: Array<WeakGoPointMap.Row<V>?>,
         row: Array<Map.Entry<GoPoint, V>?>,
         retain: Boolean
     ): Boolean {
@@ -990,7 +990,7 @@ internal class MutableGoPointKeys<V>(
         y1: Int,
         y2: Int,
         rows: Array<Array<Map.Entry<GoPoint, V>?>?>,
-        weakRows: Array<WeakRow<V>?>
+        weakRows: Array<WeakGoPointMap.Row<V>?>
     ): Boolean {
         var modified = false
         for(y in y1..y2) {

@@ -13,7 +13,7 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
     companion object {
 
         @JvmField
-        val EMPTY_LABEL = PointMarkup("", Private)
+        val EMPTY_LABEL = PointMarkup("", Cache)
         @JvmField
         val SELECT = PointMarkup(MarkupEnum.SL)
         @JvmField
@@ -31,7 +31,7 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
         @Suppress("unused")
         val VALUES: Array<PointMarkup>
             @JvmName("values")
-            get() = Private.VALUES.clone()
+            get() = Cache.VALUES.clone()
 
         @JvmStatic
         fun label(label: String): PointMarkup {
@@ -39,7 +39,7 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
             val lineEnd = label.indexOf('\n')
             if (lineEnd > 0)
                 trim = trim.substring(0, lineEnd).trim()
-            return if (trim.isEmpty()) EMPTY_LABEL else PointMarkup(trim, Private)
+            return if (trim.isEmpty()) EMPTY_LABEL else PointMarkup(trim, Cache)
         }
 
         @JvmStatic
@@ -54,16 +54,14 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
 
         @JvmStatic
         fun ordinal(ordinal: Int): PointMarkup {
-            return Private.VALUES[ordinal]
+            return Cache.VALUES[ordinal]
         }
 
         private const val serialVersionUID: Long = 1L
 
     }
 
-    private object Private {
-
-        fun ignore() = Unit
+    private object Cache {
 
         @JvmField val VALUES = unsafeArrayOfNulls<PointMarkup>(TYPES)
 
@@ -91,14 +89,13 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
         this.enumType = type
         label = ""
         type.value = this
-        Private.VALUES[type.ordinal + 1] = this
+        Cache.VALUES[type.ordinal + 1] = this
     }
 
-    private constructor(label: String, marker: Private) {
-        marker.ignore()
+    private constructor(label: String, cache: Cache) {
         enumType = null
         this.label = label
-        if (label.isEmpty()) Private.VALUES[0] = this
+        if (label.isEmpty()) cache.VALUES[0] = this
     }
 
     override fun compareTo(other: PointMarkup) : Int {
@@ -115,7 +112,7 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
         return this === other ||
                 (other is PointMarkup &&
                         if (enumType == null) other.enumType == null && label == other.label
-                        else enumType == other.enumType)
+                        else enumType === other.enumType)
     }
 
     override fun hashCode(): Int {
@@ -123,7 +120,7 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
     }
 
     override fun toString(): String {
-        return enumType?.name ?: if (label.isEmpty()) "LB" else "LB[$label]"
+        return if (label.isEmpty()) type else "LB[$label]"
     }
 
     private fun writeObject(out: ObjectOutputStream) {
