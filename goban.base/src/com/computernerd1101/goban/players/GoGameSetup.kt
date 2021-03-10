@@ -200,10 +200,10 @@ class GoGameSetup {
         return context
     }
 
-    operator fun component1() = blackPlayer
-    operator fun component2() = whitePlayer
-    operator fun component3() = width
-    operator fun component4() = height
+    operator fun component1() = width
+    operator fun component2() = height
+    operator fun component3() = blackPlayer
+    operator fun component4() = whitePlayer
     operator fun component5() = gameInfo
     operator fun component6() = randomPlayer
     operator fun component7() = isFreeHandicap
