@@ -68,6 +68,8 @@ class GoGameSetup {
         this.isFreeHandicap = isFreeHandicap
     }
 
+    constructor(): this(19)
+
     var blackPlayer: GoPlayer.Factory?
     var whitePlayer: GoPlayer.Factory?
 

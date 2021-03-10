@@ -24,29 +24,23 @@ class GoGameContext: CoroutineContext.Element {
 
     @Volatile var hypothetical: GoSGFSetupNode? = null; private set
 
-    constructor(setup: GoGameSetup) {
-        val width = setup.width
-        val height = setup.height
+    @JvmOverloads
+    constructor(setup: GoGameSetup? = null) {
+        val width = setup?.width ?: 19
+        val height = setup?.height ?: 19
         sgf = GoSGF(width, height)
         var node = sgf.rootNode
-        gameInfo = setup.gameInfo
+        gameInfo = setup?.gameInfo ?: GameInfo()
         node.gameInfo = gameInfo
-        if (!setup.isFreeHandicap) {
-            val goban = setup.generateFixedHandicap()
+        if (setup?.isFreeHandicap != true) {
+            // If setup is null, then handicap is zero, in which case goban will be null.
+            val goban = setup?.generateFixedHandicap()
             if (goban != null) {
                 gameInfo.handicap = goban.blackCount
                 node = node.createNextSetupNode(goban)
             }
         }
         this.node = node
-        var player1 = setup.player1
-        var player2 = setup.player2
-        if (setup.randomPlayer?.nextBoolean() == true) {
-            val player = setup.player1
-            setup.player1 = setup.player2
-            setup.player2 = player
-            gameInfo.swapPlayers()
-        }
     }
 
     @Throws(GoSGFResumeException::class)

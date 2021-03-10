@@ -61,10 +61,7 @@ class GoGameFrame private constructor(
             context += it
             scope = null
         }
-        gameContext = context[GoGameContext] ?: GoGameContext(GoGameSetup(
-            blackPlayer = PlayerFactory,
-            whitePlayer = PlayerFactory
-        )).also {
+        gameContext = context[GoGameContext] ?: GoGameContext().also {
             context += it
             scope = null
         }

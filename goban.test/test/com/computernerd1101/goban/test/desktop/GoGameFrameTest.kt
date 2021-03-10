@@ -6,7 +6,7 @@ import com.computernerd1101.goban.players.*
 import kotlinx.coroutines.*
 
 fun main() {
-    val setup = GoGameSetup(5, GoGameFrame, GoGameFrame)
+    val setup = GoGameSetup()
     setup.isFreeHandicap = true
     val info = setup.gameInfo
     info.handicap = 3

@@ -12,7 +12,7 @@ import java.awt.event.WindowEvent
 fun main() {
     val blackPlayer = GoGameFrame.Player(GoPlayer.Black)
     val whitePlayer = GoGameFrame.Player(GoPlayer.White)
-    val setup = GoGameSetup(5, GoGameFrame, GoGameFrame)
+    val setup = GoGameSetup(5)
     val game = GoGameContext(setup)
     val scope = CoroutineScope(blackPlayer + whitePlayer + game + SwingUtilitiesDispatcher)
     val blackFrame = GoGameFrame(scope)
