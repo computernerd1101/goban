@@ -5,6 +5,7 @@ import com.computernerd1101.goban.players.GoGameSetup
 import com.computernerd1101.goban.annotations.PropertyFactory
 import com.computernerd1101.goban.desktop.internal.*
 import com.computernerd1101.goban.desktop.resources.*
+import com.computernerd1101.goban.players.ExperimentalGoPlayerApi
 import com.computernerd1101.goban.sgf.GameInfo
 import com.computernerd1101.goban.time.Overtime
 import java.awt.*
@@ -14,6 +15,7 @@ import java.util.*
 import javax.swing.*
 import javax.swing.event.ListDataListener
 
+@OptIn(ExperimentalGoPlayerApi::class)
 class GoGameSetupView private constructor(
     resources: ResourceBundle,
     formatResources: ResourceBundle
@@ -21,7 +23,7 @@ class GoGameSetupView private constructor(
 
     constructor(): this(gobanDesktopResources(), gobanDesktopFormatResources())
 
-    private val playerFactory = GoGameFrame.PlayerFactory()
+    private val playerFactory = GoGameFrame
     private val gameSetup: GoGameSetup
 
     private val comboSize = JComboBox<Any>()
@@ -46,7 +48,7 @@ class GoGameSetupView private constructor(
         val gameInfo = GameInfo()
         val rules = GoRules.JAPANESE
         gameInfo.rules = rules
-        gameSetup = GoGameSetup(playerFactory, playerFactory, gameInfo = gameInfo)
+        gameSetup = GoGameSetup(blackPlayer = playerFactory, whitePlayer = playerFactory, gameInfo = gameInfo)
         checkSuicide.isSelected = rules.allowSuicide
     }
 

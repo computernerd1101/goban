@@ -194,7 +194,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
     private var table2d = DateTable128<Table2d>(queue)
 
     constructor(string: String): this() {
-        val split = string.split(Private.SPLIT_COMMA).toTypedArray()
+        val split = string.split(Private.SPLIT_COMMA)
         var date: Date? = null
         for (s in split) {
             date = date.parseNext(s)

@@ -5,8 +5,10 @@ import com.computernerd1101.goban.internal.*
 import com.computernerd1101.goban.sgf.*
 import kotlinx.coroutines.channels.*
 import kotlinx.coroutines.selects.select
+import kotlin.coroutines.coroutineContext
 
-class GoScoreManager(val playerManager: GoPlayerManager) {
+@ExperimentalGoPlayerApi
+class GoScoreManager {
 
     private val _deadStones = Channel<GoPointSet>(Channel.UNLIMITED)
     val deadStones: SendChannel<GoPointSet> = SendOnlyChannel(_deadStones)
@@ -14,7 +16,7 @@ class GoScoreManager(val playerManager: GoPlayerManager) {
     private val _livingStones = Channel<GoPointSet>(Channel.UNLIMITED)
     val livingStones: SendChannel<GoPointSet> = SendOnlyChannel(_livingStones)
 
-    private val submit = Channel<GoColor>(Channel.CONFLATED)
+    private val submit = Channel<GoColor>(2)
     internal fun getSubmit(marker: InternalMarker): SendChannel<GoColor> {
         marker.ignore()
         return submit
@@ -27,10 +29,14 @@ class GoScoreManager(val playerManager: GoPlayerManager) {
     }
 
     suspend fun computeScore(): GoColor? {
-        playerManager.startScoring(this)
         var waitingForBlack = true
         var waitingForWhite = true
-        val node = playerManager.node
+        val gameContext = coroutineContext[GoGameContext] ?: throw IllegalStateException("Missing Go game context")
+        val blackPlayer = coroutineContext[GoPlayer.Black] ?: throw IllegalStateException("Missing black player")
+        val whitePlayer = coroutineContext[GoPlayer.White] ?: throw IllegalStateException("Missing white player")
+        blackPlayer.startScoring(this)
+        whitePlayer.startScoring(this)
+        val node = gameContext.node
         val goban: FixedGoban = node.goban
         val finalGoban: Goban = goban.playable()
         val receiveStones = MutableGoPointSet()
@@ -51,7 +57,9 @@ class GoScoreManager(val playerManager: GoPlayerManager) {
                         receiveStones.removeAll(group)
                         sendStones.addAll(group)
                     }
-                    playerManager.updateScoring(this@GoScoreManager, sendStones.readOnly(), false)
+                    val stones = sendStones.readOnly()
+                    blackPlayer.updateScoring(this@GoScoreManager, stones, false)
+                    whitePlayer.updateScoring(this@GoScoreManager, stones, false)
                 }
                 _livingStones.onReceive {
                     waitingForBlack = true
@@ -65,7 +73,9 @@ class GoScoreManager(val playerManager: GoPlayerManager) {
                         receiveStones.removeAll(group)
                         sendStones.addAll(group)
                     }
-                    playerManager.updateScoring(this@GoScoreManager, sendStones.readOnly(), true)
+                    val stones = sendStones.readOnly()
+                    blackPlayer.updateScoring(this@GoScoreManager, stones, true)
+                    whitePlayer.updateScoring(this@GoScoreManager, stones, true)
                 }
                 submit.onReceive {
                     if (it == GoColor.BLACK)
@@ -78,16 +88,17 @@ class GoScoreManager(val playerManager: GoPlayerManager) {
             }
             if (resumeRequest != null) return resumeRequest
         }
-        val territory: Boolean = playerManager.gameInfo.rules.territoryScore
+        val territory: Boolean = gameContext.gameInfo.rules.territoryScore
         val scoreGoban: MutableGoban = finalGoban.getScoreGoban(territory, node.territory)
-        val gameInfo = playerManager.gameInfo
+        val gameInfo = gameContext.gameInfo
         var score = gameInfo.komi.toFloat() + (scoreGoban.whiteCount - scoreGoban.blackCount)
         if (territory && node is GoSGFMoveNode) {
             score += node.getPrisonerScoreMargin(GoColor.WHITE)
         }
         gameInfo.result = if (score == 0.0f) GameResult.DRAW
         else GameResult(GoColor.WHITE, score) // negative score means Black wins
-        playerManager.finishScoring()
+        blackPlayer.finishScoring()
+        whitePlayer.finishScoring()
         return null
     }
 

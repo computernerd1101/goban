@@ -10,6 +10,8 @@ import com.computernerd1101.sgf.SGFBytes
 import java.io.*
 import java.util.*
 import kotlin.NoSuchElementException
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.contract
 
 fun GoPoint(x: Int, y: Int) = GoPoint.pointAt(x, y)
 
@@ -212,7 +214,11 @@ class GoPoint private constructor(
         fun gtpParseX(ch: Char, width: Int): Int =
             if (width in 1..52) gtpParseX(ch, width, throws = false) else -1
 
+        @OptIn(ExperimentalContracts::class)
         private fun gtpParse(string: String, width: Int, height: Int, throws: Boolean): GoPoint? {
+            contract {
+                returns(null) implies !throws
+            }
             if (width !in 1..52) {
                 if (throws) throw IllegalArgumentException("width=$width is not in the range [1,52]")
                 return null

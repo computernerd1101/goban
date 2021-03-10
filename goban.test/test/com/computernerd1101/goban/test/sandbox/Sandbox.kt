@@ -9,6 +9,16 @@ fun main() {
     println(testNotNullProperty)
 }
 
+fun nullable(s: String?): String? = maybeNullable<String?, String?>(s, {this}, {null})
+
+fun notNullable(s: String?): String = maybeNullable<String, Nothing>(s, {this}) {
+    throw NullPointerException()
+}
+
+inline fun <T: String?, E: T> maybeNullable(s: String?, cast: String.() -> T, errorHandler: () -> E): T {
+    return s?.cast() ?: errorHandler()
+}
+
 object TestParams {
 
     fun test(foo: String, bar: String) = Unit

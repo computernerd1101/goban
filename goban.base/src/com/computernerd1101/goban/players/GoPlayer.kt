@@ -5,21 +5,33 @@ import com.computernerd1101.goban.internal.InternalMarker
 import com.computernerd1101.goban.sgf.GoSGFNode
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.selects.SelectBuilder
+import kotlin.coroutines.*
 
-abstract class GoPlayer(val manager: GoPlayerManager, val color: GoColor) {
+@ExperimentalGoPlayerApi
+abstract class GoPlayer(val color: GoColor): CoroutineContext.Element {
 
-    fun interface Factory {
+    final override val key: GoColor get() = color
 
-        fun createPlayer(manager: GoPlayerManager, color: GoColor): GoPlayer
+    companion object {
+
+        @JvmField val Black = GoColor.BLACK
+        @JvmField val White = GoColor.WHITE
 
     }
 
-    val opponent: GoPlayer
-        get() = manager.getPlayer(color.opponent)
+    fun interface Factory {
+
+        fun createPlayer(color: GoColor): GoPlayer
+
+    }
+
+    suspend fun getGame(): GoGameContext? = coroutineContext[GoGameContext]
+
+    suspend fun getOpponent(): GoPlayer? = coroutineContext[key.opponent]
 
     abstract suspend fun generateHandicapStones(handicap: Int, goban: Goban)
 
-    abstract suspend fun requestMove(channel: SendChannel<GoPoint?>)
+    abstract suspend fun generateMove(): GoPoint?
 
     open suspend fun update() = Unit
 
@@ -41,8 +53,8 @@ abstract class GoPlayer(val manager: GoPlayerManager, val color: GoColor) {
 
     open suspend fun finishScoring() = Unit
 
-    fun checkPermissions() {
-        if (manager.getPlayer(color) != this)
+    suspend fun checkPermissions() {
+        if (coroutineContext[key] != this)
             throw SecurityException()
     }
 
@@ -55,10 +67,7 @@ abstract class GoPlayer(val manager: GoPlayerManager, val color: GoColor) {
         scoreManager: GoScoreManager,
         block: suspend (GoScoreManager) -> R
     ) {
-        checkPermissions()
-        scoreManager.getSubmit(InternalMarker).onSend(color) {
-            block(scoreManager)
-        }
+        scoreManager.getSubmit(InternalMarker).onSend(color, scoreSelectClause(scoreManager, block))
     }
 
     protected suspend fun requestResumePlay(scoreManager: GoScoreManager) {
@@ -70,10 +79,15 @@ abstract class GoPlayer(val manager: GoPlayerManager, val color: GoColor) {
         scoreManager: GoScoreManager,
         block: suspend (GoScoreManager) -> R
     ) {
+        scoreManager.getResumePlay(InternalMarker).onSend(color, scoreSelectClause(scoreManager, block))
+    }
+
+    private fun <R> scoreSelectClause(
+        scoreManager: GoScoreManager,
+        block: suspend (GoScoreManager) -> R
+    ): suspend (SendChannel<GoColor>) -> R = {
         checkPermissions()
-        scoreManager.getResumePlay(InternalMarker).onSend(color) {
-            block(scoreManager)
-        }
+        block(scoreManager)
     }
 
 }

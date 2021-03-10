@@ -3,13 +3,17 @@
 
 package com.computernerd1101.goban
 
+import com.computernerd1101.goban.players.ExperimentalGoPlayerApi
+import com.computernerd1101.goban.players.GoPlayer
 import com.computernerd1101.goban.resources.gobanResources
 import java.util.*
+import kotlin.coroutines.CoroutineContext
 
 fun Boolean.goBlackOrWhite() = if (this) GoColor.BLACK else GoColor.WHITE
 
 @Suppress("unused")
-enum class GoColor {
+@OptIn(ExperimentalGoPlayerApi::class)
+enum class GoColor: CoroutineContext.Key<GoPlayer> {
 
     BLACK, WHITE;
 

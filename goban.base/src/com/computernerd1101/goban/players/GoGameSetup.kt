@@ -3,6 +3,7 @@ package com.computernerd1101.goban.players
 import com.computernerd1101.goban.GoColor
 import com.computernerd1101.goban.Goban
 import com.computernerd1101.goban.sgf.*
+import kotlin.coroutines.CoroutineContext
 import kotlin.random.Random
 
 /**
@@ -10,6 +11,7 @@ import kotlin.random.Random
  * are each restricted to 1 thru 52, and can be condensed into a single
  * size parameter for both the constructor and the copy method.
  */
+@OptIn(ExperimentalGoPlayerApi::class)
 class GoGameSetup {
 
     companion object {
@@ -29,10 +31,10 @@ class GoGameSetup {
     }
 
     constructor(
-        blackPlayer: GoPlayer.Factory,
-        whitePlayer: GoPlayer.Factory,
         width: Int,
         height: Int,
+        blackPlayer: GoPlayer.Factory?,
+        whitePlayer: GoPlayer.Factory?,
         gameInfo: GameInfo = GameInfo().apply { dates.addDate(Date()) },
         randomPlayer: Random? = null,
         isFreeHandicap: Boolean = false
@@ -49,9 +51,9 @@ class GoGameSetup {
     }
 
     constructor(
-        blackPlayer: GoPlayer.Factory,
-        whitePlayer: GoPlayer.Factory,
         size: Int = 19,
+        blackPlayer: GoPlayer.Factory? = null,
+        whitePlayer: GoPlayer.Factory? = null,
         gameInfo: GameInfo = GameInfo().apply { dates.addDate(Date()) },
         randomPlayer: Random? = null,
         isFreeHandicap: Boolean = false
@@ -66,14 +68,14 @@ class GoGameSetup {
         this.isFreeHandicap = isFreeHandicap
     }
 
-    var blackPlayer: GoPlayer.Factory
-    var whitePlayer: GoPlayer.Factory
+    var blackPlayer: GoPlayer.Factory?
+    var whitePlayer: GoPlayer.Factory?
 
-    var player1: GoPlayer.Factory
+    var player1: GoPlayer.Factory?
         get() = blackPlayer
         set(player) { blackPlayer = player }
 
-    var player2: GoPlayer.Factory
+    var player2: GoPlayer.Factory?
         get() = whitePlayer
         set(player) { whitePlayer = player }
 
@@ -183,6 +185,19 @@ class GoGameSetup {
         return goban
     }
 
+    fun createContext(): CoroutineContext {
+        if (randomPlayer?.nextBoolean() == true) {
+            val player = player1
+            player1 = player2
+            player2 = player
+            gameInfo.swapPlayers()
+        }
+        var context: CoroutineContext = GoGameContext(this)
+        blackPlayer?.createPlayer(GoColor.BLACK)?.also { context += it }
+        whitePlayer?.createPlayer(GoColor.WHITE)?.also { context += it }
+        return context
+    }
+
     operator fun component1() = blackPlayer
     operator fun component2() = whitePlayer
     operator fun component3() = width
@@ -193,37 +208,39 @@ class GoGameSetup {
 
     @Suppress("unused")
     fun copy(
-        blackPlayer: GoPlayer.Factory = this.blackPlayer,
-        whitePlayer: GoPlayer.Factory = this.whitePlayer,
         width: Int = this.width,
         height: Int = this.height,
+        blackPlayer: GoPlayer.Factory? = this.blackPlayer,
+        whitePlayer: GoPlayer.Factory? = this.whitePlayer,
         gameInfo: GameInfo = this.gameInfo,
         randomPlayer: Random? = this.randomPlayer,
         isFreeHandicap: Boolean = this.isFreeHandicap
-    ) = GoGameSetup(blackPlayer, whitePlayer,
+    ) = GoGameSetup(
         width, height,
+        blackPlayer, whitePlayer,
         gameInfo, randomPlayer, isFreeHandicap
     )
 
     @Suppress("unused")
     fun copy(
         size: Int,
-        blackPlayer: GoPlayer.Factory = this.blackPlayer,
-        whitePlayer: GoPlayer.Factory = this.whitePlayer,
+        blackPlayer: GoPlayer.Factory? = this.blackPlayer,
+        whitePlayer: GoPlayer.Factory? = this.whitePlayer,
         gameInfo: GameInfo = this.gameInfo,
         randomPlayer: Random? = this.randomPlayer,
         isFreeHandicap: Boolean = this.isFreeHandicap
-    ) = GoGameSetup(blackPlayer, whitePlayer,
-        size, gameInfo, randomPlayer, isFreeHandicap
+    ) = GoGameSetup(
+        size, blackPlayer,
+        whitePlayer, gameInfo, randomPlayer, isFreeHandicap
     )
 
     override fun equals(other: Any?): Boolean {
         return this === other || (
                 other is GoGameSetup &&
-                        blackPlayer == other.blackPlayer &&
-                        whitePlayer == other.whitePlayer &&
                         width == other.width &&
                         height == other.height &&
+                        blackPlayer == other.blackPlayer &&
+                        whitePlayer == other.whitePlayer &&
                         gameInfo == other.gameInfo &&
                         randomPlayer == other.randomPlayer &&
                         isFreeHandicap == other.isFreeHandicap
@@ -231,10 +248,9 @@ class GoGameSetup {
     }
 
     override fun hashCode(): Int {
-        return (((((blackPlayer.hashCode()*31 +
+        return (((((width)*31 + height)*31 +
+                blackPlayer.hashCode()*31 +
                 whitePlayer.hashCode())*31 +
-                width)*31 +
-                height)*31 +
                 gameInfo.hashCode())*31 +
                 randomPlayer.hashCode())*31 +
                 isFreeHandicap.hashCode()
@@ -246,13 +262,14 @@ class GoGameSetup {
         val randomPlayer = this.randomPlayer
         return buildString {
             append("GoGameSetup(")
-            if (randomPlayer != null)
-                append("player1=").append(player1).append(", player2=").append(player2)
-            else append("blackPlayer=").append(blackPlayer).append(", whitePlayer=").append(whitePlayer)
             if (width == height)
-                append(", size=")
-            else append(", width=").append(width).append(", height=")
-            append(height).append(", gameInfo=").append(gameInfo)
+                append("size=")
+            else append("width=").append(width).append(", height=")
+            append(height)
+            if (randomPlayer != null)
+                append(", player1=").append(player1).append(", player2=").append(player2)
+            else append(", blackPlayer=").append(blackPlayer).append(", whitePlayer=").append(whitePlayer)
+            append(", gameInfo=").append(gameInfo)
                 .append(", randomPlayer=").append(randomPlayer)
                 .append(", isFreeHandicap=").append(isFreeHandicap).append(")")
         }

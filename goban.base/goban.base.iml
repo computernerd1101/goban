@@ -2,8 +2,10 @@
 <module type="JAVA_MODULE" version="4">
   <component name="FacetManager">
     <facet type="kotlin-language" name="Kotlin">
-      <configuration version="3" platform="JVM 9" allPlatforms="JVM [9]" useProjectSettings="false">
-        <compilerSettings />
+      <configuration version="3" platform="JVM 9" allPlatforms="JVM [9]">
+        <compilerSettings>
+          <option name="additionalArguments" value="-version -Xopt-in=kotlin.RequiresOptIn" />
+        </compilerSettings>
         <compilerArguments>
           <option name="jvmTarget" value="9" />
         </compilerArguments>

@@ -5,9 +5,9 @@ import com.computernerd1101.goban.sgf.*
 import com.computernerd1101.goban.sgf.internal.InternalGoSGF.violatesSituationalSuperko
 
 
-fun GoSGF.resumeNode(): GoSGFNode = synchronized(this) {
+fun GoSGF.extResumeNode(): GoSGFNode = synchronized(this) {
     val root = rootNode
-    var children = root.children
+    val children = root.children
     val handicapNode: GoSGFSetupNode?
     val handicap: Int
     if (children != 1) {

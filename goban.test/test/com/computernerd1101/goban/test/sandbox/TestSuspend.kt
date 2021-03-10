@@ -4,25 +4,34 @@ import kotlin.coroutines.*
 import kotlin.coroutines.intrinsics.*
 
 fun main() {
+
+    val suspendFun: suspend Boolean.() -> String = Boolean::suspendIfTrue
+    println("Immediate result: " + suspendFun.startCoroutineUninterceptedOrReturn(false, MyCompletion))
+    println(suspendIfTrueContinuation)
+    println("Immediate result: " + suspendFun.startCoroutineUninterceptedOrReturn(true, MyCompletion))
+    println(suspendIfTrueContinuation)
+    suspendIfTrueContinuation?.resumeWith(Result.success("COROUTINE_RESUMED"))
+    println(suspendIfTrueContinuation)
 }
 
-suspend fun doSomethingUseful1() {
-    val foo = doSomethingUseful2()
-    doSomethingUseful3(foo)
-    suspendCoroutineUninterceptedOrReturn<Unit> {
-        COROUTINE_SUSPENDED
+object MyCompletion: Continuation<String> {
+    override val context: CoroutineContext
+        get() = EmptyCoroutineContext
+
+    override fun resumeWith(result: Result<String>) {
+        println("Delayed result: " + result.getOrThrow())
     }
 }
 
-suspend fun doSomethingUseful2(): Int = suspendCoroutineUninterceptedOrReturn {
-    COROUTINE_SUSPENDED
+suspend fun Boolean.suspendIfTrue(): String {
+    if (this) {
+        val message = suspendCoroutine<String> { cont ->
+            suspendIfTrueContinuation = cont
+        }
+        suspendIfTrueContinuation = null
+        return message
+    }
+    return "Not suspended"
 }
 
-suspend fun doSomethingUseful3(foo: Int) {
-    suspendCoroutineUninterceptedOrReturn<Unit> { uCont ->
-        if (uCont.hashCode() == foo) {
-            COROUTINE_SUSPENDED
-        } else Unit
-    }
-    println("Something useful?")
-}
+private var suspendIfTrueContinuation: Continuation<String>? = null

@@ -2,43 +2,37 @@ package com.computernerd1101.goban.test.players
 
 import com.computernerd1101.goban.*
 import com.computernerd1101.goban.desktop.GoGameFrame
+import com.computernerd1101.goban.desktop.SwingUtilitiesDispatcher
 import com.computernerd1101.goban.players.*
-import java.awt.Dimension
-import java.awt.Frame
-import java.awt.Toolkit
-import javax.swing.SwingUtilities
-import javax.swing.WindowConstants
-
-class TestPlayer(manager: GoPlayerManager, color: GoColor): GoGameFrame.AbstractPlayer(manager, color) {
-
-    companion object Factory: GoPlayer.Factory {
-
-        override fun createPlayer(manager: GoPlayerManager, color: GoColor): GoPlayer =
-            TestPlayer(manager, color)
-
-    }
-
-    override val frame = GoGameFrame(manager)
-
-}
+import kotlinx.coroutines.*
+import java.awt.*
+import java.awt.event.WindowAdapter
+import java.awt.event.WindowEvent
 
 fun main() {
-    val setup = GoGameSetup(TestPlayer, TestPlayer, 5)
-    val manager = GoPlayerManager(setup)
-    val blackPlayer = manager.blackPlayer as TestPlayer
-    val whitePlayer = manager.whitePlayer as TestPlayer
-    val blackFrame = blackPlayer.frame
-    val whiteFrame = whitePlayer.frame
+    val blackPlayer = GoGameFrame.Player(GoPlayer.Black)
+    val whitePlayer = GoGameFrame.Player(GoPlayer.White)
+    val setup = GoGameSetup(5, GoGameFrame, GoGameFrame)
+    val game = GoGameContext(setup)
+    val scope = CoroutineScope(blackPlayer + whitePlayer + game + SwingUtilitiesDispatcher)
+    val blackFrame = GoGameFrame(scope)
+    val whiteFrame = GoGameFrame(scope)
+    blackPlayer.initFrame(blackFrame)
+    whitePlayer.initFrame(whiteFrame)
     blackFrame.title = GoColor.BLACK.toString()
     whiteFrame.title = GoColor.WHITE.toString()
-    blackFrame.defaultCloseOperation = WindowConstants.EXIT_ON_CLOSE
-    whiteFrame.defaultCloseOperation = WindowConstants.EXIT_ON_CLOSE
+    val windowListener = object: WindowAdapter() {
+        override fun windowClosed(e: WindowEvent?) {
+            scope.cancel()
+        }
+    }
+    blackFrame.addWindowListener(windowListener)
+    whiteFrame.addWindowListener(windowListener)
     blackFrame.extendedState = Frame.MAXIMIZED_BOTH
     whiteFrame.extendedState = Frame.MAXIMIZED_BOTH
     whiteFrame.isVisible = true
     blackFrame.isVisible = true
-    manager.startGame()
-    SwingUtilities.invokeLater {
+    scope.launch {
         val y = blackFrame.locationOnScreen.y
         blackFrame.extendedState = Frame.MAXIMIZED_HORIZ
         whiteFrame.extendedState = Frame.MAXIMIZED_HORIZ
@@ -50,5 +44,9 @@ fun main() {
         whiteFrame.setLocation(0, y + height)
         blackFrame.setSize(width, height)
         whiteFrame.setSize(width, height)
+        game.startGame()
     }
+    while(scope.isActive) Unit
+    blackFrame.dispose()
+    whiteFrame.dispose()
 }

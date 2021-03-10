@@ -1,42 +1,42 @@
 package com.computernerd1101.goban.players
 
 import com.computernerd1101.goban.*
+import com.computernerd1101.goban.internal.InternalMarker
 import com.computernerd1101.goban.internal.atomicUpdater
 import com.computernerd1101.goban.internal.getOrDefault
 import com.computernerd1101.goban.sgf.GoSGFMoveNode
-import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.random.*
 
 /**
  * A very stupid robot that chooses its moves completely at random
  * amongst all legal moves except for multi-stone suicide.
  */
-class BakaBot: GoPlayer {
-
-    constructor(manager: GoPlayerManager, color: GoColor): this(manager, color, Random)
-
-    constructor(manager: GoPlayerManager, color: GoColor, random: Random): super(manager, color) {
-        this.random = random
-        javaRandom = random.asJavaRandom()
-    }
-
-    @Suppress("unused")
-    constructor(manager: GoPlayerManager, color: GoColor, random: java.util.Random): super(manager, color) {
-        this.random = random.asKotlinRandom()
-        javaRandom = random
-    }
-
+@ExperimentalGoPlayerApi
+class BakaBot private constructor(
+    color: GoColor,
     @get:JvmName("getKotlinRandom")
-    val random: Random
-
+    val random: Random,
     @Suppress("unused")
     @get:JvmName("getRandom")
     val javaRandom: java.util.Random
+): GoPlayer(color) {
+
+    constructor(color: GoColor): this(color, Random)
+
+    constructor(color: GoColor, random: Random):
+            this(color, random, random.asJavaRandom())
+
+    @Suppress("unused")
+    constructor(color: GoColor, random: java.util.Random):
+            this(color, random.asKotlinRandom(), random)
 
     companion object DefaultFactory: GoPlayer.Factory {
 
-        override fun createPlayer(manager: GoPlayerManager, color: GoColor) =
-            BakaBot(manager, color)
+        override fun createPlayer(color: GoColor) =
+            BakaBot(color)
 
     }
 
@@ -73,27 +73,50 @@ class BakaBot: GoPlayer {
                 this.random = random.asKotlinRandom()
             }
 
-        override fun createPlayer(manager: GoPlayerManager, color: GoColor): BakaBot =
-            BakaBot(manager, color, random)
+        override fun createPlayer(color: GoColor): BakaBot =
+            BakaBot(color, random)
 
     }
 
-    private val points: Array<GoPoint?>
 
-    private val goban: Goban
+    private var points: Array<GoPoint?>? = null
 
-    init {
-        val sgf = manager.sgf
-        val width = sgf.width
-        val height = sgf.height
-        points = arrayOfNulls(width * height)
-        goban = Goban(width, height)
+    private var goban: Goban? = null
+
+    private fun getPoints(game: GoGameContext, marker: InternalMarker): Array<GoPoint?> {
+        marker.ignore()
+        var points = this.points
+        if (points == null) {
+            val sgf = game.sgf
+            val width = sgf.width
+            val height = sgf.height
+            points = arrayOfNulls(width * height)
+            this.points = points
+            goban = Goban(width, height)
+        }
+        return points
+    }
+
+    private fun getGoban(game: GoGameContext, marker: InternalMarker): Goban {
+        marker.ignore()
+        var goban = this.goban
+        if (goban == null) {
+            val sgf = game.sgf
+            val width = sgf.width
+            val height = sgf.height
+            points = arrayOfNulls(width * height)
+            goban = Goban(width, height)
+            this.goban = goban
+        }
+        return goban
     }
 
     private val superkoRestrictions = MutableGoPointSet()
 
-    override suspend fun generateHandicapStones(handicap: Int, goban: Goban) {
+    override suspend fun generateHandicapStones(handicap: Int, goban: Goban) = withContext(Dispatchers.IO) {
         goban.clear()
+        val game = getGame() ?: throw IllegalStateException("Missing game context")
+        val points = getPoints(game, InternalMarker)
         val width = goban.width
         val height = goban.height
         val size = width * height
@@ -108,11 +131,15 @@ class BakaBot: GoPlayer {
         }
     }
 
-    override suspend fun requestMove(channel: SendChannel<GoPoint?>) {
-        val node = manager.node
+    override suspend fun generateMove(): GoPoint? = withContext(Dispatchers.IO, moveGenerator)
+    private val moveGenerator: suspend CoroutineScope.() -> GoPoint? = {
+        val game = getGame() ?: throw IllegalStateException("Missing game context")
+        val points = getPoints(game, InternalMarker)
+        val goban = getGoban(game, InternalMarker)
+        val node = game.node
         val nodeGoban = node.goban
         superkoRestrictions.clear()
-        (node as? GoSGFMoveNode)?.getSuperkoRestrictions(manager.gameInfo.rules.superko, superkoRestrictions)
+        (node as? GoSGFMoveNode)?.getSuperkoRestrictions(game.gameInfo.rules.superko, superkoRestrictions)
         var count = 0
         for(y in 0 until goban.height) for(x in 0 until goban.width) {
             val p = GoPoint(x, y)
@@ -123,9 +150,8 @@ class BakaBot: GoPlayer {
                 points[count++] = p
             }
         }
-        val point = if (count == 0) null
+        if (count == 0) null
         else points[random.nextInt(count)]
-        channel.send(point)
     }
 
 }

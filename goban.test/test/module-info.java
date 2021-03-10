@@ -16,4 +16,6 @@ module computernerd1101.goban.test {
 
     requires org.jetbrains.annotations;
 
+    uses com.computernerd1101.goban.test.sandbox.MyServiceLoader;
+
 }

@@ -410,21 +410,20 @@ sealed class AbstractMutableGoban: AbstractGoban {
             GobanBulk.threadLocalGoban(width, height, goban.rows)
             val copyRows = GobanThreadLocals.INSTANCE
             val group: LongArray = copyRows.get()[GobanThreadLocals.GROUP]
-            when(mask) {
+            when(val set: Set<*> = mask) {
                 is GoPointSet -> for(y in 0 until height)
-                    group[y] = InternalGoPointSet.rowUpdaters[y][mask]
+                    group[y] = InternalGoPointSet.rowUpdaters[y][set]
                 is GoRectangle -> {
-                    val rowBits = InternalGoRectangle.rowBits(mask)
-                    val y1 = mask.start.y
-                    val y2 = mask.end.y
+                    val rowBits = InternalGoRectangle.rowBits(set)
+                    val y1 = set.start.y
+                    val y2 = set.end.y
                     for(y in 0 until y1) group[y] = 0L
                     for(y in y1..minOf(y2, height - 1)) group[y] = rowBits
                     for(y in y2 + 1 until height) group[y] = 0L
                 }
                 else -> {
                     for(y in 0 until height) group[y] = 0L
-                    @Suppress("USELESS_CAST")
-                    for (element in (mask as Collection<*>)) if (element is GoPoint) {
+                    for (element in set) if (element is GoPoint) {
                         val y = element.y
                         if (y < height) group[y] = group[y] or (1L shl element.x)
                     }
