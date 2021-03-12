@@ -115,7 +115,7 @@ class BakaBot private constructor(
 
     override suspend fun generateHandicapStones(handicap: Int, goban: Goban) = withContext(Dispatchers.IO) {
         goban.clear()
-        val game = getGame() ?: throw IllegalStateException("Missing game context")
+        val game = coroutineContext.goGameContext
         val points = getPoints(game, InternalMarker)
         val width = goban.width
         val height = goban.height
@@ -133,7 +133,7 @@ class BakaBot private constructor(
 
     override suspend fun generateMove(): GoPoint? = withContext(Dispatchers.IO, moveGenerator)
     private val moveGenerator: suspend CoroutineScope.() -> GoPoint? = {
-        val game = getGame() ?: throw IllegalStateException("Missing game context")
+        val game = coroutineContext.goGameContext
         val points = getPoints(game, InternalMarker)
         val goban = getGoban(game, InternalMarker)
         val node = game.node

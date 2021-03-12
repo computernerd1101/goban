@@ -60,6 +60,17 @@ internal object InternalMarker {
 
 internal class SendOnlyChannel<E>(channel: Channel<E>): SendChannel<E> by channel
 
+internal class ReadOnlyList<E>(val delegate: List<E>): List<E> by delegate {
+
+    @Suppress("SuspiciousEqualsCombination")
+    override fun equals(other: Any?): Boolean = this === other || delegate == other
+
+    override fun hashCode(): Int = delegate.hashCode()
+
+    override fun toString(): String = delegate.toString()
+
+}
+
 private const val deBruijn64: Long = 0x03f79d71b4ca8b09
 
 private val deBruijn64tab = byteArrayOf(

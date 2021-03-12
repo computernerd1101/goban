@@ -9,6 +9,7 @@ fun main() {
     println(testNotNullProperty)
 }
 
+
 fun nullable(s: String?): String? = maybeNullable<String?, String?>(s, {this}, {null})
 
 fun notNullable(s: String?): String = maybeNullable<String, Nothing>(s, {this}) {

@@ -32,7 +32,7 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
 
         @JvmField
         val EMPTY = GoPointSet(InternalGoPointSet).apply {
-            compressed = emptyArray()
+            compressed = emptyList()
             string = "[]"
         }
 
@@ -119,10 +119,11 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
         override fun initialValue() = LongArray(53)
     }
 
-    private var compressed: Array<GoRectangle>? = null
+    private var compressed: List<GoRectangle>? = null
 
-    private fun compressed(): Array<GoRectangle> {
-        var compressed = this.compressed
+    private fun compress(): List<GoRectangle> {
+        val readOnly = readOnly()
+        var compressed = readOnly.compressed
         if (compressed == null) {
             val rows: LongArray = Compressed.get()
             for (i in 0..51)
@@ -134,9 +135,8 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
             var yMax = 51
             while (rows[yMax] == 0L)
                 if (--yMax < 0) {
-                    compressed = emptyArray()
-                    if (this !is MutableGoPointSet)
-                        this.compressed = compressed
+                    compressed = emptyList()
+                    readOnly.compressed = compressed
                     return compressed
                 }
             while (rows[yMin] == 0L) yMin++
@@ -175,14 +175,12 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
                                 x2++
                                 bit2 = bit2 shl 1
                                 rowMask += bit2
-                            } else // x limit reached
-                                expandX = false
+                            } else expandX = false // x limit reached
                         } else
                             expandX = false
                         if (expandY && rows[y2 + 1] and rowMask == rowMask) // new row ok?
                             y2++
-                        else // y limit reached
-                            expandY = false
+                        else expandY = false // y limit reached
                     }
                     list.add(GoRectangle(x, y, x2, y2))
                     while (y2 >= y) {
@@ -192,25 +190,18 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
                 }
                 bit = bit shl 1
             }
-            compressed = list.toTypedArray()
-            compressed.sort()
-            this.compressed = compressed
+            list.sort()
+            compressed = ReadOnlyList(list)
+            readOnly.compressed = compressed
         }
         return compressed
-    }
-
-    @Suppress("unused")
-    fun compress(): Array<GoRectangle> {
-        val compressed = readOnly().compressed()
-        return if (compressed.isEmpty()) compressed
-        else compressed.clone()
     }
 
     fun toSGFProperty(compress: Boolean): SGFProperty? {
         if (size == 0) return null
         var prop: SGFProperty? = null
         if (compress) {
-            val compressed = readOnly().compressed()
+            val compressed = compress()
             if (compressed.isEmpty()) return null
             for((first, second) in compressed) {
                 val value = SGFValue(first.toSGFBytes())
@@ -385,7 +376,7 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
         val readOnly = readOnly()
         var string = readOnly.string
         if (string == null) {
-            val compressed = readOnly.compressed()
+            val compressed = readOnly.compress()
             string = if (compressed.size == 1) compressed[0].toString()
             else {
                 val buffer = StringBuilder()

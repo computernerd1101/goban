@@ -11,6 +11,7 @@ module computernerd1101.goban.test {
     requires kotlin.stdlib;
     requires kotlin.reflect;
     requires kotlinx.coroutines.core;
+    requires kotlinx.coroutines.swing;
 
     requires junit;
 

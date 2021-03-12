@@ -31,9 +31,9 @@ class GoScoreManager {
     suspend fun computeScore(): GoColor? {
         var waitingForBlack = true
         var waitingForWhite = true
-        val gameContext = coroutineContext[GoGameContext] ?: throw IllegalStateException("Missing Go game context")
-        val blackPlayer = coroutineContext[GoPlayer.Black] ?: throw IllegalStateException("Missing black player")
-        val whitePlayer = coroutineContext[GoPlayer.White] ?: throw IllegalStateException("Missing white player")
+        val gameContext = coroutineContext.goGameContext
+        val blackPlayer = coroutineContext.blackGoPlayer
+        val whitePlayer = coroutineContext.whiteGoPlayer
         blackPlayer.startScoring(this)
         whitePlayer.startScoring(this)
         val node = gameContext.node

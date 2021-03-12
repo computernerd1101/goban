@@ -4,14 +4,25 @@ import kotlin.coroutines.*
 import kotlin.coroutines.intrinsics.*
 
 fun main() {
-
     val suspendFun: suspend Boolean.() -> String = Boolean::suspendIfTrue
+    suspendFun.startCoroutine(false, MyCompletion)
+    println(suspendIfTrueContinuation)
+    suspendFun.startCoroutine(true, MyCompletion)
+    println(suspendIfTrueContinuation)
+    suspendIfTrueContinuation?.resume("COROUTINE_RESUMED")
+    println(suspendIfTrueContinuation)
     println("Immediate result: " + suspendFun.startCoroutineUninterceptedOrReturn(false, MyCompletion))
     println(suspendIfTrueContinuation)
     println("Immediate result: " + suspendFun.startCoroutineUninterceptedOrReturn(true, MyCompletion))
     println(suspendIfTrueContinuation)
-    suspendIfTrueContinuation?.resumeWith(Result.success("COROUTINE_RESUMED"))
+    suspendIfTrueContinuation?.resume("COROUTINE_RESUMED")
     println(suspendIfTrueContinuation)
+}
+
+suspend fun foobar(foo: Int, bar: Int): Int = foo + bar
+
+fun foobarUnintercepted(foo: Int, bar: Int, continuation: Continuation<Int>): Any? {
+    return suspend { foobar(foo, bar) }.startCoroutineUninterceptedOrReturn(continuation)
 }
 
 object MyCompletion: Continuation<String> {

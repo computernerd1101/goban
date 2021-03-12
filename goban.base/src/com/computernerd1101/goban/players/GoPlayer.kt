@@ -8,6 +8,16 @@ import kotlinx.coroutines.selects.SelectBuilder
 import kotlin.coroutines.*
 
 @ExperimentalGoPlayerApi
+val CoroutineContext.blackGoPlayer: GoPlayer get() = this[GoPlayer.Black] ?: throw IllegalStateException(
+    if (this[GoPlayer.White] == null) "Missing both players" else "Missing black player"
+)
+
+@ExperimentalGoPlayerApi
+val CoroutineContext.whiteGoPlayer: GoPlayer get() = this[GoPlayer.White] ?: throw IllegalStateException(
+    "Missing white player"
+)
+
+@ExperimentalGoPlayerApi
 abstract class GoPlayer(val color: GoColor): CoroutineContext.Element {
 
     final override val key: GoColor get() = color
@@ -24,8 +34,6 @@ abstract class GoPlayer(val color: GoColor): CoroutineContext.Element {
         fun createPlayer(color: GoColor): GoPlayer
 
     }
-
-    suspend fun getGame(): GoGameContext? = coroutineContext[GoGameContext]
 
     suspend fun getOpponent(): GoPlayer? = coroutineContext[key.opponent]
 

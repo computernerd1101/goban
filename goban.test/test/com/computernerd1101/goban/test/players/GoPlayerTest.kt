@@ -2,23 +2,27 @@ package com.computernerd1101.goban.test.players
 
 import com.computernerd1101.goban.*
 import com.computernerd1101.goban.desktop.GoGameFrame
-import com.computernerd1101.goban.desktop.SwingUtilitiesDispatcher
 import com.computernerd1101.goban.players.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.swing.Swing
 import java.awt.*
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 
 fun main() {
     val blackPlayer = GoGameFrame.Player(GoPlayer.Black)
+    assert(!blackPlayer.isFrameInitialized)
     val whitePlayer = GoGameFrame.Player(GoPlayer.White)
+    assert(!whitePlayer.isFrameInitialized)
     val setup = GoGameSetup(5)
     val game = GoGameContext(setup)
-    val scope = CoroutineScope(blackPlayer + whitePlayer + game + SwingUtilitiesDispatcher)
+    val scope = CoroutineScope(blackPlayer + whitePlayer + game + Dispatchers.Swing)
     val blackFrame = GoGameFrame(scope)
     val whiteFrame = GoGameFrame(scope)
     blackPlayer.initFrame(blackFrame)
+    assert(blackPlayer.isFrameInitialized)
     whitePlayer.initFrame(whiteFrame)
+    assert(whitePlayer.isFrameInitialized)
     blackFrame.title = GoColor.BLACK.toString()
     whiteFrame.title = GoColor.WHITE.toString()
     val windowListener = object: WindowAdapter() {

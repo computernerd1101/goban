@@ -9,6 +9,11 @@ import kotlinx.coroutines.selects.select
 import kotlin.coroutines.*
 
 @ExperimentalGoPlayerApi
+val CoroutineContext.goGameContext: GoGameContext get() = this[GoGameContext] ?: throw IllegalStateException(
+    "Missing Go game context"
+)
+
+@ExperimentalGoPlayerApi
 class GoGameContext: CoroutineContext.Element {
 
     @get:JvmName("getSGF")
@@ -55,18 +60,11 @@ class GoGameContext: CoroutineContext.Element {
     suspend fun startGame() {
         var context = coroutineContext
         val game = context[Key]
-        val black = context[GoColor.BLACK]
-        val white = context[GoColor.WHITE]
-        if (black == null) {
-            if (white == null) throw IllegalStateException("Missing black and white players")
-            throw IllegalStateException("Missing black player")
-        }
-        if (white == null) throw IllegalStateException("Missing white player")
-        when {
-            game == null -> context += this
-            game !== this ->
-                throw IllegalStateException("A single coroutine cannot play two games of Go simultaneously.")
-        }
+        if (game != null && game !== this)
+            throw IllegalStateException("A single coroutine cannot play two games of Go simultaneously.")
+        val black = context.blackGoPlayer
+        val white = context.whiteGoPlayer
+        if (game == null) context += this
         startGameWithContext(context, black, white)
     }
 
@@ -132,8 +130,20 @@ class GoGameContext: CoroutineContext.Element {
                 opponent = blackPlayer
             }
             val deferredMove = coroutineScope.async(block = generateMove)
+            // Select clauses will NOT be re-allocated in every single loop.
+            // The entire select block is inevitably allocated, even though
+            // select is an inline function. If the builder parameter
+            // were inline, then it would never be allocated, and if were
+            // marked as noinline, then I would have allocated it before the loop
+            // began. Unfortunately, it's crossinline. Even if I allocated a Function1 object
+            // before the loop began, then select would still allocate a wrapper object around
+            // it in every loop. At least crossinline allows me to inline the block
+            // into the wrapper object's implementation, which saves exactly one allocation.
             select<Unit> {
                 deferredMove.onAwait(onGenerateMove)
+                // TODO add more select clauses, e.g. undo move, request time increase, etc.
+                // Otherwise I would have saved allocation by not bothering with a
+                // select statement, or even an async statement.
             }
             if (passCount >= 2) {
                 val scoreManager = GoScoreManager()

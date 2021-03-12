@@ -8,6 +8,7 @@ import com.computernerd1101.goban.sgf.GoSGFMoveNode
 import com.computernerd1101.goban.sgf.GoSGFNode
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
+import kotlinx.coroutines.swing.Swing
 import java.awt.*
 import java.awt.event.*
 import java.awt.geom.Rectangle2D
@@ -22,9 +23,8 @@ class GoGameFrame private constructor(
     _scope: CoroutineScope?,
 ): JFrame() {
 
-    constructor(): this(EmptyCoroutineContext, null)
-
-    constructor(context: CoroutineContext): this(context, null)
+    @JvmOverloads
+    constructor(context: CoroutineContext = EmptyCoroutineContext): this(context, null)
 
     @Suppress("unused")
     val context: CoroutineContext get() = scope.coroutineContext
@@ -33,7 +33,7 @@ class GoGameFrame private constructor(
 
     val scope: CoroutineScope
 
-    constructor(setup: GoGameSetup): this(setup.createContext(), null) {
+    constructor(setup: GoGameSetup): this(setup.createContext()) {
         (blackPlayer as? Player)?.initFrame(this)
         (whitePlayer as? Player)?.initFrame(this)
     }
@@ -46,7 +46,7 @@ class GoGameFrame private constructor(
         var context = _context
         var scope = _scope
         var interceptor = context[ContinuationInterceptor]
-        if (interceptor != SwingUtilitiesDispatcher) {
+        if (interceptor != Dispatchers.Swing) {
             scope = null
             if (interceptor != null) {
                 context = context.minusKey(ContinuationInterceptor)
@@ -67,7 +67,7 @@ class GoGameFrame private constructor(
         }
         if (interceptor == null) {
             // scope is definitely null at this point
-            context += SwingUtilitiesDispatcher
+            context += Dispatchers.Swing
         }
         this.scope = scope ?: CoroutineScope(context)
         title = "CN13 Goban"
@@ -117,7 +117,7 @@ class GoGameFrame private constructor(
         }
 
         override suspend fun generateMove(): GoPoint? {
-            return frame.generateMove(key, InternalMarker)
+            return frame.generateMove(color, InternalMarker)
         }
 
         override suspend fun update() {
