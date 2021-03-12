@@ -366,6 +366,7 @@ class GoEditorFrame private constructor(
 
     }
 
+    private val buttonPass = JButton(GoPoint.format(null, sgf.width, sgf.height, locale))
     private val labelBlackScore = JLabel()
     private val labelWhiteScore = JLabel()
 
@@ -378,7 +379,9 @@ class GoEditorFrame private constructor(
             if (button != selectedToolButton) {
                 selectedToolButton.isSelected = false
                 selectedToolButton = button
+                var enablePass = false
                 when(button) {
+                    buttonBlack, buttonWhite -> enablePass = true
                     buttonDim ->
                         if (node.newDimPoints == null) {
                             node.dimPoints = node.dimPoints?.copy() ?: MutableGoPointSet()
@@ -392,6 +395,7 @@ class GoEditorFrame private constructor(
                     buttonLineMarkup, buttonArrowMarkup, buttonDeleteLineMarkup -> Unit
                     else -> startLine = null
                 }
+                buttonPass.isEnabled = enablePass
             }
         }
         buttonBlack.isSelected = true
@@ -527,6 +531,13 @@ class GoEditorFrame private constructor(
         labelBlackScore.background = Color.BLACK
         labelBlackScore.foreground = Color.WHITE
         panel2.add(labelBlackScore)
+        buttonPass.addActionListener {
+            val isBlack = buttonBlack.isSelected
+            if (isBlack || buttonWhite.isSelected) {
+                playStoneAt(null, isBlack.goBlackOrWhite())
+            }
+        }
+        panel2.add(buttonPass)
         labelWhiteScore.isOpaque = true
         labelWhiteScore.background = Color.WHITE
         labelWhiteScore.foreground = Color.BLACK
@@ -565,6 +576,7 @@ class GoEditorFrame private constructor(
                 }
                 for(button in markupButtons)
                     button.isEnabled = false
+                buttonPass.isEnabled = false
             } else {
                 if (!(goban contentEquals node.goban) &&
                         JOptionPane.showConfirmDialog(this, resources.getString("Setup.Cancel"),
@@ -1362,35 +1374,10 @@ class GoEditorFrame private constructor(
             } else {
                 var blackStones = g.blackCount
                 var whiteStones = g.whiteCount
-                val prevButton: JToggleButton
-                val nextButton: JToggleButton
-                if (isBlack) {
-                    blackStones++
-                    prevButton = buttonBlack
-                    nextButton = buttonWhite
-                } else {
-                    whiteStones++
-                    prevButton = buttonWhite
-                    nextButton = buttonBlack
-                }
+                if (isBlack) blackStones++
+                else whiteStones++
                 if (!g.play(p, newStone)) return
-                val move = node.createNextMoveNode(p, newStone)
-                move.moveVariation(0)
-                updateSuppressComputeScores.incrementAndGet(this)
-                try {
-                    selectSGFTreePathFast(move)
-                } finally {
-                    updateSuppressComputeScores.decrementAndGet(this)
-                }
-                prevButton.isSelected = false
-                nextButton.isSelected = true
-                selectedToolButton = nextButton
-                val pointMarkup = move.pointMarkup
-                pointMarkupMap = pointMarkup
-                gobanView.pointMarkup = pointMarkup
-                val lineMarkup = move.lineMarkup
-                lineMarkupSet = lineMarkup
-                gobanView.lineMarkup = lineMarkup
+                playStoneAt(p, newStone)
                 blackScore += whiteStones - g.whiteCount
                 whiteScore += blackStones - g.blackCount
                 val resources = gobanDesktopResources()
@@ -1447,6 +1434,35 @@ class GoEditorFrame private constructor(
         gobanView.repaint()
     }
 
+    private fun playStoneAt(p: GoPoint?, player: GoColor) {
+        val move = node.createNextMoveNode(p, player)
+        move.moveVariation(0)
+        if (p == null) selectSGFTreePathFast(move)
+        else {
+            updateSuppressComputeScores.incrementAndGet(this)
+            try {
+                selectSGFTreePathFast(move)
+            } finally {
+                updateSuppressComputeScores.decrementAndGet(this)
+            }
+        }
+        val nextButton = if (player == GoColor.BLACK) {
+            buttonBlack.isSelected = false
+            buttonWhite
+        } else {
+            buttonWhite.isSelected = false
+            buttonBlack
+        }
+        nextButton.isSelected = true
+        selectedToolButton = nextButton
+        val pointMarkup = move.pointMarkup
+        pointMarkupMap = pointMarkup
+        gobanView.pointMarkup = pointMarkup
+        val lineMarkup = move.lineMarkup
+        lineMarkupSet = lineMarkup
+        gobanView.lineMarkup = lineMarkup
+    }
+
     private fun selectSGFTreePathFast(node: GoSGFNode) {
         var treePath: TreePath? = sgfTreeView.selectionPath
         if (this.node.parent?.children == 1)
@@ -1469,6 +1485,7 @@ class GoEditorFrame private constructor(
             selectedToolButton = buttonWhite
             buttonWhite.isSelected = true
         }
+        buttonPass.isEnabled = true
     }
 
     private fun selectSGFNode(node: GoSGFNode,
@@ -1650,16 +1667,16 @@ class GoEditorFrame private constructor(
     private fun computeScores(node: GoSGFNode) {
         var current = node
         while(current is GoSGFMoveNode) {
-            val player = current.turnPlayer
+            val player = if (current.playStoneAt == null) null else current.turnPlayer
             val goban = current.goban
             current = current.parent!!
             val prev = current.goban
             var prisoners = prev.whiteCount - goban.whiteCount
             if (player == GoColor.WHITE) prisoners++
-            blackScore += prisoners
+            if (prisoners != 0) blackScore += prisoners
             prisoners = prev.blackCount - goban.blackCount
             if (player == GoColor.BLACK) prisoners++
-            whiteScore += prisoners
+            if (prisoners != 0) whiteScore += prisoners
         }
     }
 
@@ -1689,6 +1706,7 @@ class GoEditorFrame private constructor(
         buttonSGFDelete.text = gobanDesktopResources().getString("Delete")
         val node = this.node
         buttonSGFDelete.isEnabled = node.parent != null
+        buttonPass.isEnabled = buttonBlack.isSelected || buttonWhite.isSelected
         updateNodeGoban(node)
     }
 
