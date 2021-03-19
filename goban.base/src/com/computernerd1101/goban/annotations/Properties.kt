@@ -1,6 +1,7 @@
 package com.computernerd1101.goban.annotations
 
 import com.computernerd1101.goban.internal.InternalMarker
+import kotlin.jvm.internal.Reflection
 import java.util.*
 import kotlin.reflect.*
 import kotlin.reflect.full.*
@@ -243,6 +244,9 @@ class PropertyFactory<T: Any> private constructor(
             entries: MutableMap<String, EntryBuilder<T, *>>,
             prop: KMutableProperty1<T, P>
         ): EntryBuilder<T, P>? {
+            val type = prop.returnType
+            if (!type.isSubtypeOf(Reflection.typeOf(Comparable::class.java, KTypeProjection.invariant(type))))
+                return null
             var pmm: PropertyManagerMaker<P>? = null
             var found = false
             for(annotation in prop.annotations) {

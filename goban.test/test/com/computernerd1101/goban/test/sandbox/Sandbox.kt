@@ -5,11 +5,25 @@ package com.computernerd1101.goban.test.sandbox
 import java.awt.event.ActionListener
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.CoroutineContext
+import kotlin.jvm.internal.Reflection
 import kotlin.reflect.*
+import kotlin.reflect.full.isSubtypeOf
 
 fun main() {
-    midVarargs(1, 2, 3, 4, c=5)
+    val type = typeOf<MyComparable2>()
+    val supertype = typeOf<Comparable<MyComparable2>>()
+    println(type.isSubtypeOf(supertype))
 }
+
+open class MyComparable1: Comparable<MyComparable1> {
+
+    override fun compareTo(other: MyComparable1): Int {
+        TODO("Not yet implemented")
+    }
+
+}
+
+class MyComparable2: MyComparable1()
 
 fun midVarargs(a: Int, vararg b: Int, c: Int) {
     println(a)
