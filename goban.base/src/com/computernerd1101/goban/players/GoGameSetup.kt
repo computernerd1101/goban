@@ -33,8 +33,8 @@ class GoGameSetup {
     constructor(
         width: Int,
         height: Int,
-        blackPlayer: GoPlayer.Factory?,
-        whitePlayer: GoPlayer.Factory?,
+        blackPlayer: GoPlayer.Factory? = null,
+        whitePlayer: GoPlayer.Factory? = null,
         gameInfo: GameInfo = GameInfo().apply { dates.addDate(Date()) },
         randomPlayer: Random? = null,
         isFreeHandicap: Boolean = false
@@ -185,19 +185,6 @@ class GoGameSetup {
             }
         }
         return goban
-    }
-
-    fun createContext(): CoroutineContext {
-        if (randomPlayer?.nextBoolean() == true) {
-            val player = player1
-            player1 = player2
-            player2 = player
-            gameInfo.swapPlayers()
-        }
-        var context: CoroutineContext = GoGameContext(this)
-        blackPlayer?.createPlayer(GoColor.BLACK)?.also { context += it }
-        whitePlayer?.createPlayer(GoColor.WHITE)?.also { context += it }
-        return context
     }
 
     operator fun component1() = width

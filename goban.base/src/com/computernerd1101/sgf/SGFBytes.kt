@@ -169,7 +169,7 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
 
     fun toString(enc: String?) = toString(enc?.let {
         try {
-            Charset.forName(it)
+            charset(it)
         } catch(e: Exception) {
             null
         }
@@ -491,7 +491,7 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
         fun parseEncoding(str: String, enc: String?): ByteArray {
             return parse(str, enc?.let {
                 try {
-                    Charset.forName(it)
+                    charset(it)
                 } catch(e: Exception) {
                     null
                 }

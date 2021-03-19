@@ -1,5 +1,7 @@
 package com.computernerd1101.goban.time
 
+import com.computernerd1101.goban.GoColor
+import com.computernerd1101.goban.sgf.*
 import java.util.*
 import java.util.regex.*
 import kotlin.concurrent.scheduleAtFixedRate
@@ -7,10 +9,60 @@ import kotlin.concurrent.scheduleAtFixedRate
 fun Long.millisToStringSeconds(): String = TimeLimit.millisToStringSeconds(this)
 fun String.secondsToMillis(): Long = TimeLimit.parseSeconds(this)
 
-class TimeLimit(mainTime: Long, val overtime: Overtime?) {
+class TimeLimit private constructor(
+    events: Events,
+    remainingTime: Long,
+    overtimeCode: Int,
+    flags: Int,
+    val overtime: Overtime?
+) {
+
+    constructor(mainTime: Long, overtime: Overtime?): this(Events, mainTime,
+        overtime?.initialOvertimeCode ?: 0, 0, overtime)
 
     @Suppress("SpellCheckingInspection")
     companion object {
+
+        @JvmStatic fun fromSGF(node: GoSGFNode, player: GoColor): TimeLimit? {
+            val tree = node.treeOrNull ?: return null
+            return synchronized(tree) {
+                if (!node.isAlive) return@synchronized null
+                val gameInfo = node.gameInfo
+                val overtime = gameInfo?.overtime
+                var remainingTime = gameInfo?.timeLimit ?: 0
+                if (remainingTime == 0L && overtime == null) return@synchronized null
+                var overtimeCode = overtime?.initialOvertimeCode ?: 0
+                var flags = 0
+                var foundTime = false
+                var foundOvertime = false
+                var currentNode: GoSGFNode? = node
+                while (currentNode != null && !(foundTime && foundOvertime)) {
+                    val moveNode = currentNode as? GoSGFMoveNode
+                    currentNode = currentNode.parent
+                    val playerTime = (moveNode ?: continue).time(player)
+                    val hasTime = playerTime.hasTime
+                    if (!foundOvertime && playerTime.hasOvertime) {
+                        foundOvertime = true
+                        overtimeCode = playerTime.overtime
+                        if (!foundTime) flags = TimeEvent.FLAG_OVERTIME
+                    }
+                    if (!foundTime && hasTime) {
+                        foundTime = true
+                        remainingTime = playerTime.time
+                    }
+                }
+                TimeLimit(Events, remainingTime, overtimeCode, flags, overtime)
+            }
+        }
+
+        @JvmStatic fun extendTime(e: TimeEvent, extension: Long): TimeEvent {
+            if (extension <= 0L) return e
+            var timeRemaining = e.timeRemaining
+            if (timeRemaining + extension < timeRemaining)
+                timeRemaining = Long.MAX_VALUE
+            else timeRemaining += extension
+            return TimeEvent(e.timeLimit, timeRemaining, e.overtimeCode, e.flags)
+        }
 
         @JvmStatic
         fun millisToStringSeconds(millis: Long): String {
@@ -87,8 +139,9 @@ class TimeLimit(mainTime: Long, val overtime: Overtime?) {
 
     private val timeListeners = mutableListOf<TimeListener>()
 
-    @get:Synchronized
-    var timeEvent = TimeEvent(this, mainTime); private set
+    private var _timeEvent = events.timeEvent(this, remainingTime, overtimeCode, flags)
+
+    val timeEvent: TimeEvent @Synchronized get() = _timeEvent
 
     init {
         Events.filterInitialEvent()
@@ -98,7 +151,7 @@ class TimeLimit(mainTime: Long, val overtime: Overtime?) {
         // In case overtime?.filterEvent(timeEvent) accesses this
         // through timeEvent.getSource() or timeEvent.timeLimit,
         // this.timeEvent will already be non-null.
-        timeEvent = filterEvent(timeEvent)
+        _timeEvent = filterEvent(_timeEvent)
     }
 
     fun addTimeListener(l: TimeListener?) {
@@ -111,11 +164,10 @@ class TimeLimit(mainTime: Long, val overtime: Overtime?) {
     }
 
     var isTicking: Boolean
-        @Synchronized
         get() = timeEvent.isTicking
         @Synchronized
         set(ticking) {
-            val e = timeEvent
+            val e = _timeEvent
             when {
                 ticking -> if (e.flags and TimeEvent.FLAGS_EXPIRED_TICKING == 0) {
                     prevSystemTime = System.currentTimeMillis()
@@ -171,6 +223,16 @@ class TimeLimit(mainTime: Long, val overtime: Overtime?) {
             }
         }
 
+    fun extendTime(extension: Long) {
+        if (extension <= 0L) return
+        synchronized(this) {
+            val overtime = this.overtime
+            var e = _timeEvent
+            e = overtime?.extendTime(e, extension) ?: extendTime(e, extension)
+            Events.updateTimeEvent(e, true)
+        }
+    }
+
     // already synchronized in all callers
     private fun Events.updateTimeEvent(e: TimeEvent, filter: Boolean): TimeEvent {
         // even synthetic public method access$updateTimeEvent,
@@ -179,7 +241,7 @@ class TimeLimit(mainTime: Long, val overtime: Overtime?) {
         val event = if (filter) filterEvent(e) else e
         // The owner of this method is the same as that of the private setter for property timeEvent,
         // so a public synthetic accessor will not be generated for that setter.
-        timeEvent = event
+        _timeEvent = event
         for(i in (timeListeners.size - 1) downTo 0)
             timeListeners[i].timeElapsed(event)
         return event
@@ -211,6 +273,9 @@ class TimeLimit(mainTime: Long, val overtime: Overtime?) {
                 else -> TimeEvent(this, timeRemaining, overtimeCode, flags)
             }
         }
+
+        fun timeEvent(timeLimit: TimeLimit, remainingTime: Long, overtimeCode: Int, flags: Int) =
+            TimeEvent(timeLimit, remainingTime, overtimeCode, flags)
 
     }
 

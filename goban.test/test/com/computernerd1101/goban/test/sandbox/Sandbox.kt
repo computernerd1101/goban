@@ -2,12 +2,21 @@
 
 package com.computernerd1101.goban.test.sandbox
 
+import java.awt.event.ActionListener
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.*
 
 fun main() {
-    val mj = MyJava()
-    println(testNotNullProperty)
+    midVarargs(1, 2, 3, 4, c=5)
 }
+
+fun midVarargs(a: Int, vararg b: Int, c: Int) {
+    println(a)
+    println(b.contentToString())
+    println(c)
+}
+
 
 
 fun nullable(s: String?): String? = maybeNullable<String?, String?>(s, {this}, {null})
@@ -39,6 +48,12 @@ fun testNullability(s: String): String {
 
 
 object TestIterator {
+
+    operator fun get(vararg index: Int): Any? = null
+
+    operator fun set(vararg index: Int, value: Any?) = Unit
+
+    fun foo(vararg index: Int, value: Any?) = Unit
 
     operator fun iterator(): IntIterator {
         return intArrayOf(1, 2, 3, 4, 5).iterator()

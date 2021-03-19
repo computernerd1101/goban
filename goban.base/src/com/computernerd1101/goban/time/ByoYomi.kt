@@ -1,6 +1,8 @@
 package com.computernerd1101.goban.time
 
 import com.computernerd1101.goban.annotations.*
+import com.computernerd1101.goban.resources.OvertimeFormatter
+import com.computernerd1101.goban.resources.gobanFormatResources
 import com.computernerd1101.goban.resources.gobanResources
 import java.util.*
 
@@ -34,6 +36,9 @@ class ByoYomi(periods: Int, millis: Long): Overtime(), PropertyTranslator {
         } else name
     }
 
+    override val initialOvertimeCode: Int
+        get() = periods
+
     override fun filterEvent(e: TimeEvent): TimeEvent {
         var time = e.timeRemaining
         var overtime = e.overtimeCode
@@ -43,13 +48,22 @@ class ByoYomi(periods: Int, millis: Long): Overtime(), PropertyTranslator {
             if (flags and FLAGS_OVERTIME_TICKING != TimeEvent.FLAG_OVERTIME || time == t) return e
             time = t
         } else {
-            overtime = (if (flags and TimeEvent.FLAG_OVERTIME != 0) overtime - 1 else periods) +
-                    (time / millis).toInt()
+            if (flags and TimeEvent.FLAG_OVERTIME != 0) overtime--
+            overtime += (time / millis).toInt()
             time = if (flags and TimeEvent.FLAG_TICKING != 0) millis + (time % millis) else millis
             flags = if (overtime > 0) flags or TimeEvent.FLAG_OVERTIME
             else TimeEvent.FLAG_EXPIRED or TimeEvent.FLAG_OVERTIME
         }
         return TimeEvent(e.timeLimit, time, overtime, flags)
+    }
+
+    override fun extendTime(e: TimeEvent, extension: Long): TimeEvent {
+        if (extension <= 0L) return e
+        val flags = e.flags
+        if (flags and TimeEvent.FLAG_OVERTIME == 0)
+            return super.extendTime(e, extension)
+        return TimeEvent(e.timeLimit, extension, e.overtimeCode,
+            flags and (TimeEvent.FLAG_MASK xor TimeEvent.FLAG_OVERTIME))
     }
 
     override fun toString() = "$periods*${millis.millisToStringSeconds()} Byo-Yomi"
@@ -60,6 +74,10 @@ class ByoYomi(periods: Int, millis: Long): Overtime(), PropertyTranslator {
         val resources = gobanResources(locale)
         return resources.getString("time.Overtime.ByoYomi")
     }
+
+    override fun displayOvertimeImpl(e: TimeEvent, locale: Locale): String? =
+        (gobanFormatResources(locale).getObject("OvertimeFormatter") as? OvertimeFormatter)
+            ?.formatByoYomi(e.overtimeCode)
 
     override fun parseThis(s: String): Boolean = Regex.parse(s, this) != null
 

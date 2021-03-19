@@ -11,6 +11,7 @@ class GobanFormatResources: ListResourceBundle() {
             arrayOf("GoPointFormatter", GoPointFormatter),
             arrayOf("GobanDimensionFormatter.X", GobanDimensionFormatter.X),
             arrayOf("GobanDimensionFormatter.Y", GobanDimensionFormatter.Y),
+            arrayOf("time.OvertimeFormatter", OvertimeFormatter),
             arrayOf(
                 "players.GoSGFResumeException.PlayerColor.Format",
                 GoSGFResumeExceptionFormat.PlayerColor

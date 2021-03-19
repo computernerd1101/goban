@@ -263,7 +263,7 @@ class GameInfoTransferHandler(
                 ByteArray::class.java, ByteBuffer::class.java -> {
                     val charset = flavor.getParameter("charset")?.let { enc ->
                         try {
-                            Charset.forName(enc)
+                            charset(enc)
                         } catch(e: IllegalCharsetNameException) {
                             null
                         } catch(e: UnsupportedCharsetException) {

@@ -3,9 +3,16 @@ package com.computernerd1101.goban.players
 import com.computernerd1101.goban.*
 import com.computernerd1101.goban.internal.*
 import com.computernerd1101.goban.sgf.*
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.*
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.selects.SelectClause1
 import kotlinx.coroutines.selects.select
+import kotlin.coroutines.Continuation
 import kotlin.coroutines.coroutineContext
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 @ExperimentalGoPlayerApi
 class GoScoreManager {
@@ -16,24 +23,50 @@ class GoScoreManager {
     private val _livingStones = Channel<GoPointSet>(Channel.UNLIMITED)
     val livingStones: SendChannel<GoPointSet> = SendOnlyChannel(_livingStones)
 
-    private val submit = Channel<GoColor>(2)
-    internal fun getSubmit(marker: InternalMarker): SendChannel<GoColor> {
+    private var submit: Continuation<GoColor>? = null
+    private fun suspendSubmitScore(continuation: Continuation<GoColor>, marker: InternalMarker) {
         marker.ignore()
-        return submit
+        submit = continuation
+    }
+    internal fun submitScore(color: GoColor, marker: InternalMarker) {
+        marker.ignore()
+        submit?.resume(color)
     }
 
-    private val resumePlay = Channel<GoColor>(Channel.RENDEZVOUS)
-    internal fun getResumePlay(marker: InternalMarker): SendChannel<GoColor> {
+    private var resumePlay: Continuation<GoColor>? = null
+    private fun suspendResumePlay(continuation: Continuation<GoColor>, marker: InternalMarker) {
         marker.ignore()
-        return resumePlay
+        resumePlay = continuation
+    }
+    internal fun requestResumePlay(color: GoColor, marker: InternalMarker){
+        marker.ignore()
+        resumePlay?.resume(color)
     }
 
     suspend fun computeScore(): GoColor? {
         var waitingForBlack = true
         var waitingForWhite = true
+        val deferredScore: Deferred<Unit>
+        val deferredResumePlay: Deferred<GoColor>
+        coroutineScope {
+            deferredScore = async {
+                while(waitingForBlack || waitingForWhite) {
+                    val color = suspendCoroutine<GoColor> { continuation ->
+                        suspendSubmitScore(continuation, InternalMarker)
+                    }
+                    if (color == GoColor.BLACK) waitingForBlack = false
+                    else waitingForWhite = false
+                }
+            }
+            deferredResumePlay = async {
+                suspendCoroutine { continuation ->
+                    suspendResumePlay(continuation, InternalMarker)
+                }
+            }
+        }
         val gameContext = coroutineContext.goGameContext
-        val blackPlayer = coroutineContext.blackGoPlayer
-        val whitePlayer = coroutineContext.whiteGoPlayer
+        val blackPlayer = gameContext.blackPlayer
+        val whitePlayer = gameContext.whitePlayer
         blackPlayer.startScoring(this)
         whitePlayer.startScoring(this)
         val node = gameContext.node
@@ -77,12 +110,8 @@ class GoScoreManager {
                     blackPlayer.updateScoring(this@GoScoreManager, stones, true)
                     whitePlayer.updateScoring(this@GoScoreManager, stones, true)
                 }
-                submit.onReceive {
-                    if (it == GoColor.BLACK)
-                        waitingForBlack = false
-                    else waitingForWhite = false
-                }
-                resumePlay.onReceive {
+                deferredScore.onAwait { }
+                deferredResumePlay.onAwait {
                     resumeRequest = it
                 }
             }

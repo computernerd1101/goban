@@ -1,6 +1,8 @@
 package com.computernerd1101.goban.time
 
 import com.computernerd1101.goban.annotations.*
+import com.computernerd1101.goban.resources.OvertimeFormatter
+import com.computernerd1101.goban.resources.gobanFormatResources
 import com.computernerd1101.goban.resources.gobanResources
 import java.util.*
 
@@ -35,6 +37,8 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime(), PropertyTranslator
         } else name
     }
 
+    override val initialOvertimeCode: Int get() = moves
+
     override fun filterEvent(e: TimeEvent): TimeEvent {
         var time = e.timeRemaining
         var overtime = e.overtimeCode
@@ -42,7 +46,6 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime(), PropertyTranslator
         if (time <= 0L) {
             flags = flags or (if (flags and TimeEvent.FLAG_OVERTIME == 0) {
                 time += millis
-                overtime = moves
                 if (time > 0L) TimeEvent.FLAG_OVERTIME
                 else TimeEvent.FLAG_EXPIRED
             } else TimeEvent.FLAG_EXPIRED)
@@ -64,6 +67,10 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime(), PropertyTranslator
         val resources = gobanResources(locale)
         return resources.getString("time.Overtime.Canadian")
     }
+
+    override fun displayOvertimeImpl(e: TimeEvent, locale: Locale): String? =
+        (gobanFormatResources(locale).getObject("OvertimeFormatter") as? OvertimeFormatter)
+            ?.formatCanadian(e.overtimeCode, moves)
 
     override fun parseThis(s: String): Boolean = Regex.parse(s, this) != null
 

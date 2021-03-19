@@ -8,34 +8,17 @@ import kotlinx.coroutines.selects.SelectBuilder
 import kotlin.coroutines.*
 
 @ExperimentalGoPlayerApi
-val CoroutineContext.blackGoPlayer: GoPlayer get() = this[GoPlayer.Black] ?: throw IllegalStateException(
-    if (this[GoPlayer.White] == null) "Missing both players" else "Missing black player"
-)
-
-@ExperimentalGoPlayerApi
-val CoroutineContext.whiteGoPlayer: GoPlayer get() = this[GoPlayer.White] ?: throw IllegalStateException(
-    "Missing white player"
-)
-
-@ExperimentalGoPlayerApi
-abstract class GoPlayer(val color: GoColor): CoroutineContext.Element {
-
-    final override val key: GoColor get() = color
-
-    companion object {
-
-        @JvmField val Black = GoColor.BLACK
-        @JvmField val White = GoColor.WHITE
-
-    }
+abstract class GoPlayer(val color: GoColor) {
 
     fun interface Factory {
 
         fun createPlayer(color: GoColor): GoPlayer
 
+        suspend fun isCompatible(setup: GoGameSetup) = true
+
     }
 
-    suspend fun getOpponent(): GoPlayer? = coroutineContext[key.opponent]
+    suspend fun getOpponent(): GoPlayer = coroutineContext.goGameContext.getPlayer(color.opponent)
 
     abstract suspend fun generateHandicapStones(handicap: Int, goban: Goban)
 
@@ -47,55 +30,43 @@ abstract class GoPlayer(val color: GoColor): CoroutineContext.Element {
 
     open suspend fun acceptOpponentMove(move: GoPoint?): Boolean = true
 
-    open suspend fun acceptOpponentTimeExtension(millis: Long): Boolean = false
+    open suspend fun acceptOpponentTimeExtension(requestedMilliseconds: Long): Long = requestedMilliseconds
+
+    protected suspend fun requestUndoMove(resumeNode: GoSGFNode): Boolean =
+        coroutineContext.goGameContext.requestUndoMove(color, resumeNode, InternalMarker)
 
     open suspend fun acceptUndoMove(resumeNode: GoSGFNode): Boolean = false
 
     open suspend fun startScoring(scoreManager: GoScoreManager) {
-        submitScore(scoreManager)
+        submitScore(coroutineContext.goGameContext, scoreManager)
     }
 
     open suspend fun updateScoring(scoreManager: GoScoreManager, stones: GoPointSet, alive: Boolean) {
-        submitScore(scoreManager)
+        submitScore(coroutineContext.goGameContext, scoreManager)
     }
 
     open suspend fun finishScoring() = Unit
 
     suspend fun checkPermissions() {
-        if (coroutineContext[key] != this)
-            throw SecurityException()
+        checkPermissions(coroutineContext.goGameContext)
     }
 
-    protected suspend fun submitScore(scoreManager: GoScoreManager) {
-        checkPermissions()
-        scoreManager.getSubmit(InternalMarker).send(color)
+    fun checkPermissions(game: GoGameContext) {
+        if (game.getPlayer(color) != this) throw SecurityException()
     }
 
-    protected fun <R> SelectBuilder<R>.onSubmitScore(
-        scoreManager: GoScoreManager,
-        block: suspend (GoScoreManager) -> R
-    ) {
-        scoreManager.getSubmit(InternalMarker).onSend(color, scoreSelectClause(scoreManager, block))
+    protected fun submitScore(game: GoGameContext, scoreManager: GoScoreManager) {
+        checkPermissions(game)
+        scoreManager.submitScore(color, InternalMarker)
     }
 
-    protected suspend fun requestResumePlay(scoreManager: GoScoreManager) {
-        checkPermissions()
-        scoreManager.getResumePlay(InternalMarker).send(color)
+    protected fun requestResumePlay(game: GoGameContext, scoreManager: GoScoreManager) {
+        checkPermissions(game)
+        scoreManager.requestResumePlay(color, InternalMarker)
     }
 
-    protected fun <R> SelectBuilder<R>.onRequestResumePlay(
-        scoreManager: GoScoreManager,
-        block: suspend (GoScoreManager) -> R
-    ) {
-        scoreManager.getResumePlay(InternalMarker).onSend(color, scoreSelectClause(scoreManager, block))
-    }
+    final override fun equals(other: Any?): Boolean = this === other
 
-    private fun <R> scoreSelectClause(
-        scoreManager: GoScoreManager,
-        block: suspend (GoScoreManager) -> R
-    ): suspend (SendChannel<GoColor>) -> R = {
-        checkPermissions()
-        block(scoreManager)
-    }
+    final override fun hashCode(): Int = super.hashCode()
 
 }

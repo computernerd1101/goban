@@ -4,6 +4,7 @@ import com.computernerd1101.goban.time.*;
 module computernerd1101.goban {
 
     exports com.computernerd1101.goban;
+//    exports com.computernerd1101.goban.time;
     exports com.computernerd1101.goban.time;
     exports com.computernerd1101.goban.sgf;
     exports com.computernerd1101.goban.markup;

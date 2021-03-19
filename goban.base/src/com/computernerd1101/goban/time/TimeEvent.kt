@@ -11,7 +11,7 @@ fun interface TimeListener: EventListener {
 class TimeEvent(
     timeLimit: TimeLimit,
     val timeRemaining: Long,
-    overtimeCode: Int,
+    val overtimeCode: Int,
     flags: Int
 ): EventObject(timeLimit) {
 
@@ -25,8 +25,6 @@ class TimeEvent(
     override fun getSource(): TimeLimit = super.getSource() as TimeLimit
 
     val timeLimit: TimeLimit get() = getSource()
-
-    val overtimeCode: Int = if (flags and FLAG_OVERTIME == 0) 0 else overtimeCode
 
     val flags: Int = flags and (
             if (flags and FLAGS_EXPIRED_TICKING == FLAGS_EXPIRED_TICKING)

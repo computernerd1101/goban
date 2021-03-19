@@ -4,7 +4,11 @@ import java.util.*
 
 abstract class Overtime: Cloneable {
 
+    open val initialOvertimeCode: Int get() = 0
+
     open fun filterEvent(e: TimeEvent): TimeEvent = e
+
+    open fun extendTime(e: TimeEvent, extension: Long): TimeEvent = TimeLimit.extendTime(e, extension)
 
     abstract fun parseThis(s: String): Boolean
 
@@ -18,6 +22,11 @@ abstract class Overtime: Cloneable {
     fun displayName(locale: Locale = Locale.getDefault()): String = getDisplayName(locale) ?: typeString
     
     protected open fun getDisplayName(locale: Locale): String? = null
+
+    fun displayOvertime(e: TimeEvent, locale: Locale = Locale.getDefault()): String =
+        displayOvertimeImpl(e, locale) ?: e.overtimeCode.toString()
+
+    protected open fun displayOvertimeImpl(e: TimeEvent, locale: Locale): String? = null
 
     companion object {
 

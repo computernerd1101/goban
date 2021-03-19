@@ -10,13 +10,18 @@ import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 
 fun main() {
-    val blackPlayer = GoGameFrame.Player(GoPlayer.Black)
-    assert(!blackPlayer.isFrameInitialized)
-    val whitePlayer = GoGameFrame.Player(GoPlayer.White)
-    assert(!whitePlayer.isFrameInitialized)
     val setup = GoGameSetup(5)
-    val game = GoGameContext(setup)
-    val scope = CoroutineScope(blackPlayer + whitePlayer + game + Dispatchers.Swing)
+    setup.gameInfo.handicap = 3
+    setup.isFreeHandicap = true
+    val game = GoGameContext(setup, GoGameFrame)
+    val blackPlayer = game.blackPlayer as GoGameFrame.Player
+    assert(!blackPlayer.isFrameInitialized)
+    val whitePlayer = game.whitePlayer as GoGameFrame.Player
+    assert(!whitePlayer.isFrameInitialized)
+    val handler = CoroutineExceptionHandler { _, throwable ->
+        println(throwable)
+    }
+    val scope = CoroutineScope(handler + game + Dispatchers.Swing)
     val blackFrame = GoGameFrame(scope)
     val whiteFrame = GoGameFrame(scope)
     blackPlayer.initFrame(blackFrame)

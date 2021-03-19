@@ -13,7 +13,7 @@ fun Boolean.goBlackOrWhite() = if (this) GoColor.BLACK else GoColor.WHITE
 
 @Suppress("unused")
 @OptIn(ExperimentalGoPlayerApi::class)
-enum class GoColor: CoroutineContext.Key<GoPlayer> {
+enum class GoColor {
 
     BLACK, WHITE;
 

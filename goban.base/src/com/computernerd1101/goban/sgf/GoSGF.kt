@@ -23,7 +23,7 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
     var encoding: String?
         get() = charset?.name()
         set(enc) {
-            charset = enc?.let { Charset.forName(it) }
+            charset = enc?.let { charset(it) }
         }
 
     var variationView: Int = SUCCESSOR_VARIATION
@@ -142,7 +142,7 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
             val enc = b.toString()
             if (Charset.isSupported(enc)) {
                 try {
-                    charset = Charset.forName(enc)
+                    charset = charset(enc)
                 } catch(e: RuntimeException) {
                     warnings += SGFWarning(b.row, b.column,
                         "Invalid encoding CA[$enc]: $e", e)

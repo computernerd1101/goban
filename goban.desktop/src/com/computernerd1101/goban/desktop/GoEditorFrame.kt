@@ -2698,7 +2698,7 @@ class GoEditorFrame private constructor(
                     true
                 }
                 is String -> try {
-                    charset = Charset.forName(anItem)
+                    charset = charset(anItem)
                     true
                 } catch(e: Exception) {
                     false

@@ -1,6 +1,7 @@
 package com.computernerd1101.goban.test.desktop
 
 import com.computernerd1101.goban.time.*
+import com.computernerd1101.goban.time0.TimeLimit
 import java.awt.*
 import javax.swing.*
 
