@@ -140,7 +140,7 @@ fun main(args: Array<String>) {
         g.scale(fontScale.toDouble(), fontScale.toDouble())
         g.drawString("V", -0.5f * fontWidth, fontMetrics.ascent.toFloat())
     }
-    if ("--no-preview" !in args) {
+    if (GenerateAll.NO_PREVIEW !in args) {
         val addBlack = makeIcon(32, 32) { g ->
             g.color = Color.BLACK
             g.fillOval(7, 7, 24, 24)

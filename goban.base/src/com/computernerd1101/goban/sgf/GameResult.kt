@@ -36,6 +36,13 @@ class GameResult private constructor(
         @JvmField val BLACK_TIME = GameResult(BLACK_WINS or ('T'.toInt() shl 16), "B+T")
         @JvmField val BLACK_UNKNOWN = GameResult(BLACK_WINS, "B+")
 
+        @JvmStatic fun time(winner: GoColor): GameResult =
+            if (winner == GoColor.BLACK) BLACK_TIME else WHITE_TIME
+        @JvmStatic fun resign(winner: GoColor): GameResult =
+            if (winner == GoColor.BLACK) BLACK_RESIGN else WHITE_RESIGN
+        @JvmStatic fun forfeit(winner: GoColor): GameResult =
+            if (winner == GoColor.BLACK) BLACK_FORFEIT else WHITE_FORFEIT
+
         @JvmStatic
         fun result(winner: GoColor?, score: Float): GameResult {
             if (winner == null) return DRAW
@@ -160,18 +167,18 @@ class GameResult private constructor(
 
     private object Tables {
 
-        @JvmField val noWinner = makeTable(DRAW, UNKNOWN, VOID).apply {
-            this['0'.toInt()] = DRAW
-            this['D'.toInt()] = DRAW
-            this['d'.toInt()] = DRAW
-        }
+        @JvmField val noWinner = makeTable(DRAW, UNKNOWN, VOID)
         @JvmField val blackWins = makeTable(BLACK_FORFEIT, BLACK_RESIGN, BLACK_TIME)
         @JvmField val whiteWins = makeTable(WHITE_FORFEIT, WHITE_RESIGN, WHITE_TIME)
 
         private fun makeTable(vararg results: GameResult): Array<GameResult?> {
             val table = arrayOfNulls<GameResult>(0x100)
             for (result in results) {
-                val ch = (result.code shr 16) and 0xFF
+                val ch = if (result === DRAW) {
+                    table[0] = result
+                    table['0'.toInt()] = result
+                    'D'.toInt()
+                } else (result.code shr 16) and 0xFF
                 table[ch] = result
                 if (ch.toChar() in 'A'..'Z')
                     table[ch + ('a' - 'A')] = result

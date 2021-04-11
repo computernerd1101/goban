@@ -1055,9 +1055,9 @@ class DateSet(): MutableIterable<Date>, Serializable {
                     }
 
                     fun contentEquals(other: MonthTable): Boolean {
-                        return when {
+                        return lastDay == other.lastDay && when {
                             day0 != null -> other.day0 != null
-                            other.day0 != null || lastDay != other.lastDay -> false
+                            other.day0 != null -> false
                             else -> {
                                 for(i in 1..lastDay) {
                                     val updateDay = Private.updateDays[i]

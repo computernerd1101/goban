@@ -14,7 +14,6 @@ import kotlin.random.*
  * A very stupid robot that chooses its moves completely at random
  * amongst all legal moves except for multi-stone suicide.
  */
-@ExperimentalGoPlayerApi
 class BakaBot private constructor(
     color: GoColor,
     @get:JvmName("getKotlinRandom")

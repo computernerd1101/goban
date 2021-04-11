@@ -4,7 +4,7 @@ import com.computernerd1101.goban.*
 import com.computernerd1101.goban.sgf.*
 import com.computernerd1101.goban.sgf.internal.InternalGoSGF.violatesSituationalSuperko
 
-
+@ExperimentalGoPlayerApi
 fun GoSGF.extResumeNode(): GoSGFNode = synchronized(this) {
     val root = rootNode
     val children = root.children
@@ -45,6 +45,7 @@ fun GoSGF.extResumeNode(): GoSGFNode = synchronized(this) {
     TODO()
 }
 
+@ExperimentalGoPlayerApi
 fun GoSGF.tryResume(): GoSGFResumeException? = try {
     onResume()
     null
@@ -52,6 +53,7 @@ fun GoSGF.tryResume(): GoSGFResumeException? = try {
     e
 }
 
+@ExperimentalGoPlayerApi
 @Throws(GoSGFResumeException::class)
 fun GoSGF.onResume(): GameInfo = synchronized(this) {
     val root = rootNode

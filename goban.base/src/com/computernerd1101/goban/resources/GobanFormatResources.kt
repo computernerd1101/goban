@@ -4,14 +4,15 @@ package com.computernerd1101.goban.resources
 
 import java.util.*
 
-class GobanFormatResources: ListResourceBundle() {
+internal class GobanFormatResources: ListResourceBundle() {
 
     override fun getContents(): Array<out Array<out Any>> {
         return arrayOf(
             arrayOf("GoPointFormatter", GoPointFormatter),
             arrayOf("GobanDimensionFormatter.X", GobanDimensionFormatter.X),
             arrayOf("GobanDimensionFormatter.Y", GobanDimensionFormatter.Y),
-            arrayOf("time.OvertimeFormatter", OvertimeFormatter),
+            arrayOf("ByoYomiFormatter", ByoYomiFormatter),
+            arrayOf("CanadianOvertimeFormatter", CanadianOvertimeFormatter),
             arrayOf(
                 "players.GoSGFResumeException.PlayerColor.Format",
                 GoSGFResumeExceptionFormat.PlayerColor
@@ -29,7 +30,7 @@ class GobanFormatResources: ListResourceBundle() {
 
 }
 
-class GobanFormatResources_ja: ListResourceBundle() {
+internal class GobanFormatResources_ja: ListResourceBundle() {
 
     override fun getContents(): Array<out Array<out Any>> {
         return arrayOf(

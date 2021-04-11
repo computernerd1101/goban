@@ -1,19 +1,27 @@
 package com.computernerd1101.goban.resources
 
-interface OvertimeFormatter {
+fun interface OvertimeFormatter1 {
 
-    fun formatByoYomi(periodsRemaining: Int): String
+    fun format(p1: Int): String
 
-    fun formatCanadian(move: Int, max: Int): String
+}
 
-    companion object Default: OvertimeFormatter {
+fun interface OvertimeFormatter2 {
 
-        override fun formatByoYomi(periodsRemaining: Int): String =
-            "$periodsRemaining periods remaining"
+    fun format(p1: Int, p2: Int): String
 
-        override fun formatCanadian(move: Int, max: Int): String =
-            "$move/$max moves"
+}
 
-    }
+object ByoYomiFormatter: OvertimeFormatter1 {
+
+    override fun format(p1: Int): String = "$p1 periods remaining"
+
+}
+
+object CanadianOvertimeFormatter: OvertimeFormatter2 {
+
+    override fun format(p1: Int, p2: Int): String =
+        "$p1/$p2 moves"
+
 
 }

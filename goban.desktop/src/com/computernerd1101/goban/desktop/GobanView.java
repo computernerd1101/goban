@@ -39,7 +39,7 @@ public class GobanView extends JComponent {
     }
 
     private AbstractGoban goban;
-    public @Nullable final AbstractGoban getGoban() { return goban; }
+    public final @Nullable AbstractGoban getGoban() { return goban; }
     public void setGoban(@Nullable AbstractGoban goban) {
         AbstractGoban old = this.goban;
         this.goban = goban;
@@ -198,7 +198,7 @@ public class GobanView extends JComponent {
             int top = startY;
             if (x >= left && y >= top) {
                 int gx = (int)((x - left) / scale);
-                int gy = (int)((y - top)/scale);
+                int gy = (int)((y -  top) / scale);
                 if (gx < goban.width && gy < goban.height)
                     return GoPoint.pointAt(gx, gy);
             }
@@ -391,12 +391,12 @@ public class GobanView extends JComponent {
                 paintLabel(g, width, y, label);
             }
         }
-        paintAllGobanPoints(g);
+        paintAllGoPoints(g);
         paintAllLineMarkups(g);
         paintAllPointMarkups(g);
     }
 
-    protected void paintAllGobanPoints(@NotNull Graphics2D g) {
+    protected void paintAllGoPoints(@NotNull Graphics2D g) {
         AbstractGoban goban = this.goban;
         if (goban == null) return;
         int width = goban.width;

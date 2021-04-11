@@ -121,7 +121,7 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
 
     private var compressed: List<GoRectangle>? = null
 
-    private fun compress(): List<GoRectangle> {
+    fun compress(): List<GoRectangle> {
         val readOnly = readOnly()
         var compressed = readOnly.compressed
         if (compressed == null) {
@@ -338,7 +338,7 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
     override fun equals(other: Any?): Boolean {
         return this === other || when(other) {
             is GoPointSet -> {
-                if (sizeAndHash != other.sizeAndHash) return false
+                if ( sizeAndHash != other.sizeAndHash) return false
                 for(updater in InternalGoPointSet.rowUpdaters)
                     if (updater[this] != updater[other]) return false
                 true
@@ -377,18 +377,21 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
         var string = readOnly.string
         if (string == null) {
             val compressed = readOnly.compress()
-            string = if (compressed.size == 1) compressed[0].toString()
-            else {
-                val buffer = StringBuilder()
-                compressed.joinTo(buffer, ", ", "[", "]") {
-                    val start = it.start.toString()
-                    val size = it.size
-                    if (size == 1) start
-                    else {
-                        buffer.append(start).append(if (size == 2) ", " else ", ..., ")
-                        it.end.toString()
-                    }
-                }.toString()
+            string = when (compressed.size) {
+                0 -> "[]"
+                1 -> compressed[0].toString()
+                else -> {
+                    val buffer = StringBuilder()
+                    compressed.joinTo(buffer, ", ", "[", "]") {
+                        val start = it.start.toString()
+                        val size = it.size
+                        if (size == 1) start
+                        else {
+                            buffer.append(start).append(if (size == 2) ", " else ", ..., ")
+                            it.end.toString()
+                        }
+                    }.toString()
+                }
             }
             readOnly.string = string
         }

@@ -7,14 +7,9 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.*
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.selects.SelectClause1
 import kotlinx.coroutines.selects.select
-import kotlin.coroutines.Continuation
-import kotlin.coroutines.coroutineContext
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
+import kotlin.coroutines.*
 
-@ExperimentalGoPlayerApi
 class GoScoreManager {
 
     private val _deadStones = Channel<GoPointSet>(Channel.UNLIMITED)
@@ -23,47 +18,40 @@ class GoScoreManager {
     private val _livingStones = Channel<GoPointSet>(Channel.UNLIMITED)
     val livingStones: SendChannel<GoPointSet> = SendOnlyChannel(_livingStones)
 
-    private var submit: Continuation<GoColor>? = null
-    private fun suspendSubmitScore(continuation: Continuation<GoColor>, marker: InternalMarker) {
-        marker.ignore()
-        submit = continuation
-    }
-    internal fun submitScore(color: GoColor, marker: InternalMarker) {
-        marker.ignore()
-        submit?.resume(color)
+    companion object {
+        private val updateWaitingForSubmit = atomicIntUpdater<GoScoreManager>("submitPlayerFlags")
     }
 
-    private var resumePlay: Continuation<GoColor>? = null
-    private fun suspendResumePlay(continuation: Continuation<GoColor>, marker: InternalMarker) {
+    @Volatile private var submitPlayerFlags: Int = 0
+    private val submitted = ContinuationProxy<GoColor?>()
+    private fun suspendSubmit(continuation: Continuation<GoColor?>, marker: InternalMarker) {
         marker.ignore()
-        resumePlay = continuation
+        submitted.continuation = continuation
     }
-    internal fun requestResumePlay(color: GoColor, marker: InternalMarker){
+    private fun unSubmitScore(marker: InternalMarker) {
         marker.ignore()
-        resumePlay?.resume(color)
+        submitPlayerFlags = 0
+    }
+    internal fun submitPlayerScore(color: GoColor, marker: InternalMarker) {
+        marker.ignore()
+        val flags = updateWaitingForSubmit.accumulateAndGet(this,
+            if (color == GoColor.BLACK) 1 else 2, IntBinOp.OR)
+        if ((flags and 3) == 3) {
+            val continuation = submitted.continuation
+            submitted.continuation = null
+            continuation?.resume(null)
+        }
+    }
+    internal fun requestResumePlay(color: GoColor, marker: InternalMarker) {
+        marker.ignore()
+        val continuation = submitted.continuation
+        submitted.continuation = null
+        continuation?.resume(color)
     }
 
     suspend fun computeScore(): GoColor? {
-        var waitingForBlack = true
-        var waitingForWhite = true
-        val deferredScore: Deferred<Unit>
-        val deferredResumePlay: Deferred<GoColor>
-        coroutineScope {
-            deferredScore = async {
-                while(waitingForBlack || waitingForWhite) {
-                    val color = suspendCoroutine<GoColor> { continuation ->
-                        suspendSubmitScore(continuation, InternalMarker)
-                    }
-                    if (color == GoColor.BLACK) waitingForBlack = false
-                    else waitingForWhite = false
-                }
-            }
-            deferredResumePlay = async {
-                suspendCoroutine { continuation ->
-                    suspendResumePlay(continuation, InternalMarker)
-                }
-            }
-        }
+        submitPlayerFlags = 0
+        val deferredSubmit: Deferred<GoColor?> = coroutineScope(submitted::suspendAsync)
         val gameContext = coroutineContext.goGameContext
         val blackPlayer = gameContext.blackPlayer
         val whitePlayer = gameContext.whitePlayer
@@ -75,12 +63,12 @@ class GoScoreManager {
         val receiveStones = MutableGoPointSet()
         val sendStones = MutableGoPointSet()
         val group = MutableGoPointSet()
-        while(waitingForBlack || waitingForWhite) {
+        var waiting = true
+        while(waiting) {
             var resumeRequest: GoColor? = null
             select<Unit> {
                 _deadStones.onReceive {
-                    waitingForBlack = true
-                    waitingForWhite = true
+                    unSubmitScore(InternalMarker)
                     receiveStones.copyFrom(it)
                     sendStones.clear()
                     for(point in receiveStones) {
@@ -95,8 +83,7 @@ class GoScoreManager {
                     whitePlayer.updateScoring(this@GoScoreManager, stones, false)
                 }
                 _livingStones.onReceive {
-                    waitingForBlack = true
-                    waitingForWhite = true
+                    unSubmitScore(InternalMarker)
                     receiveStones.copyFrom(it)
                     sendStones.clear()
                     for(point in receiveStones) {
@@ -110,8 +97,8 @@ class GoScoreManager {
                     blackPlayer.updateScoring(this@GoScoreManager, stones, true)
                     whitePlayer.updateScoring(this@GoScoreManager, stones, true)
                 }
-                deferredScore.onAwait { }
-                deferredResumePlay.onAwait {
+                deferredSubmit.onAwait {
+                    waiting = false
                     resumeRequest = it
                 }
             }

@@ -4,16 +4,13 @@ import com.computernerd1101.goban.*
 import com.computernerd1101.goban.internal.*
 import com.computernerd1101.goban.sgf.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.*
 import kotlinx.coroutines.selects.select
 import kotlin.coroutines.*
 
-@ExperimentalGoPlayerApi
 val CoroutineContext.goGameContext: GoGameContext get() = this[GoGameContext] ?: throw IllegalStateException(
     "Missing Go game context"
 )
 
-@ExperimentalGoPlayerApi
 private fun GoPlayer.Factory.safeCreatePlayer(color: GoColor): GoPlayer {
     val player = createPlayer(color)
     val realColor = player.color
@@ -23,7 +20,6 @@ private fun GoPlayer.Factory.safeCreatePlayer(color: GoColor): GoPlayer {
     return player
 }
 
-@ExperimentalGoPlayerApi
 class GoGameContext: CoroutineContext.Element {
 
     companion object Key: CoroutineContext.Key<GoGameContext> {
@@ -87,6 +83,7 @@ class GoGameContext: CoroutineContext.Element {
     }
 
     @Suppress("unused")
+    @ExperimentalGoPlayerApi
     @Throws(GoSGFResumeException::class)
     constructor(sgf: GoSGF, player1: GoPlayer, player2: GoPlayer) {
         this.sgf = sgf
@@ -119,6 +116,7 @@ class GoGameContext: CoroutineContext.Element {
     private suspend fun startGameWithContext(
         context: CoroutineContext
     ) = withContext(context) {
+        val deferredGameOver = gameOverContinuation.suspendAsync(this)
         val handicap = gameInfo.handicap
         if (handicap != 0 && node == sgf.rootNode) {
             val goban = Goban(sgf.width, sgf.height)
@@ -141,7 +139,8 @@ class GoGameContext: CoroutineContext.Element {
         var passCount = 0
         var lastNonPass: GoSGFNode = node
         var deferredUndoMove: Deferred<GoSGFNode>? = null
-        while (true) {
+        var ongoing = true
+        while (ongoing) {
             val turnPlayer = node.turnPlayer?.let {
                 if (node is GoSGFMoveNode) it.opponent
                 else it
@@ -156,38 +155,32 @@ class GoGameContext: CoroutineContext.Element {
                 opponent = blackPlayer
             }
             val deferredMove = async {
-                player.generateMove()
+                player.safeGenerateMove(InternalMarker)
             }
-            if (deferredUndoMove == null) deferredUndoMove = async {
-                val node = suspendCoroutine<GoSGFNode> { undoMoveContinuation = it }
-                // TODO remove debug print
-                println("deferredUndoMove async completed")
-                println(node)
-                node
-            }
+            if (deferredUndoMove == null) deferredUndoMove = undoMoveContinuation.suspendAsync(this)
             select<Unit> {
                 deferredMove.onAwait { move ->
-                    if (move == null || opponent.acceptOpponentMove(move)) {
-                        val node = this@GoGameContext.node.createNextMoveNode(move, turnPlayer)
-                        if (node.isLegalOrForced) {
-                            if (move == null) passCount++
-                            else {
-                                passCount = 0
-                                lastNonPass = node
-                            }
-                            node.moveVariation(0)
-                            setNode(node, InternalMarker)
-                        } else node.delete()
-                    }
+                    val node = this@GoGameContext.node.createNextMoveNode(move, turnPlayer)
+                    if (node.isLegalOrForced) {
+                        if (move == null) passCount++
+                        else {
+                            passCount = 0
+                            lastNonPass = node
+                        }
+                        node.moveVariation(0)
+                        setNode(node, InternalMarker)
+                    } else node.delete()
                     player.update()
                     opponent.update()
-                    println("deferredMove.onAwait")
+                }
+                deferredGameOver.onAwait { result ->
+                    gameInfo.result = result
+                    ongoing = false
+                    passCount = 0
                 }
                 deferredUndoMove?.onAwait { resumeNode ->
                     deferredMove.cancel()
                     deferredUndoMove = null
-                    // TODO remove debug print
-                    println("deferredUndoMove.onAwait")
                     passCount = 0
                     var node: GoSGFNode? = resumeNode
                     while(node != null) {
@@ -203,7 +196,6 @@ class GoGameContext: CoroutineContext.Element {
                     opponent.update()
                 }
             }
-            println("select")
             if (passCount >= 2) {
                 val scoreManager = GoScoreManager()
                 this@GoGameContext.scoreManager = scoreManager
@@ -222,10 +214,18 @@ class GoGameContext: CoroutineContext.Element {
                 opponent.update()
             }
         }
-        println("Game over")
     }
 
-    private var undoMoveContinuation: Continuation<GoSGFNode>? = null
+    private val gameOverContinuation = ContinuationProxy<GameResult>()
+
+    internal fun gameOver(result: GameResult, marker: InternalMarker) {
+        marker.ignore()
+        val continuation = gameOverContinuation.continuation ?: return
+        gameOverContinuation.continuation = null
+        continuation.resume(result)
+    }
+
+    private val undoMoveContinuation = ContinuationProxy<GoSGFNode>()
 
     internal suspend fun requestUndoMove(
         requestingPlayer: GoColor,
@@ -233,12 +233,10 @@ class GoGameContext: CoroutineContext.Element {
         marker: InternalMarker
     ): Boolean {
         marker.ignore()
-        val continuation = undoMoveContinuation ?: return false
+        val continuation = undoMoveContinuation.continuation ?: return false
         val response: Boolean = getPlayer(requestingPlayer.opponent).acceptUndoMove(resumeNode)
         if (response) {
-            // TODO remove debug print
-            println("GoGameContext.requestUndoMove")
-            undoMoveContinuation = null
+            undoMoveContinuation.continuation = null
             continuation.resume(resumeNode)
         }
         return response

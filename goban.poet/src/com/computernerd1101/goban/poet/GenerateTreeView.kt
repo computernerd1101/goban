@@ -45,7 +45,7 @@ fun main(args: Array<String>) {
         g.color = Color.BLACK
         g.drawOval(0, 0, 12, 12)
     }
-    if ("--no-preview" !in args) SwingUtilities.invokeLater {
+    if (GenerateAll.NO_PREVIEW !in args) SwingUtilities.invokeLater {
         val frame = JFrame()
         frame.title = "CN13 Goban Tree View"
         frame.setSize(500, 500)

@@ -10,10 +10,13 @@ import javax.swing.*
 import javax.swing.text.JTextComponent
 import kotlin.reflect.KMutableProperty1
 
-internal abstract class TextListener<T>(
-    private val component: JComponent,
-    private val node: () -> GoSGFNode
+internal abstract class TextListener<T> private constructor(
+    component: JComponent,
+    node: () -> GoSGFNode,
+    updateModified: AtomicIntegerFieldUpdater<TextListener<*>>
 ): KeyListener {
+
+    constructor(component: JComponent, node: () -> GoSGFNode): this(component, node, updateModified)
 
     @Volatile
     private var modified: Int = 0

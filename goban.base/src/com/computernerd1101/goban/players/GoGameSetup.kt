@@ -1,9 +1,7 @@
 package com.computernerd1101.goban.players
 
-import com.computernerd1101.goban.GoColor
-import com.computernerd1101.goban.Goban
+import com.computernerd1101.goban.*
 import com.computernerd1101.goban.sgf.*
-import kotlin.coroutines.CoroutineContext
 import kotlin.random.Random
 
 /**
@@ -11,7 +9,6 @@ import kotlin.random.Random
  * are each restricted to 1 thru 52, and can be condensed into a single
  * size parameter for both the constructor and the copy method.
  */
-@OptIn(ExperimentalGoPlayerApi::class)
 class GoGameSetup {
 
     companion object {

@@ -55,7 +55,9 @@ internal object GobanRows {
                 index >= 100 -> {
                     buf[3] = '1'
                     buf[4] = '0'
-                    buf[5] = (index - (100 - '0'.toInt())).toChar()
+                    // buf[5] = '0' + index - 100
+                    //        = (48 + index - 100).toChar()
+                    buf[5] = (index - 52).toChar()
                     6
                 }
                 index >= 10 -> {

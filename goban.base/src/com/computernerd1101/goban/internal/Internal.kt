@@ -1,7 +1,12 @@
 package com.computernerd1101.goban.internal
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.*
 import java.util.concurrent.atomic.*
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.suspendCoroutine
 
 /*
  * class Cacheable(val index: Int) {
@@ -58,9 +63,19 @@ internal object InternalMarker {
 
 }
 
+internal class ContinuationProxy<T> {
+
+    @JvmField var continuation: Continuation<T>? = null
+
+    suspend fun suspendAsync(scope: CoroutineScope): Deferred<T> = scope.async {
+        suspendCoroutine { continuation = it }
+    }
+
+}
+
 internal class SendOnlyChannel<E>(channel: Channel<E>): SendChannel<E> by channel
 
-internal class ReadOnlyList<E>(val delegate: List<E>): List<E> by delegate {
+internal class ReadOnlyList<E>(private val delegate: List<E>): List<E> by delegate {
 
     @Suppress("SuspiciousEqualsCombination")
     override fun equals(other: Any?): Boolean = this === other || delegate == other

@@ -1,4 +1,4 @@
-package com.computernerd1101.goban.desktop;
+package com.computernerd1101.goban.test.sandbox;
 
 public class TestAccessSynthetic {
 

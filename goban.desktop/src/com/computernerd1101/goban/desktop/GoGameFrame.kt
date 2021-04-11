@@ -6,8 +6,8 @@ import com.computernerd1101.goban.desktop.resources.*
 import com.computernerd1101.goban.players.*
 import com.computernerd1101.goban.sgf.GoSGFMoveNode
 import com.computernerd1101.goban.sgf.GoSGFNode
+import com.computernerd1101.goban.time.TimeEvent
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.*
 import kotlinx.coroutines.swing.Swing
 import java.awt.*
 import java.awt.event.*
@@ -16,9 +16,7 @@ import java.util.*
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater
 import javax.swing.*
 import kotlin.coroutines.*
-import kotlin.coroutines.intrinsics.*
 
-@ExperimentalGoPlayerApi
 class GoGameFrame private constructor(
     _context: CoroutineContext,
     _scope: CoroutineScope?,
@@ -125,12 +123,6 @@ class GoGameFrame private constructor(
             frame.update(InternalMarker)
         }
 
-        override suspend fun acceptOpponentTimeExtension(requestedMilliseconds: Long): Long {
-            return if (requestedMilliseconds > 0L && ((getOpponent() as? Player)?.frame == frame ||
-                        frame.acceptOpponentTimeExtension(InternalMarker))
-            ) ONE_MINUTE_IN_MILLIS else 0L
-        }
-
         internal suspend fun requestUndoMove(resumeNode: GoSGFNode, marker: InternalMarker): Boolean {
             marker.ignore()
             return requestUndoMove(resumeNode)
@@ -150,6 +142,26 @@ class GoGameFrame private constructor(
             }
             return (getOpponent() as? Player)?.frame === frame ||
                 frame.acceptUndoMove(color, InternalMarker)
+        }
+
+        override suspend fun requestOpponentTimeExtension(requestedMilliseconds: Long): Long {
+            return if (requestedMilliseconds > 0L && ((getOpponent() as? Player)?.frame == frame))
+                extendOpponentTime(InternalMarker) else 0L
+        }
+
+        internal suspend fun extendOpponentTime(marker: InternalMarker): Long {
+            marker.ignore()
+            return extendOpponentTime(ONE_MINUTE_IN_MILLIS)
+        }
+
+        override fun filterTimeExtension(extension: Long): Long = when {
+            extension <= 0L -> 0L
+            extension >= ONE_MINUTE_IN_MILLIS -> ONE_MINUTE_IN_MILLIS
+            else -> extension
+        }
+
+        override fun onTimeEvent(e: TimeEvent) {
+            // TODO
         }
 
         override suspend fun startScoring(scoreManager: GoScoreManager) {
@@ -228,7 +240,7 @@ class GoGameFrame private constructor(
                 "deferredRequestUndoMove"
             )
 
-        private const val ONE_MINUTE_IN_MILLIS: Long = 60000L
+        const val ONE_MINUTE_IN_MILLIS: Long = 60000L
 
         @JvmField val TRANSPARENT_BLACK = Color(0x7F000000, true)
         @JvmField val TRANSPARENT_WHITE = Color(0x7FFFFFFF, true)
@@ -324,13 +336,22 @@ class GoGameFrame private constructor(
             if (oldContinuation != null) oldContinuation.resume(false)
             else {
                 val resources = gobanDesktopResources()
-                val message = if (undoContinuation != null) {
-                    labelOpponentRequestUndo.text = resources.getString("OpponentRequest.UndoMove.2")
-                    "OpponentRequest.AddOneMinute.2"
-                } else "OpponentRequest.AddOneMinute.1"
-                labelOpponentRequestTime.text = resources.getString(message)
+//                val message = if (undoContinuation != null) {
+//                    labelOpponentRequestUndo.text = resources.getString("OpponentRequest.UndoMove.2")
+//                    "OpponentRequest.AddOneMinute.2"
+//                } else "OpponentRequest.AddOneMinute.1"
+//                labelOpponentRequestTime.text = resources.getString(message)
                 panelOpponentRequestTime.isVisible = true
             }
+        }
+    }
+
+    private fun cancelPlayAction(marker: InternalMarker): Boolean {
+        marker.ignore()
+        while(true) {
+            val action = gameAction
+            if (action != GameAction.PLAY_BLACK && action != GameAction.PLAY_WHITE) return false
+            if (updateGameAction.compareAndSet(this, action, null)) return true
         }
     }
 
@@ -339,7 +360,6 @@ class GoGameFrame private constructor(
     fun requestUndoMove() {
         val player: Player
         var resumeNode: GoSGFNode?
-        val cancelAction: GameAction
         val node = gameContext.node as? GoSGFMoveNode ?: return
         val black = (blackPlayer as? Player)?.takeIf { it.frame === this }
         val white = (whitePlayer as? Player)
@@ -347,22 +367,14 @@ class GoGameFrame private constructor(
             white?.frame !== this -> {
                 player = black ?: return
                 resumeNode = node
-                cancelAction = GameAction.PLAY_BLACK
             }
             black == null -> {
                 player = white
                 resumeNode = node
-                cancelAction = GameAction.PLAY_WHITE
             }
             else -> {
                 resumeNode = node.parent ?: return
-                if (node.turnPlayer == GoColor.BLACK) {
-                    player = black
-                    cancelAction = GameAction.PLAY_BLACK
-                } else {
-                    player = white
-                    cancelAction = GameAction.PLAY_WHITE
-                }
+                player = if (node.turnPlayer == GoColor.BLACK) black else white
             }
         }
         if (resumeNode === node) {
@@ -383,7 +395,7 @@ class GoGameFrame private constructor(
             when {
                 response -> {
                     displayRequestStatus(labelRequestUndo, 1)
-                    if (updateGameAction.compareAndSet(this@GoGameFrame, cancelAction, null))
+                    if (cancelPlayAction(InternalMarker))
                         actionButton.isEnabled = false
                 }
                 mostRecent -> {
@@ -402,11 +414,7 @@ class GoGameFrame private constructor(
         val allowed: Boolean = suspendCoroutine { continuation ->
             val oldContinuation = updateUndoContinuation.getAndSet(this, continuation)
             if (oldContinuation != null) oldContinuation.resume(false)
-            else {
-                val resources = gobanDesktopResources()
-                labelOpponentRequestUndo.text = resources.getString("OpponentRequest.UndoMove.1")
-                panelOpponentRequestUndo.isVisible = true
-            }
+            else panelOpponentRequestUndo.isVisible = true
         }
         if (allowed) {
             val cancelAction: GameAction =
@@ -647,9 +655,9 @@ class GoGameFrame private constructor(
     private val buttonDenyTime = JButton(resources.getString("OpponentRequest.AddOneMinute.Deny"))
 
     private val panelOpponentRequestUndo = JPanel(GridLayout(2, 1))
-    private val labelOpponentRequestUndo = JLabel(resources.getString("OpponentRequest.UndoMove.1"))
-    private val buttonAllowUndo = JButton(resources.getString("OpponentRequest.UndoMove.Allow"))
-    private val buttonDenyUndo = JButton(resources.getString("OpponentRequest.UndoMove.Deny"))
+    private val labelOpponentRequestUndo = JLabel(resources.getString("UndoMove.Request"))
+    private val buttonAllowUndo = JButton(resources.getString("UndoMove.Allow"))
+    private val buttonDenyUndo = JButton(resources.getString("UndoMove.Deny"))
 
     init {
         val requestActionListener = ActionListener { event ->
@@ -658,8 +666,7 @@ class GoGameFrame private constructor(
                 buttonDenyUndo -> false
                 else -> return@ActionListener
             }
-            val continuation = undoContinuation
-            undoContinuation = null
+            val continuation = updateUndoContinuation.getAndSet(this, null)
             panelOpponentRequestUndo.isVisible = false
             continuation?.resume(allow)
         }
@@ -688,7 +695,7 @@ class GoGameFrame private constructor(
     private val cardLayout = CardLayout()
     private val cardPanel = JPanel(cardLayout)
 
-    private val buttonRequestUndo = JButton(resources.getString("Request.UndoMove"))
+    private val buttonRequestUndo = JButton(resources.getString("UndoMove"))
     private val labelRequestUndo = JLabel(resources.getString("Request.Waiting"))
 
     init {

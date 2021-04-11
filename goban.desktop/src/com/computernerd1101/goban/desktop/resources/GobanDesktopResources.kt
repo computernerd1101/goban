@@ -50,11 +50,13 @@ class GobanDesktopResources: ListResourceBundle() {
             arrayOf("OpponentRequest.AddOneMinute.2", "Your opponent wishes for one minute of extended time,"),
             arrayOf("OpponentRequest.AddOneMinute.Allow", "Allow Extended Time"),
             arrayOf("OpponentRequest.AddOneMinute.Deny", "Deny Extended Time"),
-            arrayOf("OpponentRequest.UndoMove.1", "Your opponent wishes to undo their previous move."),
-            arrayOf("OpponentRequest.UndoMove.2", "and also to undo their previous move."),
-            arrayOf("OpponentRequest.UndoMove.Allow", "Allow Undo"),
-            arrayOf("OpponentRequest.UndoMove.Deny", "Deny Undo"),
-            arrayOf("Request.UndoMove", "Undo move"),
+
+            arrayOf("UndoMove", "Undo move"),
+            arrayOf("UndoMove.Request", "Your opponent wishes to undo their previous move."),
+            arrayOf("UndoMove.Allow", "Allow Undo"),
+            arrayOf("UndoMove.Deny", "Deny Undo"),
+            //arrayOf("OpponentRequest.UndoMove.2", "and also to undo their previous move."),
+
             arrayOf("Request.AddOneMinute", "Add one minute"),
             arrayOf("Request.Waiting", "Waiting..."),
             arrayOf("Request.Allowed", "Allowed"),

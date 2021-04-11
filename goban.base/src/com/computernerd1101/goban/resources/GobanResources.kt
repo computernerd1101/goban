@@ -4,21 +4,21 @@ package com.computernerd1101.goban.resources
 
 import java.util.*
 
-fun gobanResources(locale: Locale = Locale.getDefault()): ResourceBundle {
+internal fun gobanResources(locale: Locale = Locale.getDefault()): ResourceBundle {
     return ResourceBundle.getBundle(
         "com.computernerd1101.goban.resources.GobanResources",
         locale
     )
 }
 
-fun gobanFormatResources(locale: Locale = Locale.getDefault(Locale.Category.FORMAT)): ResourceBundle {
+internal fun gobanFormatResources(locale: Locale = Locale.getDefault(Locale.Category.FORMAT)): ResourceBundle {
     return ResourceBundle.getBundle(
         "com.computernerd1101.goban.resources.GobanFormatResources",
         locale
     )
 }
 
-class GobanResources: ListResourceBundle() {
+internal class GobanResources: ListResourceBundle() {
 
     override fun getContents(): Array<out Array<out Any>> {
         return arrayOf(
@@ -86,7 +86,7 @@ class GobanResources: ListResourceBundle() {
 
 }
 
-class GobanResources_ja: ListResourceBundle() {
+internal class GobanResources_ja: ListResourceBundle() {
 
     override fun getContents(): Array<out Array<out Any>> {
         return arrayOf(

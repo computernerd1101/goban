@@ -24,10 +24,22 @@ import kotlin.math.*
 
 class GoEditorFrame private constructor(
     sgf: GoSGF,
-    private var node: GoSGFNode,
+    node: GoSGFNode,
     resources: ResourceBundle = gobanDesktopResources(),
     formatResources: ResourceBundle = gobanDesktopFormatResources()
 ): JFrame() {
+
+    private val nodeDelegate = object: () -> GoSGFNode {
+
+        @JvmField var node: GoSGFNode = node
+
+        override fun invoke(): GoSGFNode = node
+
+    }
+
+    private var node: GoSGFNode
+        get() = nodeDelegate.node
+        set(node) { nodeDelegate.node = node }
 
     constructor(sgf: GoSGF): this(sgf, sgf.rootNode)
 
@@ -632,7 +644,7 @@ class GoEditorFrame private constructor(
     init {
         textComment.lineWrap = true
         textComment.wrapStyleWord = true
-        textComment.addKeyListener(TextListener.Node(textComment, GoSGFNode::comment, this::node))
+        textComment.addKeyListener(TextListener.Node(textComment, GoSGFNode::comment, nodeDelegate))
         tabs.addTab(resources.getString("Comment"), JScrollPane(textComment))
     }
 
@@ -786,7 +798,7 @@ class GoEditorFrame private constructor(
     private val checkFigureHideHoshiDots = JCheckBox(resources.getString("Figure.Hoshi.Hide"))
 
     init {
-        textNodeName.addKeyListener(TextListener.Node(textNodeName, GoSGFNode::nodeName, this::node))
+        textNodeName.addKeyListener(TextListener.Node(textNodeName, GoSGFNode::nodeName, nodeDelegate))
         spinNodeValue.model = NodeValueFormatter()
         comboNodePosition.addActionListener {
             node.positionState = comboNodePosition.selectedItem as? PositionState
@@ -819,7 +831,7 @@ class GoEditorFrame private constructor(
         }
         textFigureName.addKeyListener(TextListener.Node(
             textFigureName, GoSGFNode::figureName,
-            this::node
+            nodeDelegate
         ))
         checkFigureDefault.addActionListener(DefaultFigureModeListener())
         checkFigureHideCoordinates.addActionListener(FigureModeListener(GoSGFNode.FIGURE_HIDE_COORDINATES))
@@ -1018,32 +1030,32 @@ class GoEditorFrame private constructor(
         textBlackName.addKeyListener(
             TextListener.GameInfoPlayer(
                 textBlackName, GoColor.BLACK,
-                GameInfo.Player::name, this::node
+                GameInfo.Player::name, nodeDelegate
             )
         )
         textWhiteName.addKeyListener(
             TextListener.GameInfoPlayer(
                 textWhiteName, GoColor.WHITE,
-                GameInfo.Player::name, this::node
+                GameInfo.Player::name, nodeDelegate
             )
         )
         textBlackTeam.addKeyListener(
             TextListener.GameInfoPlayer(
                 textBlackTeam, GoColor.BLACK,
-                GameInfo.Player::team, this::node
+                GameInfo.Player::team, nodeDelegate
             )
         )
         textWhiteTeam.addKeyListener(
             TextListener.GameInfoPlayer(
                 textWhiteTeam, GoColor.WHITE,
-                GameInfo.Player::team, this::node
+                GameInfo.Player::team, nodeDelegate
             )
         )
         comboBlackRank.isEditable = true
         comboBlackRank.addKeyListener(
             TextListener.GameInfoPlayer(
                 comboBlackRank, GoColor.BLACK,
-                GameInfo.Player::rank, this::node
+                GameInfo.Player::rank, nodeDelegate
             )
         )
         comboBlackRank.addActionListener {
@@ -1053,7 +1065,7 @@ class GoEditorFrame private constructor(
         comboWhiteRank.addKeyListener(
             TextListener.GameInfoPlayer(
                 comboWhiteRank, GoColor.WHITE,
-                GameInfo.Player::rank, this::node
+                GameInfo.Player::rank, nodeDelegate
             )
         )
         comboWhiteRank.addActionListener {
@@ -1079,25 +1091,25 @@ class GoEditorFrame private constructor(
         comboGameWinner.renderer = winnerModel
         comboGameWinner.isEditable = false
         spinGameScore.model = GameScoreFormatter()
-        textGameName.addKeyListener(TextListener.GameInfo(textGameName, GameInfo::gameName, this::node))
-        textGameSource.addKeyListener(TextListener.GameInfo(textGameSource, GameInfo::gameSource, this::node))
-        textGameUser.addKeyListener(TextListener.GameInfo(textGameUser, GameInfo::gameUser, this::node))
-        textCopyright.addKeyListener(TextListener.GameInfo(textCopyright, GameInfo::copyright, this::node))
-        textGameLocation.addKeyListener(TextListener.GameInfo(textGameLocation, GameInfo::gameLocation, this::node))
-        textEventName.addKeyListener(TextListener.GameInfo(textEventName, GameInfo::eventName, this::node))
-        textRoundType.addKeyListener(TextListener.GameInfo(textRoundType, GameInfo::roundType, this::node))
+        textGameName.addKeyListener(TextListener.GameInfo(textGameName, GameInfo::gameName, nodeDelegate))
+        textGameSource.addKeyListener(TextListener.GameInfo(textGameSource, GameInfo::gameSource, nodeDelegate))
+        textGameUser.addKeyListener(TextListener.GameInfo(textGameUser, GameInfo::gameUser, nodeDelegate))
+        textCopyright.addKeyListener(TextListener.GameInfo(textCopyright, GameInfo::copyright, nodeDelegate))
+        textGameLocation.addKeyListener(TextListener.GameInfo(textGameLocation, GameInfo::gameLocation, nodeDelegate))
+        textEventName.addKeyListener(TextListener.GameInfo(textEventName, GameInfo::eventName, nodeDelegate))
+        textRoundType.addKeyListener(TextListener.GameInfo(textRoundType, GameInfo::roundType, nodeDelegate))
         textAnnotationProvider.addKeyListener(
             TextListener.GameInfo(
                 textAnnotationProvider,
-                GameInfo::annotationProvider, this::node
+                GameInfo::annotationProvider, nodeDelegate
             )
         )
         comboRules.isEditable = true
-        comboRules.addKeyListener(TextListener.GameInfo(comboRules, GameInfo::rulesString, this::node))
+        comboRules.addKeyListener(TextListener.GameInfo(comboRules, GameInfo::rulesString, nodeDelegate))
         comboRules.addActionListener {
             node.gameInfo?.rulesString = comboRules.selectedItem?.toString() ?: ""
         }
-        textOpeningType.addKeyListener(TextListener.GameInfo(textOpeningType, GameInfo::openingType, this::node))
+        textOpeningType.addKeyListener(TextListener.GameInfo(textOpeningType, GameInfo::openingType, nodeDelegate))
         spinGameYear.model = gameYearModel
         spinGameMonth.model = gameMonthModel
         spinGameDay.model = gameDayModel
@@ -1136,7 +1148,7 @@ class GoEditorFrame private constructor(
                 true
             } else false
         }
-        textGameComment.addKeyListener(TextListener.GameInfo(textGameComment, GameInfo::gameComment, this::node))
+        textGameComment.addKeyListener(TextListener.GameInfo(textGameComment, GameInfo::gameComment, nodeDelegate))
         var panel = JPanel(GridBagLayout())
         var row = 0
         val gbc1 = GridBagConstraints()
@@ -2584,7 +2596,6 @@ class GoEditorFrame private constructor(
             }
         }
 
-        @Suppress("DuplicatedCode")
         fun add(date: Date) {
             var index = dateList.binarySearch(date)
             var end: Int
@@ -2649,13 +2660,15 @@ class GoEditorFrame private constructor(
                     if (until < 0) until = i + 1
                 } else if (until >= 0) {
                     if (dates != null) for(d in (i + 1) until until) dates.remove(dateList[d])
-                    dateList.subList(i + 1, until).clear()
+                    if (i + 2 == until) dateList.removeAt(i + 1)
+                    else dateList.subList(i + 1, until).clear()
                     until = -1
                 }
             }
             if (until >= 0) {
-                if (dates != null) for(d in 0 until until) dates.remove(dateList[d])
-                dateList.subList(0, until).clear()
+                if (dates != null) for(d in min until until) dates.remove(dateList[d])
+                if (min + 1 == until) dateList.removeAt(min)
+                else dateList.subList(min, until).clear()
             }
             listGameDates.updateUI()
         }

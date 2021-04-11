@@ -1,9 +1,7 @@
 package com.computernerd1101.goban.time
 
 import com.computernerd1101.goban.annotations.*
-import com.computernerd1101.goban.resources.OvertimeFormatter
-import com.computernerd1101.goban.resources.gobanFormatResources
-import com.computernerd1101.goban.resources.gobanResources
+import com.computernerd1101.goban.resources.*
 import java.util.*
 
 @PropertyOrder("Seconds", "Moves")
@@ -56,7 +54,7 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime(), PropertyTranslator
                 moves
             }
         }
-        return TimeEvent(e.timeLimit, time, overtime, flags)
+        return TimeEvent(e.source ?: this, time, overtime, flags)
     }
 
     override fun toString() = "${millis.millisToStringSeconds()}/$moves Canadian"
@@ -69,8 +67,8 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime(), PropertyTranslator
     }
 
     override fun displayOvertimeImpl(e: TimeEvent, locale: Locale): String? =
-        (gobanFormatResources(locale).getObject("OvertimeFormatter") as? OvertimeFormatter)
-            ?.formatCanadian(e.overtimeCode, moves)
+        (gobanFormatResources(locale).getObject("OvertimeFormatter") as? OvertimeFormatter2)
+            ?.format(e.overtimeCode, moves)
 
     override fun parseThis(s: String): Boolean = Regex.parse(s, this) != null
 

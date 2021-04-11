@@ -35,14 +35,18 @@ object MyCompletion: Continuation<String> {
 }
 
 suspend fun Boolean.suspendIfTrue(): String {
-    if (this) {
-        val message = suspendCoroutine<String> { cont ->
-            suspendIfTrueContinuation = cont
-        }
-        suspendIfTrueContinuation = null
-        return message
+    val message: String
+    try {
+        if (this) {
+            message = suspendCoroutine { cont ->
+                suspendIfTrueContinuation = cont
+            }
+            suspendIfTrueContinuation = null
+        } else message = "Not suspended"
+    } finally {
+        println("Suspendable finally block")
     }
-    return "Not suspended"
+    return message
 }
 
 private var suspendIfTrueContinuation: Continuation<String>? = null

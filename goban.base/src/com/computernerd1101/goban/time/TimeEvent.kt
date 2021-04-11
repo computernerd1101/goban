@@ -9,22 +9,19 @@ fun interface TimeListener: EventListener {
 }
 
 class TimeEvent(
-    timeLimit: TimeLimit,
+    source: Any,
     val timeRemaining: Long,
     val overtimeCode: Int,
     flags: Int
-): EventObject(timeLimit) {
-
-    constructor(timeLimit: TimeLimit, timeRemaining: Long):
-            this(timeLimit, timeRemaining, 0, 0)
+): EventObject(source) {
 
     @Suppress("unused")
-    constructor(timeLimit: TimeLimit, timeRemaining: Long, overtimeCode: Int):
-            this(timeLimit, timeRemaining, overtimeCode, FLAG_OVERTIME)
+    constructor(source: Any, timeRemaining: Long):
+            this(source, timeRemaining, 0, 0)
 
-    override fun getSource(): TimeLimit = super.getSource() as TimeLimit
-
-    val timeLimit: TimeLimit get() = getSource()
+    @Suppress("unused")
+    constructor(source: Any, timeRemaining: Long, overtimeCode: Int):
+            this(source, timeRemaining, overtimeCode, FLAG_OVERTIME)
 
     val flags: Int = flags and (
             if (flags and FLAGS_EXPIRED_TICKING == FLAGS_EXPIRED_TICKING)
@@ -46,21 +43,21 @@ class TimeEvent(
     val isOvertime: Boolean get() = flags and FLAG_OVERTIME != 0
     val isTicking: Boolean get() = flags and FLAG_TICKING != 0
 
-    operator fun component1() = timeLimit
+    operator fun component1(): Any? = source
     operator fun component2() = timeRemaining
     operator fun component3() = overtimeCode
     operator fun component4() = flags
 
     override fun equals(other: Any?): Boolean {
         return this === other || (other is TimeEvent &&
-                timeLimit == other.timeLimit &&
+                source == other.source &&
                 timeRemaining == other.timeRemaining &&
                 overtimeCode == other.overtimeCode &&
                 flags == other.flags)
     }
 
     override fun hashCode(): Int {
-        val hash = timeLimit.hashCode()
+        val hash = source.hashCode()
         val time = timeRemaining
         return ((hash*31 +
                 (time.xor(time shr 32).toInt()))*31 +

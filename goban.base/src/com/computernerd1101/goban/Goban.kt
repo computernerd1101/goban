@@ -54,12 +54,13 @@ sealed class AbstractGoban(
     val emptyCount: Int
         @JvmName("emptyCount")
         get() {
-            val count = this.count
+            // count might not be atomic on 32-bit architecture
+            val count = InternalGoban.count[this]
             return width*height - (count + (count shr 32)).toInt()
         }
 
     fun count(color: GoColor?): Int {
-        val count = this.count
+        val count = InternalGoban.count[this]
         return when (color) {
             null -> width*height - (count + (count shr 32)).toInt()
             GoColor.BLACK -> count.toInt()
@@ -756,7 +757,7 @@ class Goban: AbstractMutableGoban {
         }
         val hasFalseEye = !GobanBulk.isAlive(width, height, xBit, y, player, opponent,
             falseEyeScore = score, shortCircuit = false)
-        for(y1 in y..height) {
+        for(y1 in y until height) {
             row = chain[y1]
             if (row == 0L) break
             group[y1] = group[y1] and row.inv()

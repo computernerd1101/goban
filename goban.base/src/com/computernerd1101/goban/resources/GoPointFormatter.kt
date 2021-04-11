@@ -4,7 +4,7 @@ package com.computernerd1101.goban.resources
 
 import com.computernerd1101.goban.GoPoint
 
-fun interface GoPointFormatter {
+internal fun interface GoPointFormatter {
 
     fun format(point: GoPoint?, width: Int, height: Int): String
 
@@ -20,7 +20,7 @@ fun interface GoPointFormatter {
 
 }
 
-object GoPointFormatter_ja: GoPointFormatter {
+internal object GoPointFormatter_ja: GoPointFormatter {
 
     private val cache: Array<String> = Array(52 * 52) { index ->
         (GobanDimensionFormatter_ja.Y.format(index / 52, 52) +

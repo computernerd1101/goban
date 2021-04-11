@@ -4,7 +4,7 @@ package com.computernerd1101.goban.resources
 
 import com.computernerd1101.goban.GoPoint
 
-interface GobanDimensionFormatter {
+internal interface GobanDimensionFormatter {
 
     fun format(index: Int, size: Int): String
 
@@ -35,7 +35,7 @@ interface GobanDimensionFormatter {
 //                                1     2     3     4     5     6     7     8     9
 private const val KANJI_DIGITS = "\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d"
 
-enum class GobanDimensionFormatter_ja: GobanDimensionFormatter {
+internal enum class GobanDimensionFormatter_ja: GobanDimensionFormatter {
 
     X {
         override fun format(index: Int, size: Int): String =

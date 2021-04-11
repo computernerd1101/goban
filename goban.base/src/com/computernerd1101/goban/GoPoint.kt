@@ -44,13 +44,13 @@ class GoPoint private constructor(
     val selfRect: GoRectangle = GoRectangle(this, this,
         String(buffer, 0, 4).intern(), InternalGoRectangle)
 
-    infix fun rect(other: GoPoint) = rect(other, other.x, other.y)
+    infix fun rect(other: GoPoint): GoRectangle = rect(other, other.x, other.y)
 
     /**
      * Makes the Java syntax as pretty as I could manage:
-     * `GoRectangle rect = pointAt(x1, y1).rect(x2, y2);`
+     * `GoRectangle rect = GoPoint.pointAt(x1, y1).rect(x2, y2);`
      */
-    fun rect(x: Int, y: Int) = rect(null, x, y)
+    fun rect(x: Int, y: Int): GoRectangle = rect(null, x, y)
 
     private fun rect(other: GoPoint?, x2: Int, y2: Int): GoRectangle {
         val (x1, y1) = this
@@ -98,8 +98,11 @@ class GoPoint private constructor(
                 if (y < 9)
                     buffer[5] = '1' + y
                 else {
-                    buffer[5] = ((('0'.toInt()*10 + 1) + y) / 10).toChar() // '0' + (y + 1) / 10
-                    buffer[6] = '0' + (y + 1) % 10
+                    // buffer[5] =  '0' + (1 + y) / 10
+                    //           =  (48 + (1 + y) / 10).toChar()
+                    //           = ((480 + 1 + y) / 10).toChar()
+                    buffer[5] = ((481 + y) / 10).toChar()
+                    buffer[6] = '0' + (1 + y) % 10
                 }
                 for(x in 0..51) {
                     buffer[1] = toChar(x)
@@ -198,11 +201,11 @@ class GoPoint private constructor(
 
         @JvmStatic
         fun gtpParse(string: String, width: Int, height: Int): GoPoint =
-            gtpParse(string, width, height, throws = true)!!
+            string.gtpParse(width, height, throws = true)!!
 
         @JvmStatic
-        fun gtpParseOrNull(string: String, width: Int, height: Int): GoPoint? =
-            gtpParse(string, width, height, throws = false)
+        fun gtpParseOrNull(string: String?, width: Int, height: Int): GoPoint? =
+            string?.gtpParse(width, height, throws = false)
 
         @JvmStatic
         fun gtpParseXOrThrow(ch: Char, width: Int): Int {
@@ -215,7 +218,7 @@ class GoPoint private constructor(
             if (width in 1..52) gtpParseX(ch, width, throws = false) else -1
 
         @OptIn(ExperimentalContracts::class)
-        private fun gtpParse(string: String, width: Int, height: Int, throws: Boolean): GoPoint? {
+        private fun String.gtpParse(width: Int, height: Int, throws: Boolean): GoPoint? {
             contract {
                 returns(null) implies !throws
             }
@@ -227,15 +230,15 @@ class GoPoint private constructor(
                 if (throws) throw IllegalArgumentException("height=$height is not in the range [1,52]")
                 return null
             }
-            if (string.isEmpty()) {
+            if (isEmpty()) {
                 if (throws) throw IllegalArgumentException("cannot parse empty string")
                 return null
             }
-            val x = gtpParseX(string[0], width, throws)
+            val x = gtpParseX(this[0], width, throws)
             if (x < 0) return null // x will never be < 0 if throws == true
             val y: Int
             try {
-                y = string.substring(1).toInt()
+                y = substring(1).toInt()
             } catch(e: Exception) {
                 if (throws) throw e
                 return null

@@ -20,8 +20,10 @@ fun GameInfo.Player?.isNullOrEmpty(): Boolean {
 
 class GameInfo: Serializable {
 
+    private var players: Players = Players(InternalMarker)
+
     @get:JvmName("players")
-    var player: Players = Players(InternalMarker); private set
+    val player: Players get() = players
 
     inner class Players internal constructor(marker: InternalMarker) {
 
@@ -207,6 +209,9 @@ class GameInfo: Serializable {
     }
 
     var timeLimit: Long = 0L
+        set(time) {
+            field = if (time < 0) 0 else time
+        }
     var malformedTimeLimit: SGFProperty? = null
     fun parseTimeLimit(prop: SGFProperty, warnings: SGFWarningList?): Long {
         val bytes = prop.values[0].parts[0]
@@ -579,7 +584,7 @@ class GameInfo: Serializable {
     }
     
     private fun readObject(ois: ObjectInputStream) {
-        player = Players(InternalMarker)
+        players = Players(InternalMarker)
         val fields: ObjectInputStream.GetField = ois.readFields()
         black = fields["black", null] as? Player ?: Player()
         white = fields["white", null] as? Player ?: Player()

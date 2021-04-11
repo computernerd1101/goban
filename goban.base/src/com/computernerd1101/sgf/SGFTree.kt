@@ -146,8 +146,6 @@ class SGFTree: SGFTreeElement, Serializable {
             ObjectStreamField("subTrees", Int::class.java)
         )
 
-
-
     }
 
     private class Nodes: AbstractSGFList<SGFNode> {

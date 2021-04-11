@@ -6,13 +6,15 @@ public class GenerateAll {
 
     public static void main(String[] args) {
         String[] reversePreview;
-        if (ArraysKt.contains(args, "--preview"))
+        if (args != null && ArraysKt.contains(args, "--preview"))
             reversePreview = new String[0];
-        else reversePreview = new String[] { "--no-preview" };
+        else reversePreview = new String[] { NO_PREVIEW };
         GenerateGobanRowsKt.main();
         GenerateDateTablesKt.main();
         GenerateTreeViewKt.main(reversePreview);
         GenerateToolbarKt.main(reversePreview);
     }
+
+    public static final String NO_PREVIEW = "--no-preview";
 
 }

@@ -10,9 +10,25 @@ import kotlin.reflect.*
 import kotlin.reflect.full.isSubtypeOf
 
 fun main() {
-    val type = typeOf<MyComparable2>()
-    val supertype = typeOf<Comparable<MyComparable2>>()
-    println(type.isSubtypeOf(supertype))
+    println(100 - '0'.toInt())
+}
+
+class MyNumber: Number() {
+
+    override fun toByte(): Byte = Byte.MAX_VALUE
+
+    override fun toShort(): Short = Short.MAX_VALUE
+
+    override fun toChar(): Char = '0'
+
+    override fun toInt(): Int = 100
+
+    override fun toLong(): Long = Long.MAX_VALUE
+
+    override fun toFloat(): Float = Float.MAX_VALUE
+
+    override fun toDouble(): Double = Double.MAX_VALUE
+
 }
 
 open class MyComparable1: Comparable<MyComparable1> {

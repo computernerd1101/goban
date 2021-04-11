@@ -14,24 +14,34 @@ class TimeLimit private constructor(
     remainingTime: Long,
     overtimeCode: Int,
     flags: Int,
-    val overtime: Overtime?
+    val overtime: Overtime?,
+    owner: Any?
 ) {
 
-    constructor(mainTime: Long, overtime: Overtime?): this(Events, mainTime,
-        overtime?.initialOvertimeCode ?: 0, 0, overtime)
+    constructor(mainTime: Long, overtime: Overtime?, owner: Any? = null): this(
+        Events, mainTime, overtime?.initialOvertimeCode ?: 0,
+        0, overtime, owner
+    )
 
     @Suppress("SpellCheckingInspection")
     companion object {
 
-        @JvmStatic fun fromSGF(node: GoSGFNode, player: GoColor): TimeLimit? {
+        @JvmStatic fun fromSGF(
+            player: GoColor,
+            node: GoSGFNode,
+            mainTime: Long = -1L,
+            overtime: Overtime? = Events,
+            owner: Any? = null
+        ): TimeLimit? {
             val tree = node.treeOrNull ?: return null
             return synchronized(tree) {
                 if (!node.isAlive) return@synchronized null
                 val gameInfo = node.gameInfo
-                val overtime = gameInfo?.overtime
-                var remainingTime = gameInfo?.timeLimit ?: 0
-                if (remainingTime == 0L && overtime == null) return@synchronized null
-                var overtimeCode = overtime?.initialOvertimeCode ?: 0
+                var remainingTime = mainTime
+                if (remainingTime < 0L) remainingTime = gameInfo?.timeLimit ?: 0L
+                val realOvertime = if (overtime === Events) gameInfo?.overtime else overtime
+                if (remainingTime == 0L && realOvertime == null) return@synchronized null
+                var overtimeCode = realOvertime?.initialOvertimeCode ?: 0
                 var flags = 0
                 var foundTime = false
                 var foundOvertime = false
@@ -51,7 +61,7 @@ class TimeLimit private constructor(
                         remainingTime = playerTime.time
                     }
                 }
-                TimeLimit(Events, remainingTime, overtimeCode, flags, overtime)
+                TimeLimit(Events, remainingTime, overtimeCode, flags, realOvertime, owner)
             }
         }
 
@@ -61,7 +71,7 @@ class TimeLimit private constructor(
             if (timeRemaining + extension < timeRemaining)
                 timeRemaining = Long.MAX_VALUE
             else timeRemaining += extension
-            return TimeEvent(e.timeLimit, timeRemaining, e.overtimeCode, e.flags)
+            return TimeEvent(e.source, timeRemaining, e.overtimeCode, e.flags)
         }
 
         @JvmStatic
@@ -135,23 +145,31 @@ class TimeLimit private constructor(
 
     private var task: TimerTask? = null
 
+    private fun Events.cancelTask() {
+        task = nullTask
+    }
+
     private var prevSystemTime: Long = 0L
+
+    private fun Events.updateSystemTime() {
+        prevSystemTime = systemTime()
+    }
 
     private val timeListeners = mutableListOf<TimeListener>()
 
-    private var _timeEvent = events.timeEvent(this, remainingTime, overtimeCode, flags)
+    private var _timeEvent = TimeEvent(owner ?: this, remainingTime, overtimeCode, flags)
 
     val timeEvent: TimeEvent @Synchronized get() = _timeEvent
 
     init {
-        Events.filterInitialEvent()
+        events.filterInitialEvent()
     }
 
     private fun Events.filterInitialEvent() {
         // In case overtime?.filterEvent(timeEvent) accesses this
-        // through timeEvent.getSource() or timeEvent.timeLimit,
+        // through timeEvent.getSource(),
         // this.timeEvent will already be non-null.
-        _timeEvent = filterEvent(_timeEvent)
+        _timeEvent = getFilteredEvent(_timeEvent)
     }
 
     fun addTimeListener(l: TimeListener?) {
@@ -174,7 +192,7 @@ class TimeLimit private constructor(
                     var time = e.timeRemaining
                     Events.updateTimeEvent(
                         TimeEvent(
-                            this,
+                            e.source ?: this,
                             time,
                             e.overtimeCode,
                             e.flags or TimeEvent.FLAG_TICKING
@@ -189,10 +207,10 @@ class TimeLimit private constructor(
                             var r = timeRemaining % 1000L
                             if (r <= 0L)
                                 r += 1000L
-                            prevSystemTime = System.currentTimeMillis()
+                            Events.updateSystemTime()
                             event = Events.updateTimeEvent(
                                 TimeEvent(
-                                    this@TimeLimit,
+                                    event.source ?: this@TimeLimit,
                                     timeRemaining - r,
                                     event.overtimeCode,
                                     event.flags or TimeEvent.FLAG_TICKING
@@ -200,7 +218,7 @@ class TimeLimit private constructor(
                             )
                             if (event.isExpired) {
                                 cancel()
-                                task = null
+                                Events.cancelTask()
                             }
                         }
                     }
@@ -213,7 +231,7 @@ class TimeLimit private constructor(
                     prevSystemTime = now
                     Events.updateTimeEvent(
                         TimeEvent(
-                            this,
+                            e.source ?: this,
                             e.timeRemaining - diff,
                             e.overtimeCode,
                             e.flags and (TimeEvent.FLAG_TICKING xor TimeEvent.FLAG_MASK)
@@ -228,7 +246,12 @@ class TimeLimit private constructor(
         synchronized(this) {
             val overtime = this.overtime
             var e = _timeEvent
-            e = overtime?.extendTime(e, extension) ?: extendTime(e, extension)
+            e = if (overtime != null) {
+                val e2 = overtime.extendTime(e, extension)
+                val source = e.source
+                if (source == null || source === e2.source) e2
+                else TimeEvent(source, e2.timeRemaining, e2.overtimeCode, e2.flags)
+            } else Companion.extendTime(e, extension)
             Events.updateTimeEvent(e, true)
         }
     }
@@ -238,21 +261,25 @@ class TimeLimit private constructor(
         // even synthetic public method access$updateTimeEvent,
         // which is called by a TimerTask lambda,
         // cannot be called without access to receiver of private type Events.
-        val event = if (filter) filterEvent(e) else e
-        // The owner of this method is the same as that of the private setter for property timeEvent,
-        // so a public synthetic accessor will not be generated for that setter.
+        val event = if (filter) getFilteredEvent(e) else e
+        // The owner of this method is the same as that of the private property _timeEvent,
+        // so a public synthetic setter will not be generated for that property.
         _timeEvent = event
         for(i in (timeListeners.size - 1) downTo 0)
             timeListeners[i].timeElapsed(event)
         return event
     }
 
-    private object Events {
+    private object Events: Overtime() {
+
+        override fun parseThis(s: String): Boolean = false
 
         // public member of private nested class prevents
-        // synthetic public method access$filterEvent from being generated
-        fun TimeLimit.filterEvent(e: TimeEvent): TimeEvent {
+        // synthetic public static method access$getFilteredEvent from being generated
+        fun TimeLimit.getFilteredEvent(e: TimeEvent): TimeEvent {
             val e2 = overtime?.filterEvent(e) ?: e
+            val source1: Any? = e.source
+            val source2: Any? = e2.source
             val timeRemaining = e2.timeRemaining
             val overtimeCode = e2.overtimeCode
             var flags = e2.flags
@@ -266,16 +293,17 @@ class TimeLimit private constructor(
                 timeRemaining == e.timeRemaining &&
                         overtimeCode == e.overtimeCode &&
                         flags == e.flags -> e
-                e !== e2 && e2.timeLimit == this &&
+                e !== e2 && (source1 == null || source1 === source2) &&
                         timeRemaining == e2.timeRemaining &&
                         overtimeCode == e2.overtimeCode &&
                         flags == e2.flags -> e2
-                else -> TimeEvent(this, timeRemaining, overtimeCode, flags)
+                else -> TimeEvent(source1 ?: source2 ?: this, timeRemaining, overtimeCode, flags)
             }
         }
 
-        fun timeEvent(timeLimit: TimeLimit, remainingTime: Long, overtimeCode: Int, flags: Int) =
-            TimeEvent(timeLimit, remainingTime, overtimeCode, flags)
+        fun systemTime(): Long = System.currentTimeMillis()
+
+        val nullTask: TimerTask? get() = null
 
     }
 

@@ -1,9 +1,7 @@
 package com.computernerd1101.goban.time
 
 import com.computernerd1101.goban.annotations.*
-import com.computernerd1101.goban.resources.OvertimeFormatter
-import com.computernerd1101.goban.resources.gobanFormatResources
-import com.computernerd1101.goban.resources.gobanResources
+import com.computernerd1101.goban.resources.*
 import java.util.*
 
 @PropertyOrder("Periods", "Seconds")
@@ -54,7 +52,7 @@ class ByoYomi(periods: Int, millis: Long): Overtime(), PropertyTranslator {
             flags = if (overtime > 0) flags or TimeEvent.FLAG_OVERTIME
             else TimeEvent.FLAG_EXPIRED or TimeEvent.FLAG_OVERTIME
         }
-        return TimeEvent(e.timeLimit, time, overtime, flags)
+        return TimeEvent(e.source ?: this, time, overtime, flags)
     }
 
     override fun extendTime(e: TimeEvent, extension: Long): TimeEvent {
@@ -62,7 +60,7 @@ class ByoYomi(periods: Int, millis: Long): Overtime(), PropertyTranslator {
         val flags = e.flags
         if (flags and TimeEvent.FLAG_OVERTIME == 0)
             return super.extendTime(e, extension)
-        return TimeEvent(e.timeLimit, extension, e.overtimeCode,
+        return TimeEvent(e.source, extension, e.overtimeCode,
             flags and (TimeEvent.FLAG_MASK xor TimeEvent.FLAG_OVERTIME))
     }
 
@@ -76,8 +74,8 @@ class ByoYomi(periods: Int, millis: Long): Overtime(), PropertyTranslator {
     }
 
     override fun displayOvertimeImpl(e: TimeEvent, locale: Locale): String? =
-        (gobanFormatResources(locale).getObject("OvertimeFormatter") as? OvertimeFormatter)
-            ?.formatByoYomi(e.overtimeCode)
+        (gobanFormatResources(locale).getObject("OvertimeFormatter") as? OvertimeFormatter1)
+            ?.format(e.overtimeCode)
 
     override fun parseThis(s: String): Boolean = Regex.parse(s, this) != null
 

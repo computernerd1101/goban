@@ -96,7 +96,7 @@ sealed class SGFWriter {
         for(bytes in value.parts) {
             write(sep)
             sep = ':'.toInt()
-            write(bytes.escape(true))
+            write(bytes.escape(copy = true))
         }
         write(']'.toInt())
     }
