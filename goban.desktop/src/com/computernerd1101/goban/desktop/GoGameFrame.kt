@@ -13,9 +13,11 @@ import java.awt.*
 import java.awt.event.*
 import java.awt.geom.Rectangle2D
 import java.util.*
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater
 import javax.swing.*
 import kotlin.coroutines.*
+import kotlin.math.min
 
 class GoGameFrame private constructor(
     _context: CoroutineContext,
@@ -91,7 +93,15 @@ class GoGameFrame private constructor(
         fun initFrame(frame: GoGameFrame): GoGameFrame {
             val current = _frame
             if (current != null) return current
-            if (updateFrame.compareAndSet(this, null, frame)) return frame
+            if (updateFrame.compareAndSet(this, null, frame)) {
+                val resources = gobanDesktopResources()
+                frame.initLayout(resources, InternalMarker)
+                val opponent: GoGameFrame? =
+                    ((if (color.isBlack) frame.whitePlayer else frame.blackPlayer) as? Player)?._frame
+                if (opponent != null && opponent !== frame)
+                    opponent.initLayout(resources, InternalMarker)
+                return frame
+            }
             return this.frame
         }
 
@@ -145,8 +155,13 @@ class GoGameFrame private constructor(
         }
 
         override suspend fun requestOpponentTimeExtension(requestedMilliseconds: Long): Long {
-            return if (requestedMilliseconds > 0L && ((getOpponent() as? Player)?.frame == frame))
-                extendOpponentTime(InternalMarker) else 0L
+            val frame = this.frame
+            return if (requestedMilliseconds > 0L && ((getOpponent() as? Player)?.frame === frame))
+                extendOpponentTime(InternalMarker)
+            else {
+                frame.displayAddOneMinuteStatus(color.opponent, -1, InternalMarker)
+                0L
+            }
         }
 
         internal suspend fun extendOpponentTime(marker: InternalMarker): Long {
@@ -154,14 +169,19 @@ class GoGameFrame private constructor(
             return extendOpponentTime(ONE_MINUTE_IN_MILLIS)
         }
 
-        override fun filterTimeExtension(extension: Long): Long = when {
-            extension <= 0L -> 0L
-            extension >= ONE_MINUTE_IN_MILLIS -> ONE_MINUTE_IN_MILLIS
-            else -> extension
+        override fun filterTimeExtension(extension: Long): Long {
+            if (extension <= 0L) return 0L
+            _frame?.displayAddOneMinuteStatus(color, 1, InternalMarker)
+            return min(extension, ONE_MINUTE_IN_MILLIS)
         }
 
-        override fun onTimeEvent(e: TimeEvent) {
-            // TODO
+        override fun onTimeEvent(player: GoPlayer, e: TimeEvent) {
+            _frame?.onTimeEvent(player, e, gobanDesktopResources(), InternalMarker)
+        }
+
+        internal suspend fun resign(marker: InternalMarker) {
+            marker.ignore()
+            resign()
         }
 
         override suspend fun startScoring(scoreManager: GoScoreManager) {
@@ -217,14 +237,6 @@ class GoGameFrame private constructor(
                 GoGameFrame::class.java, GameAction::class.java, "gameAction"
             )
 
-        private val updateTimeExtensionContinuation:
-                AtomicReferenceFieldUpdater<GoGameFrame, Continuation<Boolean>?> =
-            AtomicReferenceFieldUpdater.newUpdater(
-                GoGameFrame::class.java,
-                Continuation::class.java as Class<Continuation<Boolean>>,
-                "timeExtensionContinuation"
-            )
-
         private val updateUndoContinuation:
                 AtomicReferenceFieldUpdater<GoGameFrame, Continuation<Boolean>?> =
             AtomicReferenceFieldUpdater.newUpdater(
@@ -240,10 +252,36 @@ class GoGameFrame private constructor(
                 "deferredRequestUndoMove"
             )
 
+        private val updateInitLayout: AtomicIntegerFieldUpdater<GoGameFrame> =
+            AtomicIntegerFieldUpdater.newUpdater(GoGameFrame::class.java, "initLayoutOnce")
+
+        private val updateBlackAddOneMinute: AtomicReferenceFieldUpdater<GoGameFrame, Deferred<Unit>?> =
+            AtomicReferenceFieldUpdater.newUpdater(
+                GoGameFrame::class.java,
+                Deferred::class.java as Class<Deferred<Unit>>,
+                "deferredBlackAddOneMinute"
+            )
+
+        private val updateWhiteAddOneMinute: AtomicReferenceFieldUpdater<GoGameFrame, Deferred<Unit>?> =
+            AtomicReferenceFieldUpdater.newUpdater(
+                GoGameFrame::class.java,
+                Deferred::class.java as Class<Deferred<Unit>>,
+                "deferredWhiteAddOneMinute"
+            )
+
+        private val updateResign: AtomicReferenceFieldUpdater<GoGameFrame, Deferred<Unit>?> =
+            AtomicReferenceFieldUpdater.newUpdater(
+                GoGameFrame::class.java,
+                Deferred::class.java as Class<Deferred<Unit>>,
+                "deferredResign"
+            )
+
         const val ONE_MINUTE_IN_MILLIS: Long = 60000L
 
         @JvmField val TRANSPARENT_BLACK = Color(0x7F000000, true)
         @JvmField val TRANSPARENT_WHITE = Color(0x7FFFFFFF, true)
+
+        private val southBorder = BorderFactory.createMatteBorder(0, 0, 1, 0, Color.LIGHT_GRAY)
     }
 
     private val sgf = gameContext.sgf
@@ -321,31 +359,6 @@ class GoGameFrame private constructor(
         gobanView.repaint()
     }
 
-    @Volatile private var deferredRequestTimeExtension: Deferred<Boolean>? = null
-
-    fun requestTimeExtension() {
-
-    }
-
-    @Volatile private var timeExtensionContinuation: Continuation<Boolean>? = null
-
-    internal suspend fun acceptOpponentTimeExtension(marker: InternalMarker): Boolean {
-        marker.ignore()
-        return suspendCoroutine { continuation ->
-            val oldContinuation = updateTimeExtensionContinuation.getAndSet(this, continuation)
-            if (oldContinuation != null) oldContinuation.resume(false)
-            else {
-                val resources = gobanDesktopResources()
-//                val message = if (undoContinuation != null) {
-//                    labelOpponentRequestUndo.text = resources.getString("OpponentRequest.UndoMove.2")
-//                    "OpponentRequest.AddOneMinute.2"
-//                } else "OpponentRequest.AddOneMinute.1"
-//                labelOpponentRequestTime.text = resources.getString(message)
-                panelOpponentRequestTime.isVisible = true
-            }
-        }
-    }
-
     private fun cancelPlayAction(marker: InternalMarker): Boolean {
         marker.ignore()
         while(true) {
@@ -384,22 +397,22 @@ class GoGameFrame private constructor(
             resumeNode = (resumeNode as? GoSGFMoveNode)?.parent
         }
         if (resumeNode == null) {
-            displayRequestStatus(labelRequestUndo, -1)
+            displayRequestUndoStatus(-1, InternalMarker)
             return
         }
-        displayRequestStatus(labelRequestUndo, 0)
+        displayRequestUndoStatus(0, InternalMarker)
         var deferred: Deferred<Boolean>? = null
         deferred = scope.async {
             val response = player.requestUndoMove(resumeNode, InternalMarker)
             val mostRecent = updateRequestUndoMove.compareAndSet(this@GoGameFrame, deferred, null)
             when {
                 response -> {
-                    displayRequestStatus(labelRequestUndo, 1)
+                    displayRequestUndoStatus(1, InternalMarker)
                     if (cancelPlayAction(InternalMarker))
                         actionButton.isEnabled = false
                 }
                 mostRecent -> {
-                    displayRequestStatus(labelRequestUndo, -1)
+                    displayRequestUndoStatus(-1, InternalMarker)
                 }
             }
             response
@@ -407,6 +420,7 @@ class GoGameFrame private constructor(
         deferredRequestUndoMove = deferred
     }
 
+    @Suppress("unused")
     @Volatile private var undoContinuation: Continuation<Boolean>? = null
 
     internal suspend fun acceptUndoMove(player: GoColor, marker: InternalMarker): Boolean {
@@ -426,29 +440,32 @@ class GoGameFrame private constructor(
         return allowed
     }
 
-    private fun displayRequestStatus(label: JLabel, status: Int) {
-        val key: String = when {
-            status == 0 -> {
-                label.background = Color.YELLOW
-                label.foreground = Color.BLACK
-                "Request.Waiting"
-            }
-            status < 0 -> {
+    private fun displayRequestUndoStatus(status: Int, marker: InternalMarker) {
+        marker.ignore()
+        val label = labelRequestUndo
+        val key: String = if (status == 0) {
+            label.background = Color.YELLOW
+            label.foreground = Color.BLACK
+            "Request.Waiting"
+        } else {
+            label.foreground = Color.WHITE
+            if (status < 0) {
                 label.background = Color.RED
-                label.foreground = Color.WHITE
                 "Request.Denied"
-            }
-            else -> {
+            } else {
                 label.background = Color.GREEN
-                label.foreground = Color.WHITE
                 "Request.Allowed"
             }
         }
         label.text = gobanDesktopResources().getString(key)
         label.isVisible = true
-        if (status != 0) scope.launch {
-            delay(1000L)
-            label.isVisible = false
+        if (status != 0) {
+            val updater = updateRequestUndoMove
+            scope.launch {
+                delay(1000L)
+                if (updater[this@GoGameFrame] == null)
+                    label.isVisible = false
+            }
         }
     }
 
@@ -596,13 +613,11 @@ class GoGameFrame private constructor(
                     val alive = if (goPointGroup.contains(p)) isShiftDown else prototypeGoban[p] != null
                     if (alive) 1f else 0.5f
                 }
-                action == GameAction.HANDICAP -> {
-                    when {
-                        p != goCursor -> 1f
-                        goban[p] != null -> 0.25f
-                        goban.blackCount < handicap -> 0.5f
-                        else -> 1f
-                    }
+                action == GameAction.HANDICAP -> when {
+                    p != goCursor -> 1f
+                    goban[p] != null -> 0.25f
+                    goban.blackCount < handicap -> 0.5f
+                    else -> 1f
                 }
                 action == null || p != goCursor -> {
                     val color = goban[p]
@@ -611,7 +626,7 @@ class GoGameFrame private constructor(
                     else 0.5f
                 }
                 // action == PLAY_BLACK or PLAY_WHITE
-                goban[p] == null && !suicideRestrictions.contains(p) && !superkoRestrictions.contains(p) -> 0.5f
+                goban[p] == null && p !in suicideRestrictions && p !in superkoRestrictions -> 0.5f
                 else -> 1f
             }
         }
@@ -649,11 +664,6 @@ class GoGameFrame private constructor(
 
     }
 
-    private val panelOpponentRequestTime = JPanel(GridLayout(2, 1))
-    private val labelOpponentRequestTime = JLabel(resources.getString("OpponentRequest.AddOneMinute.1"))
-    private val buttonAllowTime = JButton(resources.getString("OpponentRequest.AddOneMinute.Allow"))
-    private val buttonDenyTime = JButton(resources.getString("OpponentRequest.AddOneMinute.Deny"))
-
     private val panelOpponentRequestUndo = JPanel(GridLayout(2, 1))
     private val labelOpponentRequestUndo = JLabel(resources.getString("UndoMove.Request"))
     private val buttonAllowUndo = JButton(resources.getString("UndoMove.Allow"))
@@ -672,20 +682,11 @@ class GoGameFrame private constructor(
         }
         buttonAllowUndo.addActionListener(requestActionListener)
         buttonDenyUndo.addActionListener(requestActionListener)
-        var buttonPanel = JPanel(GridLayout(1, 2))
-        buttonPanel.add(buttonAllowTime)
-        buttonPanel.add(buttonDenyTime)
-        panelOpponentRequestTime.add(buttonPanel)
-        panelOpponentRequestTime.background = Color.RED
-        labelOpponentRequestTime.foreground = Color.WHITE
-        labelOpponentRequestTime.horizontalAlignment = SwingConstants.CENTER
-        panelOpponentRequestTime.add(labelOpponentRequestTime)
-        panelOpponentRequestTime.isVisible = false
         panelOpponentRequestUndo.background = Color.RED
         labelOpponentRequestUndo.foreground = Color.WHITE
         labelOpponentRequestUndo.horizontalAlignment = SwingConstants.CENTER
         panelOpponentRequestUndo.add(labelOpponentRequestUndo)
-        buttonPanel = JPanel(GridLayout(1, 2))
+        val buttonPanel = JPanel(GridLayout(1, 2))
         buttonPanel.add(buttonAllowUndo)
         buttonPanel.add(buttonDenyUndo)
         panelOpponentRequestUndo.add(buttonPanel)
@@ -695,19 +696,308 @@ class GoGameFrame private constructor(
     private val cardLayout = CardLayout()
     private val cardPanel = JPanel(cardLayout)
 
+    private val gamePanel = JPanel(GridLayout(10, 2, 10, 0))
+    private val labelBlackTime = JLabel()
+    private val displayBlackTime = JLabel()
+    private val labelWhiteTime = JLabel()
+    private val displayWhiteTime = JLabel()
+    private val labelBlackOvertime = JLabel()
+    private val displayBlackOvertime = JLabel()
+    private val labelWhiteOvertime = JLabel()
+    private val displayWhiteOvertime = JLabel()
+    private val buttonBlackAddOneMinute = JButton()
+    private val labelBlackAddOneMinute = JLabel(resources.getString("Request.Waiting"))
+    private val buttonWhiteAddOneMinute = JButton()
+    private val labelWhiteAddOneMinute = JLabel(resources.getString("Request.Waiting"))
+    private val labelBlackScore = JLabel(resources.getString("Score.Black"))
+    private val displayBlackScore = JLabel()
+    private val labelWhiteScore = JLabel(resources.getString("Score.White"))
+    private val displayWhiteScore = JLabel()
     private val buttonRequestUndo = JButton(resources.getString("UndoMove"))
     private val labelRequestUndo = JLabel(resources.getString("Request.Waiting"))
+    private val buttonResign = JButton(resources.getString("Resign"))
+    private val labelResign = JLabel(resources.getString("Resign.Confirm"))
+
+    private val timeLimitFormatter =
+        gobanDesktopFormatResources().getObject("TimeLimitFormatter") as TimeLimitFormatter
 
     init {
         cardPanel.add(JPanel(), "Handicap")
+        val none = resources.getString("TimeRemaining.None")
+        labelBlackTime.background = Color.RED // no effect unto isOpaque is set to true
+        labelBlackTime.horizontalAlignment = SwingConstants.RIGHT
+        labelWhiteTime.background = Color.RED
+        labelWhiteTime.horizontalAlignment = SwingConstants.RIGHT
+        labelBlackOvertime.horizontalAlignment = SwingConstants.RIGHT
+        labelWhiteOvertime.horizontalAlignment = SwingConstants.RIGHT
+        var timeEvent = blackPlayer.getTimeEvent(gameContext)
+        if (timeEvent == null) {
+            displayBlackTime.foreground = Color.DARK_GRAY
+            displayBlackTime.text = none
+        } else {
+            displayBlackTime.isOpaque = true
+            displayBlackTime.background = Color.BLACK
+            displayBlackTime.foreground = Color.WHITE
+            onTimeEvent(whitePlayer, timeEvent, resources, InternalMarker)
+        }
+        timeEvent = whitePlayer.getTimeEvent(gameContext)
+        if (timeEvent == null) {
+            displayWhiteTime.foreground = Color.DARK_GRAY
+            displayWhiteTime.text = none
+        } else {
+            displayWhiteTime.isOpaque = true
+            displayWhiteTime.background = Color.WHITE
+            displayWhiteTime.foreground = Color.BLACK
+            onTimeEvent(whitePlayer, timeEvent, resources, InternalMarker)
+        }
+        val overtime = gameContext.gameInfo.overtime
+        if (overtime == null) {
+            displayBlackOvertime.foreground = Color.DARK_GRAY
+            displayWhiteOvertime.foreground = Color.DARK_GRAY
+            displayBlackOvertime.text = none
+            displayWhiteOvertime.text = none
+        } else {
+            displayBlackOvertime.isOpaque = true
+            displayBlackOvertime.background = Color.BLACK
+            displayBlackOvertime.foreground = Color.WHITE
+            displayWhiteOvertime.isOpaque = true
+            displayWhiteOvertime.background = Color.WHITE
+            displayWhiteOvertime.foreground = Color.BLACK
+        }
+        labelBlackAddOneMinute.isOpaque = true
+        labelBlackAddOneMinute.isVisible = false
+        labelWhiteAddOneMinute.isOpaque = true
+        labelWhiteAddOneMinute.isVisible = false
+        labelBlackScore.horizontalAlignment = SwingConstants.RIGHT
+        displayBlackScore.isOpaque = true
+        displayBlackScore.background = Color.BLACK
+        displayBlackScore.foreground = Color.WHITE
+        labelWhiteScore.horizontalAlignment = SwingConstants.RIGHT
+        displayWhiteScore.isOpaque = true
+        displayWhiteScore.background = Color.WHITE
+        displayWhiteScore.foreground = Color.BLACK
         buttonRequestUndo.addActionListener { requestUndoMove() }
         labelRequestUndo.isOpaque = true
         labelRequestUndo.isVisible = false
-        val gamePanel = JPanel(GridLayout(1, 2))
-        gamePanel.add(buttonRequestUndo)
-        gamePanel.add(labelRequestUndo)
+        labelResign.isOpaque = true
+        labelResign.background = Color.RED
+        labelResign.foreground = Color.WHITE
+        labelResign.isVisible = false
+        initLayout(resources, InternalMarker)
         cardPanel.add(gamePanel, "Moves")
         cardLayout.show(cardPanel, "Moves")
+    }
+
+    @Volatile private var initLayoutOnce: Int = 0
+
+    internal fun initLayout(resources: ResourceBundle, marker: InternalMarker) {
+        marker.ignore()
+        if (initLayoutOnce != 0) return
+        val isBlackLocal: Boolean = if (blackPlayer is Player) {
+            if (!blackPlayer.isFrameInitialized) return
+            blackPlayer.frame === this
+        } else false
+        val isWhiteLocal: Boolean = if (whitePlayer is Player) {
+            if (!whitePlayer.isFrameInitialized) return
+            whitePlayer.frame === this
+        } else false
+        if (!updateInitLayout.compareAndSet(this, 0, 1)) return
+        val blackTimeRemainingKey: String
+        val whiteTimeRemainingKey: String
+        val blackAddOneMinuteKey: String
+        val whiteAddOneMinuteKey: String
+        when {
+            isBlackLocal && !isWhiteLocal -> {
+                blackTimeRemainingKey = "TimeRemaining.You"
+                whiteTimeRemainingKey = "TimeRemaining.Opponent"
+                blackAddOneMinuteKey = "TimeRemaining.AddOneMinute.Request"
+                whiteAddOneMinuteKey = "TimeRemaining.AddOneMinute.Opponent"
+                buttonBlackAddOneMinute.addActionListener(requestAddOneMinuteListener(opponent = whitePlayer))
+                buttonWhiteAddOneMinute.addActionListener(addOneMinuteListener(opponent = blackPlayer))
+            }
+            !isBlackLocal && isWhiteLocal -> {
+                blackTimeRemainingKey = "TimeRemaining.Opponent"
+                whiteTimeRemainingKey = "TimeRemaining.You"
+                blackAddOneMinuteKey = "TimeRemaining.AddOneMinute.Opponent"
+                whiteAddOneMinuteKey = "TimeRemaining.AddOneMinute.Request"
+                buttonBlackAddOneMinute.addActionListener(addOneMinuteListener(opponent = whitePlayer))
+                buttonWhiteAddOneMinute.addActionListener(requestAddOneMinuteListener(opponent = blackPlayer))
+            }
+            else -> {
+                blackTimeRemainingKey = "TimeRemaining.Black"
+                whiteTimeRemainingKey = "TimeRemaining.White"
+                blackAddOneMinuteKey = "TimeRemaining.AddOneMinute.Black"
+                whiteAddOneMinuteKey = "TimeRemaining.AddOneMinute.White"
+                if (isBlackLocal) {
+                    buttonBlackAddOneMinute.addActionListener(addOneMinuteListener(opponent = whitePlayer))
+                    buttonWhiteAddOneMinute.addActionListener(addOneMinuteListener(opponent = blackPlayer))
+                } else {
+                    buttonBlackAddOneMinute.isEnabled = false
+                    buttonWhiteAddOneMinute.isEnabled = false
+                }
+            }
+        }
+        labelBlackTime.text = resources.getString(blackTimeRemainingKey)
+        labelWhiteTime.text = resources.getString(whiteTimeRemainingKey)
+        buttonBlackAddOneMinute.text = resources.getString(blackAddOneMinuteKey)
+        buttonWhiteAddOneMinute.text = resources.getString(whiteAddOneMinuteKey)
+        if (isBlackLocal || isWhiteLocal)
+            buttonResign.addActionListener { resign(InternalMarker) }
+        else buttonResign.isEnabled = false
+        val components: Array<Array<JComponent>> = arrayOf(
+            arrayOf(
+                labelBlackTime, displayBlackTime,
+                labelBlackOvertime, displayBlackOvertime,
+                buttonBlackAddOneMinute, labelBlackAddOneMinute
+            ),
+            arrayOf(
+                labelWhiteTime, displayWhiteTime,
+                labelWhiteOvertime, displayWhiteOvertime,
+                buttonWhiteAddOneMinute, labelWhiteAddOneMinute
+            ),
+            arrayOf(labelBlackScore, displayBlackScore),
+            arrayOf(buttonRequestUndo, labelRequestUndo),
+            arrayOf(labelWhiteScore, displayWhiteScore),
+            arrayOf(buttonResign, labelResign)
+        )
+        if (isWhiteLocal && !isBlackLocal) {
+            var tmp = components[0]
+            components[0] = components[1]
+            components[1] = tmp
+            tmp = components[2]
+            components[2] = components[4]
+            components[4] = tmp
+        }
+        for(array in components) for(component in array)
+            gamePanel.add(component)
+    }
+
+    private fun addOneMinuteListener(opponent: GoPlayer): ActionListener {
+        val localOpponent = opponent as Player
+        return ActionListener {
+            displayAddOneMinuteStatus(localOpponent.color.opponent, 1, InternalMarker)
+            scope.launch {
+                localOpponent.extendOpponentTime(InternalMarker)
+            }
+        }
+    }
+
+    private fun requestAddOneMinuteListener(opponent: GoPlayer) = ActionListener {
+        displayAddOneMinuteStatus(opponent.color.opponent, 0, InternalMarker)
+        scope.launch {
+            opponent.requestOpponentTimeExtension(ONE_MINUTE_IN_MILLIS)
+        }
+    }
+
+    @Suppress("unused") @Volatile private var deferredBlackAddOneMinute: Deferred<Unit>? = null
+    @Suppress("unused") @Volatile private var deferredWhiteAddOneMinute: Deferred<Unit>? = null
+
+    internal fun displayAddOneMinuteStatus(
+        player: GoColor,
+        status: Int,
+        marker: InternalMarker
+    ) {
+        marker.ignore()
+        val label: JLabel
+        val updater: AtomicReferenceFieldUpdater<GoGameFrame, Deferred<Unit>?>
+        if (player.isBlack) {
+            label = labelBlackAddOneMinute
+            updater = updateBlackAddOneMinute
+        } else {
+            label = labelWhiteAddOneMinute
+            updater = updateWhiteAddOneMinute
+        }
+        val key: String = if (status > 0) {
+            label.background = Color.GREEN
+            "Request.Allowed"
+        } else {
+            label.background = if (status == 0) Color.YELLOW else Color.RED
+            "Request.Waiting"
+        }
+        label.foreground = if (status == 0) Color.BLACK else Color.WHITE
+        label.text = gobanDesktopResources().getString(key)
+        label.isVisible = true
+        var deferred: Deferred<Unit>? = null
+        deferred = scope.async {
+            updater[this@GoGameFrame] = deferred
+            delay(1000L)
+            if (updater.compareAndSet(this@GoGameFrame, deferred, null))
+                label.isVisible = false
+        }
+    }
+
+    internal fun onTimeEvent(player: GoPlayer, e: TimeEvent, resources: ResourceBundle, marker: InternalMarker) {
+        marker.ignore()
+        val labelTime: JLabel
+        val displayTime: JLabel
+        val labelOvertime: JLabel
+        val displayOvertime: JLabel
+        if (player.color == GoColor.BLACK) {
+            labelTime = labelBlackTime
+            displayTime = displayBlackTime
+            labelOvertime = labelBlackOvertime
+            displayOvertime = displayBlackOvertime
+        } else {
+            labelTime = labelWhiteTime
+            displayTime = displayWhiteTime
+            labelOvertime = labelWhiteOvertime
+            displayOvertime = displayWhiteOvertime
+        }
+        val timeRemaining = e.timeRemaining
+        if (e.isTicking && timeRemaining <= 10000L) { // 10 seconds
+            labelTime.isOpaque = true
+            labelTime.foreground = Color.WHITE
+        } else {
+            labelTime.isOpaque = false
+            labelTime.foreground = Color.BLACK
+        }
+        displayTime.text = timeLimitFormatter.format(timeRemaining)
+        val overtime = player.getOvertime(gameContext)
+        if (overtime != null) {
+            if (e.isOvertime) {
+                labelOvertime.text = resources.getString("OvertimeRemaining.Prefix") +
+                        overtime.displayName() + resources.getString("OvertimeRemaining.Suffix")
+                displayOvertime.text = overtime.displayOvertime(e)
+            } else {
+                labelOvertime.text = resources.getString("OvertimeRemaining")
+                displayOvertime.text = overtime.displayName()
+            }
+        }
+    }
+
+    @Suppress("unused")
+    @Volatile private var deferredResign: Deferred<Unit>? = null
+
+    private fun resign(marker: InternalMarker) {
+        val updateResign = GoGameFrame.updateResign
+        val updateGameAction = GoGameFrame.updateGameAction
+        val labelResign = this.labelResign
+        var deferred: Deferred<Unit>? = null
+        deferred = scope.async {
+            if (updateResign.compareAndSet(this@GoGameFrame, null, deferred)) {
+                labelResign.isVisible = true
+                delay(1000L)
+                labelResign.isVisible = false
+                updateResign.compareAndSet(this@GoGameFrame, deferred, null)
+            } else {
+                labelResign.isVisible = false
+                updateResign[this@GoGameFrame] = null
+                val player: Player = when {
+                    (blackPlayer as? Player)?.frame === this@GoGameFrame ->
+                        if ((whitePlayer as? Player)?.frame !== this@GoGameFrame) blackPlayer
+                        else when(updateGameAction[this@GoGameFrame]) {
+                            GameAction.PLAY_BLACK -> blackPlayer
+                            GameAction.PLAY_WHITE -> whitePlayer
+                            else -> return@async
+                        }
+                    (whitePlayer as? Player)?.frame === this@GoGameFrame -> whitePlayer
+                    else -> return@async
+                }
+                player.resign(marker)
+                updateGameAction[this@GoGameFrame] = null
+                update(marker)
+            }
+        }
     }
 
     // TODO
@@ -717,7 +1007,7 @@ class GoGameFrame private constructor(
     init {
         val sidePanel = JPanel(BorderLayout())
         val topPanel = JPanel(GridLayout(1, 1))
-        topPanel.border = BorderFactory.createMatteBorder(0, 0, 1, 0, Color.LIGHT_GRAY)
+        topPanel.border = southBorder
         topPanel.add(panelOpponentRequestUndo)
         sidePanel.add(topPanel, BorderLayout.NORTH)
         var panel = JPanel(BorderLayout())

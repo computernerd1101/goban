@@ -74,7 +74,7 @@ class ByoYomi(periods: Int, millis: Long): Overtime(), PropertyTranslator {
     }
 
     override fun displayOvertimeImpl(e: TimeEvent, locale: Locale): String? =
-        (gobanFormatResources(locale).getObject("OvertimeFormatter") as? OvertimeFormatter1)
+        (gobanFormatResources(locale).getObject("ByoYomiFormatter") as? OvertimeFormatter1)
             ?.format(e.overtimeCode)
 
     override fun parseThis(s: String): Boolean = Regex.parse(s, this) != null

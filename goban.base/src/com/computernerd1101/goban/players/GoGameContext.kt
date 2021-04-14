@@ -110,12 +110,13 @@ class GoGameContext: CoroutineContext.Element {
             game !== this ->
                 throw IllegalStateException("A single coroutine cannot play two games of Go simultaneously.")
         }
-        startGameWithContext(context)
+        withContext(context) {
+            startGameWithContext(InternalMarker)
+        }
     }
 
-    private suspend fun startGameWithContext(
-        context: CoroutineContext
-    ) = withContext(context) {
+    private suspend fun CoroutineScope.startGameWithContext(marker: InternalMarker) {
+        marker.ignore()
         val deferredGameOver = gameOverContinuation.suspendAsync(this)
         val handicap = gameInfo.handicap
         if (handicap != 0 && node == sgf.rootNode) {
@@ -154,9 +155,7 @@ class GoGameContext: CoroutineContext.Element {
                 player = whitePlayer
                 opponent = blackPlayer
             }
-            val deferredMove = async {
-                player.safeGenerateMove(InternalMarker)
-            }
+            val deferredMove = player.generateMoveAsync(this, InternalMarker)
             if (deferredUndoMove == null) deferredUndoMove = undoMoveContinuation.suspendAsync(this)
             select<Unit> {
                 deferredMove.onAwait { move ->
@@ -174,12 +173,14 @@ class GoGameContext: CoroutineContext.Element {
                     opponent.update()
                 }
                 deferredGameOver.onAwait { result ->
+                    player.cancelMove(InternalMarker)
                     gameInfo.result = result
                     ongoing = false
                     passCount = 0
                 }
                 deferredUndoMove?.onAwait { resumeNode ->
                     deferredMove.cancel()
+                    player.cancelMove(InternalMarker)
                     deferredUndoMove = null
                     passCount = 0
                     var node: GoSGFNode? = resumeNode

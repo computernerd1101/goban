@@ -46,10 +46,18 @@ class GobanDesktopResources: ListResourceBundle() {
             arrayOf("SizeHeader.HEIGHT", "Height: "),
             arrayOf("AllowSuicide", "Allow Suicide?"),
 
-            arrayOf("OpponentRequest.AddOneMinute.1", "Your opponent wishes for one minute of extended time."),
-            arrayOf("OpponentRequest.AddOneMinute.2", "Your opponent wishes for one minute of extended time,"),
-            arrayOf("OpponentRequest.AddOneMinute.Allow", "Allow Extended Time"),
-            arrayOf("OpponentRequest.AddOneMinute.Deny", "Deny Extended Time"),
+            arrayOf("TimeRemaining.You", "Your time remaining"),
+            arrayOf("TimeRemaining.Opponent", "Opponent's time remaining"),
+            arrayOf("TimeRemaining.Black", "Black time remaining"),
+            arrayOf("TimeRemaining.White", "White time remaining"),
+            arrayOf("TimeRemaining.None", "None"),
+            arrayOf("TimeRemaining.AddOneMinute.Request", "Request +1 minute"),
+            arrayOf("TimeRemaining.AddOneMinute.Opponent", "+1 minute for opponent"),
+            arrayOf("TimeRemaining.AddOneMinute.Black", "+1 minute for black"),
+            arrayOf("TimeRemaining.AddOneMinute.White", "+1 minute for white"),
+            arrayOf("OvertimeRemaining", "Overtime"),
+            arrayOf("OvertimeRemaining.Prefix", "Overtime ("),
+            arrayOf("OvertimeRemaining.Suffix", ")"),
 
             arrayOf("UndoMove", "Undo move"),
             arrayOf("UndoMove.Request", "Your opponent wishes to undo their previous move."),
@@ -57,10 +65,14 @@ class GobanDesktopResources: ListResourceBundle() {
             arrayOf("UndoMove.Deny", "Deny Undo"),
             //arrayOf("OpponentRequest.UndoMove.2", "and also to undo their previous move."),
 
+            arrayOf("Resign", "Resign"),
+            arrayOf("Resign.Confirm", "Press again to confirm"),
+
             arrayOf("Request.AddOneMinute", "Add one minute"),
             arrayOf("Request.Waiting", "Waiting..."),
             arrayOf("Request.Allowed", "Allowed"),
             arrayOf("Request.Denied", "Denied"),
+            arrayOf("Request.Received", "Requested"),
 
             arrayOf("Up", "Up"),
             arrayOf("Down", "Down"),
@@ -177,8 +189,10 @@ class GobanDesktopResources: ListResourceBundle() {
             arrayOf("ToolBar.VW.Inherit", "Inherit visible part of board"),
 
             arrayOf("Markup.Label.Prompt", "Label:"),
+            arrayOf("Score.Black", "Black score"),
             arrayOf("Score.Black.Prefix", "Black score: "),
             arrayOf("Score.Black.Suffix", ""),
+            arrayOf("Score.White", "White score"),
             arrayOf("Score.White.Prefix", "White score: "),
             arrayOf("Score.White.Suffix", ""),
             arrayOf("Score.Submit", "Submit score")

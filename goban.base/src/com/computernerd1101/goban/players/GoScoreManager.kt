@@ -4,7 +4,6 @@ import com.computernerd1101.goban.*
 import com.computernerd1101.goban.internal.*
 import com.computernerd1101.goban.sgf.*
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.*
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.selects.select
@@ -19,22 +18,18 @@ class GoScoreManager {
     val livingStones: SendChannel<GoPointSet> = SendOnlyChannel(_livingStones)
 
     companion object {
-        private val updateWaitingForSubmit = atomicIntUpdater<GoScoreManager>("submitPlayerFlags")
+        private val updateSubmitPlayerFlags = atomicIntUpdater<GoScoreManager>("submitPlayerFlags")
     }
 
     @Volatile private var submitPlayerFlags: Int = 0
     private val submitted = ContinuationProxy<GoColor?>()
-    private fun suspendSubmit(continuation: Continuation<GoColor?>, marker: InternalMarker) {
-        marker.ignore()
-        submitted.continuation = continuation
-    }
     private fun unSubmitScore(marker: InternalMarker) {
         marker.ignore()
         submitPlayerFlags = 0
     }
     internal fun submitPlayerScore(color: GoColor, marker: InternalMarker) {
         marker.ignore()
-        val flags = updateWaitingForSubmit.accumulateAndGet(this,
+        val flags = updateSubmitPlayerFlags.accumulateAndGet(this,
             if (color == GoColor.BLACK) 1 else 2, IntBinOp.OR)
         if ((flags and 3) == 3) {
             val continuation = submitted.continuation

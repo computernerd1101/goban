@@ -5,6 +5,9 @@ import com.computernerd1101.goban.internal.*
 import com.computernerd1101.goban.sgf.GameResult
 import com.computernerd1101.goban.sgf.GoSGFNode
 import com.computernerd1101.goban.time.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlin.coroutines.*
 
 abstract class GoPlayer(val color: GoColor) {
@@ -23,21 +26,28 @@ abstract class GoPlayer(val color: GoColor) {
 
     abstract suspend fun generateHandicapStones(handicap: Int, goban: Goban)
 
-    internal suspend fun safeGenerateMove(marker: InternalMarker): GoPoint? {
+    internal fun generateMoveAsync(scope: CoroutineScope, marker: InternalMarker): Deferred<GoPoint?> {
         marker.ignore()
-        val opponent = getOpponent()
-        val timeLimit = getTimeLimit(coroutineContext, null)
-        timeLimit?.isTicking = true
-        return try {
+        val timeLimit: TimeLimit? = getTimeLimit(scope.coroutineContext, null)
+        return scope.async {
+            timeLimit?.isTicking = true
+            val opponent = getOpponent()
             var move: GoPoint?
-            while(true) {
-                move = generateMove()
-                if (move == null || opponent.acceptOpponentMove(move)) break
+            try {
+                while (true) {
+                    move = generateMove()
+                    if (move == null || opponent.acceptOpponentMove(move)) break
+                }
+            } finally {
+                timeLimit?.isTicking = false
             }
             move
-        } finally {
-            timeLimit?.isTicking = false
         }
+    }
+
+    internal fun cancelMove(marker: InternalMarker) {
+        marker.ignore()
+        (timeLimit as? TimeLimit)?.isTicking = false
     }
 
     protected abstract suspend fun generateMove(): GoPoint?
@@ -78,13 +88,13 @@ abstract class GoPlayer(val color: GoColor) {
         return TimeEvent(this, event.timeRemaining, event.overtimeCode, event.flags)
     }
 
-    protected open fun onTimeEvent(e: TimeEvent) = Unit
+    protected open fun onTimeEvent(player: GoPlayer, e: TimeEvent) = Unit
 
-    private fun fireTimeEvent(e: TimeEvent, gameContext: GoGameContext, marker: InternalMarker) {
+    private fun fireTimeEvent(player: GoPlayer, e: TimeEvent, gameContext: GoGameContext, marker: InternalMarker) {
         try {
-            onTimeEvent(e)
+            onTimeEvent(player, e)
         } finally {
-            if (e.isExpired) gameContext.gameOver(GameResult.time(winner = color.opponent), marker)
+            if (e.isExpired) gameContext.gameOver(GameResult.time(winner = player.color.opponent), marker)
         }
     }
 
@@ -98,7 +108,8 @@ abstract class GoPlayer(val color: GoColor) {
                     return null
                 updateTimeLimit.compareAndSet(this, null, limit) -> {
                     limit.addTimeListener { e ->
-                        fireTimeEvent(e, gameContext, InternalMarker)
+                        fireTimeEvent(this, e, gameContext, InternalMarker)
+                        getOpponent(gameContext).fireTimeEvent(this, e, gameContext, InternalMarker)
                     }
                     return limit
                 }
@@ -131,6 +142,15 @@ abstract class GoPlayer(val color: GoColor) {
 
     @Volatile private var overtime: Any? = null
     @Volatile private var timeLimit: Any? = null
+
+    protected suspend fun resign() {
+        val gameContext = coroutineContext[GoGameContext]
+        if (gameContext != null) resign(gameContext)
+    }
+
+    protected fun resign(gameContext: GoGameContext) {
+        gameContext.gameOver(GameResult.resign(winner = color.opponent), InternalMarker)
+    }
 
     open suspend fun startScoring(scoreManager: GoScoreManager) {
         submitScore(coroutineContext.goGameContext, scoreManager)

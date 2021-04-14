@@ -3,6 +3,7 @@ package com.computernerd1101.goban.test.players
 import com.computernerd1101.goban.*
 import com.computernerd1101.goban.desktop.GoGameFrame
 import com.computernerd1101.goban.players.*
+import com.computernerd1101.goban.time.ByoYomi
 import kotlinx.coroutines.*
 import kotlinx.coroutines.swing.Swing
 import java.awt.*
@@ -11,8 +12,10 @@ import java.awt.event.WindowEvent
 
 fun main() {
     val setup = GoGameSetup(5)
-    setup.gameInfo.handicap = 3
-    setup.isFreeHandicap = true
+//     setup.gameInfo.handicap = 3
+//     setup.isFreeHandicap = true
+    setup.gameInfo.timeLimit = 30000L
+    setup.gameInfo.overtime = ByoYomi(periods = 3, millis = 20000L)
     val game = GoGameContext(setup, GoGameFrame)
     val blackPlayer = game.blackPlayer as GoGameFrame.Player
     assert(!blackPlayer.isFrameInitialized)
