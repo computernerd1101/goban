@@ -290,6 +290,7 @@ class GoGameFrame private constructor(
     private val goPointGroup = MutableGoPointSet()
     private val prototypeGoban = Goban(sgf.width, sgf.height)
     private var scoreGoban: MutableGoban = gameContext.node.territory
+    private val allPoints = GoRectangle(0, 0, sgf.width - 1, sgf.height - 1)
 
     @Volatile private var gameAction: GameAction? = null
     private var handicap = 0
@@ -311,10 +312,10 @@ class GoGameFrame private constructor(
         if (!updateGameAction.compareAndSet(this, null, GameAction.HANDICAP))
             throw IllegalStateException("Cannot generate handicap stones while another operation is pending.")
         superkoRestrictions.clear()
-        this@GoGameFrame.handicap = handicap
+        this.handicap = handicap
         gobanView.goban = goban
+        actionButton.text = gobanDesktopResources().getString("Handicap.Finalize")
         updateHandicapText(handicap, blackCount)
-        actionButton.isEnabled = blackCount == handicap
         suspendCoroutine<GoPoint?> { continuation = it }
         cardLayout.show(cardPanel, "Moves")
     }
@@ -696,6 +697,34 @@ class GoGameFrame private constructor(
     private val cardLayout = CardLayout()
     private val cardPanel = JPanel(cardLayout)
 
+    private val handicapPanel = JPanel(BorderLayout())
+    private val labelHandicapTarget = JLabel(resources.getString("Handicap.Target"))
+    private val displayHandicapTarget = JLabel()
+    private val labelHandicapCurrent = JLabel(resources.getString("Handicap.Current"))
+    private val displayHandicapCurrent = JLabel()
+    private val buttonHandicapInvert = JButton(resources.getString("Handicap.Invert"))
+    private val displayHandicapInvert = JLabel()
+    private val displayHandicapInvertNote = JTextPane()
+
+    init {
+        labelHandicapTarget.horizontalAlignment = SwingConstants.RIGHT
+        val panel = JPanel(GridLayout(3, 2, 10, 10))
+        panel.add(labelHandicapTarget)
+        panel.add(displayHandicapTarget)
+        labelHandicapCurrent.horizontalAlignment = SwingConstants.RIGHT
+        panel.add(labelHandicapCurrent)
+        panel.add(displayHandicapCurrent)
+        buttonHandicapInvert.addActionListener { invertHandicap() }
+        panel.add(buttonHandicapInvert)
+        panel.add(displayHandicapInvert)
+        handicapPanel.add(panel, BorderLayout.NORTH)
+        displayHandicapInvertNote.text = resources.getString("Handicap.Invert.Note")
+        displayHandicapInvertNote.isEditable = false
+        displayHandicapInvertNote.isOpaque = false
+        handicapPanel.add(displayHandicapInvertNote, BorderLayout.CENTER)
+        cardPanel.add(handicapPanel, "Handicap")
+    }
+
     private val gamePanel = JPanel(GridLayout(10, 2, 10, 0))
     private val labelBlackTime = JLabel()
     private val displayBlackTime = JLabel()
@@ -722,7 +751,6 @@ class GoGameFrame private constructor(
         gobanDesktopFormatResources().getObject("TimeLimitFormatter") as TimeLimitFormatter
 
     init {
-        cardPanel.add(JPanel(), "Handicap")
         val none = resources.getString("TimeRemaining.None")
         labelBlackTime.background = Color.RED // no effect unto isOpaque is set to true
         labelBlackTime.horizontalAlignment = SwingConstants.RIGHT
@@ -1036,7 +1064,6 @@ class GoGameFrame private constructor(
                     actionButton.text = GoPoint.format(null, sgf.width, sgf.height)
                 gameAction = null
                 gobanView.repaint()
-                actionButton.text = GoPoint.format(null, sgf.width, sgf.height)
                 val continuation = this.continuation
                 this.continuation = null
                 continuation?.resume(null)
@@ -1054,9 +1081,33 @@ class GoGameFrame private constructor(
     private var goCursor: GoPoint? = null
 
     private fun updateHandicapText(targetHandicap: Int, currentHandicap: Int) {
-        val formatter = gobanDesktopFormatResources().getObject("GobanHandicapProgressFormatter")
-                as GobanHandicapProgressFormatter
-        actionButton.text = formatter.format(targetHandicap, currentHandicap)
+        displayHandicapTarget.text = targetHandicap.toString()
+        displayHandicapCurrent.text = currentHandicap.toString()
+        val inverted = sgf.width * sgf.height - currentHandicap
+        displayHandicapInvert.text = inverted.toString()
+        if (currentHandicap == 0 || inverted > targetHandicap) {
+            buttonHandicapInvert.isEnabled = false
+            displayHandicapInvert.foreground = Color.RED
+        } else {
+            buttonHandicapInvert.isEnabled = true
+            displayHandicapInvert.foreground = Color.BLACK
+        }
+        actionButton.isEnabled = currentHandicap == targetHandicap
+    }
+
+    private fun invertHandicap() {
+        val goban = gobanView.goban as? Goban ?: return
+        val target = handicap
+        val current = goban.blackCount
+        if (current == 0) return
+        val inverted = goban.width * goban.height - current
+        if (inverted > target) return
+        val blackStoneSet = goban.toMutablePointSet(GoColor.BLACK)
+        blackStoneSet.invertAll(allPoints)
+        goban.clear()
+        goban.setAll(blackStoneSet, GoColor.BLACK)
+        updateHandicapText(target, inverted)
+        gobanView.repaint()
     }
 
     private fun goPointClicked(e: MouseEvent?) {
@@ -1075,7 +1126,6 @@ class GoGameFrame private constructor(
                 val targetHandicap = handicap
                 val currentHandicap = goban.blackCount
                 updateHandicapText(targetHandicap, currentHandicap)
-                actionButton.isEnabled = currentHandicap == targetHandicap
             }
             GameAction.COUNT_SCORE -> {
                 val scoreManager = this.scoreManager ?: return

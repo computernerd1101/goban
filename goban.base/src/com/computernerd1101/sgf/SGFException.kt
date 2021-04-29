@@ -3,7 +3,6 @@ package com.computernerd1101.sgf
 import com.computernerd1101.goban.internal.*
 import java.io.*
 
-@Suppress("unused")
 open class SGFException(
     @JvmField var row: Int,
     @JvmField var column: Int,
@@ -91,7 +90,6 @@ open class SGFException(
 
 }
 
-@Suppress("unused")
 open class SGFWarning(
     @JvmField var row: Int,
     @JvmField var column: Int,
@@ -171,7 +169,6 @@ open class SGFWarningList: Serializable {
         addWarning(warning)
     }
 
-    @Suppress("unused")
     val warnings: Array<out SGFWarning>
         get() = warningList?.toArray(EMPTY_ARRAY) ?: EMPTY_ARRAY
 

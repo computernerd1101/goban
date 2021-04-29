@@ -25,9 +25,8 @@ internal object InternalGoSGF {
     fun violatesSituationalSuperko(turnPlayer: GoColor, repeatedPosition: GoSGFMoveNode, natural: Boolean): Boolean =
         turnPlayer == repeatedPosition.turnPlayer && (!natural || repeatedPosition.playStoneAt != null)
 
-    fun parseSGFValue(value: SGFValue, charset: Charset?, warnings: SGFWarningList?): String {
-        return parseSGFBytesList(value.row, value.column, value.parts, charset, warnings)
-    }
+    fun parseSGFValue(value: SGFValue, charset: Charset?, warnings: SGFWarningList?): String =
+        parseSGFBytesList(value.row, value.column, value.parts, charset, warnings)
 
     fun parseSGFBytesList(
         row: Int, column: Int, list: List<SGFBytes>,

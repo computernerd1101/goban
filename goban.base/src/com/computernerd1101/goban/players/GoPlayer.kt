@@ -71,11 +71,11 @@ abstract class GoPlayer(val color: GoColor) {
         val context = coroutineContext
         val gameContext = context[GoGameContext] ?: return 0L
         val opponent = getOpponent(gameContext)
-        var realExtension = opponent.filterTimeExtension(extension)
-        if (realExtension <= 0L) return 0L
-        if (realExtension > extension) realExtension = extension
-        opponent.getTimeLimit(context, gameContext)?.extendTime(realExtension)
-        return realExtension
+        var millis = opponent.filterTimeExtension(extension)
+        if (millis <= 0L) return 0L
+        if (millis > extension) millis = extension
+        opponent.getTimeLimit(context, gameContext)?.extendTime(millis)
+        return millis
     }
 
     open fun filterTimeExtension(extension: Long): Long = extension

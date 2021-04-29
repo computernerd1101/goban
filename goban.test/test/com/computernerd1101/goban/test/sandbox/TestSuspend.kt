@@ -4,25 +4,23 @@ import kotlin.coroutines.*
 import kotlin.coroutines.intrinsics.*
 
 fun main() {
-    val suspendFun: suspend Boolean.() -> String = Boolean::suspendIfTrue
-    suspendFun.startCoroutine(false, MyCompletion)
+    suspendIfTrue.startCoroutine(false, MyCompletion)
     println(suspendIfTrueContinuation)
-    suspendFun.startCoroutine(true, MyCompletion)
+    suspendIfTrue.startCoroutine(true, MyCompletion)
     println(suspendIfTrueContinuation)
     suspendIfTrueContinuation?.resume("COROUTINE_RESUMED")
     println(suspendIfTrueContinuation)
-    println("Immediate result: " + suspendFun.startCoroutineUninterceptedOrReturn(false, MyCompletion))
+    println("Immediate result: " + suspendIfTrue.startCoroutineUninterceptedOrReturn(false, MyCompletion))
     println(suspendIfTrueContinuation)
-    println("Immediate result: " + suspendFun.startCoroutineUninterceptedOrReturn(true, MyCompletion))
+    println("Immediate result: " + suspendIfTrue.startCoroutineUninterceptedOrReturn(true, MyCompletion))
     println(suspendIfTrueContinuation)
     suspendIfTrueContinuation?.resume("COROUTINE_RESUMED")
     println(suspendIfTrueContinuation)
 }
 
-suspend fun foobar(foo: Int, bar: Int): Int = foo + bar
-
-fun foobarUnintercepted(foo: Int, bar: Int, continuation: Continuation<Int>): Any? {
-    return suspend { foobar(foo, bar) }.startCoroutineUninterceptedOrReturn(continuation)
+suspend fun suspendFoobar(foo: Int, bar: Int): Int {
+    println(true.suspendIfTrue())
+    return foo + bar
 }
 
 object MyCompletion: Continuation<String> {
@@ -34,19 +32,36 @@ object MyCompletion: Continuation<String> {
     }
 }
 
-suspend fun Boolean.suspendIfTrue(): String {
-    val message: String
+val suspendIfTrue: suspend Boolean.() -> String = {
     try {
         if (this) {
-            message = suspendCoroutine { cont ->
+            val message: String = suspendCoroutine { cont ->
                 suspendIfTrueContinuation = cont
             }
             suspendIfTrueContinuation = null
-        } else message = "Not suspended"
+            message
+        } else "Not suspended"
     } finally {
         println("Suspendable finally block")
     }
-    return message
 }
 
 private var suspendIfTrueContinuation: Continuation<String>? = null
+
+fun resumeSuspendIfTrue(value: String) {
+    suspendIfTrueContinuation?.resume(value)
+}
+
+suspend fun suspendNoInline() {
+    true.suspendIfTrue()
+    suspendInline()
+}
+
+suspend inline fun suspendInline() {
+    val ok: Boolean = suspendFoobar(1, 2) == 3
+    ok.suspendIfTrue()
+}
+
+suspend inline fun suspendCrossInline(crossinline block: suspend () -> Unit) {
+    block()
+}

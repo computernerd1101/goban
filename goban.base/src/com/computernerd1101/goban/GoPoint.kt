@@ -1,6 +1,5 @@
 @file:JvmMultifileClass
 @file:JvmName("GobanKt")
-@file:Suppress("unused")
 
 package com.computernerd1101.goban
 
@@ -19,8 +18,9 @@ fun String.toGoPoint(): GoPoint = GoPoint.parse(this) ?: throw IllegalArgumentEx
 fun String.toGoPointOrNull(): GoPoint? = GoPoint.parse(this)
 fun Int.toGoPointChar(): Char = GoPoint.toChar(this)
 fun Char.toGoPointInt(): Int = GoPoint.parseChar(this)
-fun GoPoint?.formatOrPass(x: Int, y: Int, locale: Locale): String = GoPoint.format(this, x, y, locale)
-fun GoPoint?.formatOrPass(x: Int, y: Int): String = GoPoint.format(this, x, y)
+fun GoPoint?.formatOrPass(width: Int, height: Int, locale: Locale): String =
+    GoPoint.format(this, width, height, locale)
+fun GoPoint?.formatOrPass(height: Int, width: Int): String = GoPoint.format(this, width, height)
 fun String.gtpParse(width: Int, height: Int): GoPoint = GoPoint.gtpParse(this, width, height)
 fun String.gtpParesOrNull(width: Int, height: Int): GoPoint? = GoPoint.gtpParseOrNull(this, width, height)
 fun Int.gtpFormatX(): Char = GoPoint.gtpFormatX(this)
@@ -83,7 +83,7 @@ class GoPoint private constructor(
 
     private object Cache {
 
-        @JvmField val points = unsafeArrayOfNulls<GoPoint>(52*52)
+        @JvmField val points = arrayOfLateInit<GoPoint>(52*52)
 
     }
 

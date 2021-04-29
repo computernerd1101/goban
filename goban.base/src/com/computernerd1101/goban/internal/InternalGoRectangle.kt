@@ -4,7 +4,7 @@ import com.computernerd1101.goban.*
 
 internal object InternalGoRectangle {
 
-    fun rowBits(rect: GoRectangle): Long = (1L shl (rect.end.x + 1)) - (1L shl rect.start.x)
+    fun rowBits(rect: GoRectangle): Long = (2L shl rect.end.x) - (1L shl rect.start.x)
 
     // Saves time and memory compared to conventional string concatenation.
     fun toString(start: GoPoint, end: GoPoint): String {

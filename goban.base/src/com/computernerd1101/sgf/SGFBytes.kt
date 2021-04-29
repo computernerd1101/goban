@@ -1,5 +1,3 @@
-@file:Suppress("unused")
-
 package com.computernerd1101.sgf
 
 import com.computernerd1101.sgf.internal.*
@@ -124,6 +122,7 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
         return a
     }
 
+    @JvmOverloads
     fun toByteArray(from: Int, to: Int, a: ByteArray? = null): ByteArray {
         val bytes = this.bytes
         val size = this.size

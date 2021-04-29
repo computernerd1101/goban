@@ -8,7 +8,7 @@ internal object InternalGoPointSet {
     /** Updates [GoPointSet.sizeAndHash] */
     lateinit var sizeAndHash: AtomicLongFieldUpdater<GoPointSet>
 
-    @JvmField val rowUpdaters = unsafeArrayOfNulls<AtomicLongFieldUpdater<GoPointSet>>(52)
+    @JvmField val rowUpdaters = arrayOfLateInit<AtomicLongFieldUpdater<GoPointSet>>(52)
 
     fun checkType(klass: Class<out GoPointSet>) {
         if (klass != GoPointSet::class.java && klass != MutableGoPointSet::class.java)

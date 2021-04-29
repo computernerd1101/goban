@@ -3,7 +3,9 @@ package com.computernerd1101.goban.players
 import com.computernerd1101.goban.*
 import com.computernerd1101.goban.internal.*
 import com.computernerd1101.goban.sgf.*
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.*
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.selects.select
@@ -30,7 +32,7 @@ class GoScoreManager {
     internal fun submitPlayerScore(color: GoColor, marker: InternalMarker) {
         marker.ignore()
         val flags = updateSubmitPlayerFlags.accumulateAndGet(this,
-            if (color == GoColor.BLACK) 1 else 2, IntBinOp.OR)
+            if (color == GoColor.BLACK) 1 else 2, BinOp.OR)
         if ((flags and 3) == 3) {
             val continuation = submitted.continuation
             submitted.continuation = null
@@ -46,7 +48,8 @@ class GoScoreManager {
 
     suspend fun computeScore(): GoColor? {
         submitPlayerFlags = 0
-        val deferredSubmit: Deferred<GoColor?> = coroutineScope(submitted::suspendAsync)
+        val scope = CoroutineScope(coroutineContext)
+        val deferredSubmit: Deferred<GoColor?> = submitted.suspendAsync(scope)
         val gameContext = coroutineContext.goGameContext
         val blackPlayer = gameContext.blackPlayer
         val whitePlayer = gameContext.whitePlayer

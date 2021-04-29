@@ -216,7 +216,6 @@ sealed class AbstractGoban(
 
 }
 
-@Suppress("unused")
 @OptIn(ExperimentalContracts::class)
 fun AbstractGoban?.isNullOrEmpty(): Boolean {
     contract {
@@ -225,7 +224,6 @@ fun AbstractGoban?.isNullOrEmpty(): Boolean {
     return this?.isEmpty() != false
 }
 
-@Suppress("unused")
 infix fun AbstractGoban?.contentEquals(other: AbstractGoban?) = AbstractGoban.contentEquals(this, other)
 
 fun FixedGoban(width: Int, height: Int) = FixedGoban.empty(width, height)
@@ -293,7 +291,7 @@ class FixedGoban: AbstractGoban {
 
     private object Cache {
 
-        @JvmField val empty = unsafeArrayOfNulls<FixedGoban>(52*52)
+        @JvmField val empty = arrayOfLateInit<FixedGoban>(52*52)
 
     }
 
@@ -456,7 +454,7 @@ sealed class AbstractMutableGoban: AbstractGoban {
         for (i in 0 until rows.size) {
             val updater = GobanRows.updaters[i]
             val row: Long = if (color == null) updater.getAndSet(rows, 0L)
-            else updater.getAndAccumulate(rows, mask.inv(), LongBinOp.AND)
+            else updater.getAndAccumulate(rows, mask.inv(), BinOp.AND)
             count -= InternalGoban.countStonesInRow(row) and mask
         }
         InternalGoban.count.addAndGet(this, count)
@@ -493,10 +491,8 @@ class MutableGoban: AbstractMutableGoban {
 
     constructor(width: Int, height: Int): super(width, height)
 
-    @Suppress("unused")
     constructor(size: Int): super(size)
 
-    @Suppress("unused")
     constructor()
 
     constructor(other: AbstractGoban): super(other)
@@ -603,7 +599,6 @@ class Goban: AbstractMutableGoban {
 
     fun getScoreGoban(territory: Boolean) = getScoreGoban(territory, null)
 
-    @Suppress("unused")
     fun getScoreGoban(score: MutableGoban?) = getScoreGoban(false, score)
 
     fun getScoreGoban(territory: Boolean = false, score: MutableGoban? = null): MutableGoban {

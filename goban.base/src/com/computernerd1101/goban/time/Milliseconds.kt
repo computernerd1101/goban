@@ -2,7 +2,7 @@
 
 package com.computernerd1101.goban.time
 
-import com.computernerd1101.goban.internal.unsafeArrayOfNulls
+import com.computernerd1101.goban.internal.arrayOfLateInit
 import java.io.*
 
 class Milliseconds private constructor(
@@ -28,8 +28,8 @@ class Milliseconds private constructor(
 
         @JvmField val REGEX = """([+\-]?\d*)(\.\d{0,3})?""".toRegex()
 
-        @JvmField val MINUS_ZERO = unsafeArrayOfNulls<Milliseconds>(4)
-        @JvmField val  PLUS_ZERO = unsafeArrayOfNulls<Milliseconds>(4)
+        @JvmField val MINUS_ZERO = arrayOfLateInit<Milliseconds>(4)
+        @JvmField val  PLUS_ZERO = arrayOfLateInit<Milliseconds>(4)
 
         fun ignore() = Unit
 

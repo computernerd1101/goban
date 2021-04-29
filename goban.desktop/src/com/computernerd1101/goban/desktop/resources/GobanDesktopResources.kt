@@ -46,6 +46,17 @@ class GobanDesktopResources: ListResourceBundle() {
             arrayOf("SizeHeader.HEIGHT", "Height: "),
             arrayOf("AllowSuicide", "Allow Suicide?"),
 
+            arrayOf("Handicap.Target", "Target handicap"),
+            arrayOf("Handicap.Current", "Handicap stones"),
+            arrayOf("Handicap.Invert", "Invert stones"),
+            arrayOf("Handicap.Invert.Note", "Note: Inverting the handicap only works if your opponent is " +
+                    "super generous enough to give you at least as many handicap stones as half the " +
+                    "board's capacity. It is highly unlikely that anybody would be that suicidal, " +
+                    "but this feature is included just in case. But if the handicap is EXACTLY one less " +
+                    "than the capacity, DO NOT ACCEPT. All your stones will be captured on the first move. " +
+                    "You still need at least two eyes."),
+            arrayOf("Handicap.Finalize", "Finalize handicap"),
+
             arrayOf("TimeRemaining.You", "Your time remaining"),
             arrayOf("TimeRemaining.Opponent", "Opponent's time remaining"),
             arrayOf("TimeRemaining.Black", "Black time remaining"),

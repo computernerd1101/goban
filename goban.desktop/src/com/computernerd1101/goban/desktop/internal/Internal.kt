@@ -10,23 +10,12 @@ internal object InternalMarker {
 
 }
 
-inline fun <reified K: Enum<K>, V> enumMap() = EnumMap<K, V>(K::class.java)
+internal inline fun <reified K: Enum<K>, V> enumMap() = EnumMap<K, V>(K::class.java)
 
-inline fun localeToString(crossinline block: Any.(ResourceBundle) -> String): Any = object {
+internal inline fun localeToString(crossinline block: Any.(ResourceBundle) -> String): Any = object {
 
     override fun toString(): String {
         return block(gobanDesktopResources())
-    }
-
-}
-
-enum class IntBinOp: IntBinaryOperator {
-
-    AND {
-        override fun applyAsInt(a: Int, b: Int) = a and b
-    },
-    OR {
-        override fun applyAsInt(a: Int, b: Int) = a or b
     }
 
 }

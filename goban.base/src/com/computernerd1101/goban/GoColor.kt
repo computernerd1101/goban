@@ -8,7 +8,6 @@ import java.util.*
 
 fun Boolean.goBlackOrWhite() = if (this) GoColor.BLACK else GoColor.WHITE
 
-@Suppress("unused")
 enum class GoColor {
 
     BLACK, WHITE;

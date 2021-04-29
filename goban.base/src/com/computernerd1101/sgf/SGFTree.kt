@@ -51,13 +51,11 @@ class SGFTree: SGFTreeElement, Serializable {
         }
     }
 
-    @Suppress("unused")
     constructor(nodes: Collection<SGFNode>) {
         nodeList = Nodes(nodes)
         subTreeList = SubTrees()
     }
 
-    @Suppress("unused")
     constructor(nodes: Collection<SGFNode>, subTrees: Collection<SGFTree>) {
         nodeList = Nodes(nodes)
         subTreeList = SubTrees(subTrees)
@@ -65,7 +63,6 @@ class SGFTree: SGFTreeElement, Serializable {
 
     @Throws(SGFException::class)
     @JvmOverloads
-    @Suppress("unused")
     constructor(toParse: String, warnings: SGFWarningList = SGFWarningList()):
             this(SGFReader.StringReader(toParse, warnings).startReading())
 
@@ -218,12 +215,10 @@ class SGFNode: SGFTreeElement, Serializable {
         map = PropertyMap()
     }
 
-    @Suppress("unused")
     constructor(expectedMaxSize: Int) {
         map = PropertyMap(expectedMaxSize)
     }
 
-    @Suppress("unused")
     constructor(map: Map<String, SGFProperty>) {
         this.map = PropertyMap(map, SGFCopyLevel.NODE)
     }

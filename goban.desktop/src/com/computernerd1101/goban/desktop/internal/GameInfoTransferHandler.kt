@@ -191,7 +191,7 @@ class GameInfoTransferHandler(
             StringBuffer::class.java
         )
 
-        fun getFlavors(charset: Charset?) = Array(flavors.size) { index ->
+        fun getFlavors(charset: Charset?): Array<DataFlavor> = Array(flavors.size) { index ->
             when(val flavor = flavors[index]) {
                 is DataFlavor -> flavor
                 else -> DataFlavor(
@@ -282,7 +282,7 @@ class GameInfoTransferHandler(
                     val bytes = output.toByteArray()
                     when(repClass) {
                         ByteArray::class.java -> bytes
-                        ByteBuffer::class.java -> ByteBuffer.wrap(bytes)
+                        ByteBuffer::class.java -> ByteBuffer.wrap(bytes).asReadOnlyBuffer()
                         else -> bytes.inputStream()
                     }
                 }

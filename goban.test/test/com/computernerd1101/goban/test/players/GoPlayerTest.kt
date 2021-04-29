@@ -12,8 +12,9 @@ import java.awt.event.WindowEvent
 
 fun main() {
     val setup = GoGameSetup(5)
-//     setup.gameInfo.handicap = 3
-//     setup.isFreeHandicap = true
+    setup.gameInfo.rules = GoRules.JAPANESE
+    setup.gameInfo.handicap = 24
+    setup.isFreeHandicap = true
     setup.gameInfo.timeLimit = 30000L
     setup.gameInfo.overtime = ByoYomi(periods = 3, millis = 20000L)
     val game = GoGameContext(setup, GoGameFrame)

@@ -10,12 +10,10 @@ import java.lang.ref.*
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
-@Suppress("unused")
 fun lineMarkup(x1: Int, y1: Int, x2: Int, y2: Int) = LineMarkup.lineMarkup(x1, y1, x2, y2)
 
 infix fun GoPoint.lineMarkup(other: GoPoint) = LineMarkup.lineMarkup(this, other)
 
-@Suppress("unused")
 fun arrowMarkup(x1: Int, y1: Int, x2: Int, y2: Int) = LineMarkup.arrowMarkup(x1, y1, x2, y2)
 
 infix fun GoPoint.arrowMarkup(other: GoPoint) = LineMarkup.arrowMarkup(this, other)

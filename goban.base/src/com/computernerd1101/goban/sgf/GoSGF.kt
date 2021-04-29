@@ -1566,10 +1566,10 @@ class GoSGFMoveNode internal constructor(
             val op: IntBinaryOperator
             if (forced) {
                 flag = Flags.FORCED
-                op = IntBinOp.OR
+                op = BinOp.OR
             } else {
                 flag = Flags.FORCED xor -1
-                op = IntBinOp.AND
+                op = BinOp.AND
             }
             updateFlags.getAndAccumulate(this, flag, op)
         }
@@ -1748,14 +1748,14 @@ class GoSGFMoveNode internal constructor(
                 _time = time
                 updateFlags.getAndAccumulate(node,
                     if (color == GoColor.BLACK) Flags.BLACK_TIME
-                    else Flags.WHITE_TIME, IntBinOp.OR)
+                    else Flags.WHITE_TIME, BinOp.OR)
             }
 
         fun omitTime() {
             _time = 0L
             updateFlags.getAndAccumulate(node,
                 if (color == GoColor.BLACK) Flags.BLACK_TIME xor -1
-                else Flags.WHITE_TIME xor -1, IntBinOp.AND)
+                else Flags.WHITE_TIME xor -1, BinOp.AND)
         }
 
         val hasOvertime: Boolean
@@ -1768,14 +1768,14 @@ class GoSGFMoveNode internal constructor(
                 _overtime = overtime
                 updateFlags.getAndAccumulate(node,
                     if (color == GoColor.BLACK) Flags.BLACK_OVERTIME
-                    else Flags.WHITE_OVERTIME, IntBinOp.OR)
+                    else Flags.WHITE_OVERTIME, BinOp.OR)
             }
 
         fun omitOvertime() {
             _overtime = 0
             updateFlags.getAndAccumulate(node,
                 if (color == GoColor.BLACK) Flags.BLACK_OVERTIME xor -1
-                else Flags.WHITE_OVERTIME xor -1, IntBinOp.AND)
+                else Flags.WHITE_OVERTIME xor -1, BinOp.AND)
         }
 
     }
@@ -1818,14 +1818,13 @@ class GoSGFSetupNode: GoSGFNode {
         val propMap = node.properties
         val addBlack = goban.toMutablePointSet(GoColor.BLACK)
         val addWhite = goban.toMutablePointSet(GoColor.WHITE)
-        var addEmpty: MutableGoPointSet? = null
-        val prev = parent
-        if (prev != null) {
-            val prevGoban = prev.goban
-            addBlack.removeAll(prevGoban.toPointSet(GoColor.BLACK))
-            addWhite.removeAll(prevGoban.toPointSet(GoColor.WHITE))
-            addEmpty = goban.toMutablePointSet(null)
-            addEmpty.removeAll(prevGoban.toPointSet(null))
+        val addEmpty: MutableGoPointSet? = parent?.let {
+            val prev = it.goban
+            addBlack.removeAll(prev.toPointSet(GoColor.BLACK))
+            addWhite.removeAll(prev.toPointSet(GoColor.WHITE))
+            goban.toMutablePointSet(null).apply {
+                removeAll(prev.toPointSet(null))
+            }
         }
         addBlack.toSGFProperty(false)?.let { propMap["AB"] = it }
         addWhite.toSGFProperty(false)?.let { propMap["AW"] = it }

@@ -52,7 +52,7 @@ internal object GobanRows {
         buf[2] = 'w'
         Array(104) { index ->
             val nBuf = when {
-                index >= 100 -> {
+                index >= 100 -> { // index is always < 104
                     buf[3] = '1'
                     buf[4] = '0'
                     // buf[5] = '0' + index - 100

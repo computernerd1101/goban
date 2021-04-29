@@ -5,7 +5,7 @@ package com.computernerd1101.goban.markup
 
 import com.computernerd1101.goban.GoPoint
 import com.computernerd1101.goban.MutableGoPointMap
-import com.computernerd1101.goban.internal.unsafeArrayOfNulls
+import com.computernerd1101.goban.internal.arrayOfLateInit
 import java.io.*
 
 class PointMarkup: Comparable<PointMarkup>, Serializable {
@@ -63,7 +63,7 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
 
     private object Cache {
 
-        @JvmField val VALUES = unsafeArrayOfNulls<PointMarkup>(TYPES)
+        @JvmField val VALUES = arrayOfLateInit<PointMarkup>(TYPES)
 
     }
 

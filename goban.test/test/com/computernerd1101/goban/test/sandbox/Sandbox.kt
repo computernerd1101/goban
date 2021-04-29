@@ -2,16 +2,35 @@
 
 package com.computernerd1101.goban.test.sandbox
 
-import java.awt.event.ActionListener
-import kotlin.coroutines.Continuation
-import kotlin.coroutines.CoroutineContext
-import kotlin.jvm.internal.Reflection
 import kotlin.reflect.*
-import kotlin.reflect.full.isSubtypeOf
 
 fun main() {
-    println(100 - '0'.toInt())
+    MyList<String>(mutableListOf()).toArray(emptyArray<Any?>())
 }
+
+
+@Suppress("unused")
+internal class MyList<E>(private val delegate: MutableList<E>): MutableList<E> by delegate {
+
+    override fun subList(fromIndex: Int, toIndex: Int): MutableList<E> = MyList(delegate.subList(fromIndex, toIndex))
+
+    fun toArray(): Array<Any?> = (delegate as java.util.List<*>).toArray()
+
+    fun <T> toArray(a: Array<T>): Array<T> {
+        println("ReadOnlyList.toArray")
+        return (delegate as java.util.List<*>).toArray(a)
+    }
+
+    @Suppress("SuspiciousEqualsCombination")
+    override fun equals(other: Any?): Boolean = this === other || delegate == other
+
+    override fun hashCode(): Int = delegate.hashCode()
+
+    override fun toString(): String = delegate.toString()
+
+}
+
+typealias MyAlias = MyNumber
 
 class MyNumber: Number() {
 

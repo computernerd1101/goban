@@ -1,12 +1,9 @@
 package com.computernerd1101.goban.internal
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.async
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 import java.util.concurrent.atomic.*
-import kotlin.coroutines.Continuation
-import kotlin.coroutines.suspendCoroutine
+import kotlin.coroutines.*
 
 /*
  * class Cacheable(val index: Int) {
@@ -17,7 +14,7 @@ import kotlin.coroutines.suspendCoroutine
  *         const val SIZE: Int = ...
  *
  *         // impossible to access outside of Cacheable, assuming that JVM access limits are strictly enforced
- *         @JvmField val values = unsafeArrayOfNulls<Cacheable>(SIZE)
+ *         @JvmField val values = arrayOfLateInit<Cacheable>(SIZE)
  *
  *     }
  *
@@ -37,7 +34,7 @@ import kotlin.coroutines.suspendCoroutine
  * }
  */
 @Suppress("UNCHECKED_CAST")
-internal inline fun <reified T: Any> unsafeArrayOfNulls(size: Int) = arrayOfNulls<T>(size) as Array<T>
+internal inline fun <reified T: Any> arrayOfLateInit(size: Int) = arrayOfNulls<T>(size) as Array<T>
 
 /*
  * Internal members translate to the JVM as public. I see this as a security risk.
@@ -67,24 +64,13 @@ internal class ContinuationProxy<T> {
 
     @JvmField var continuation: Continuation<T>? = null
 
-    suspend fun suspendAsync(scope: CoroutineScope): Deferred<T> = scope.async {
+    fun suspendAsync(scope: CoroutineScope): Deferred<T> = scope.async {
         suspendCoroutine { continuation = it }
     }
 
 }
 
 internal class SendOnlyChannel<E>(channel: Channel<E>): SendChannel<E> by channel
-
-internal class ReadOnlyList<E>(private val delegate: List<E>): List<E> by delegate {
-
-    @Suppress("SuspiciousEqualsCombination")
-    override fun equals(other: Any?): Boolean = this === other || delegate == other
-
-    override fun hashCode(): Int = delegate.hashCode()
-
-    override fun toString(): String = delegate.toString()
-
-}
 
 private const val deBruijn64: Long = 0x03f79d71b4ca8b09
 
