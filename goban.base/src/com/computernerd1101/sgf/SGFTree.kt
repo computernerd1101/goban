@@ -75,28 +75,28 @@ class SGFTree: SGFTreeElement, Serializable {
         row = reader.row
         column = reader.column - 1
         var ch = reader.skipSpaces()
-        if (ch != ';'.toInt()) throw reader.newException("';'")
+        if (ch != ';'.code) throw reader.newException("';'")
         val nodes = Nodes(reader.readNode())
         nodeList = nodes
         while (true) {
             ch = reader.lastRead
-            if (ch == '('.toInt()) break
-            if (ch == ')'.toInt()) {
+            if (ch == '('.code) break
+            if (ch == ')'.code) {
                 subTreeList = SubTrees()
                 return
             }
-            if (ch != ';'.toInt()) throw reader.newException("';', '(' or ')'")
+            if (ch != ';'.code) throw reader.newException("';', '(' or ')'")
             nodes.add(reader.readNode())
         }
         // last read character was '('
         val subTrees = SubTrees(SGFTree(reader))
         subTreeList = subTrees
         ch = reader.skipSpaces()
-        while(ch == '('.toInt()) {
+        while(ch == '('.code) {
             subTrees.addPrivileged(SGFTree(reader))
             ch = reader.skipSpaces()
         }
-        if (ch != ')'.toInt()) throw reader.newException("')'")
+        if (ch != ')'.code) throw reader.newException("')'")
     }
 
     override fun toString() = buildString {

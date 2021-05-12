@@ -36,7 +36,7 @@ internal object InternalGoSGF {
         else SGFBytes().apply {
             var colon = false
             for(bytes in list) {
-                if (colon) append(':'.toByte())
+                if (colon) append(':'.code.toByte())
                 append(bytes)
                 colon = true
             }
@@ -52,7 +52,7 @@ internal object InternalGoSGF {
 
     fun parsePoint(bytes: SGFBytes?, ignoreCase: Boolean): GoPoint? {
         if (bytes?.size != 2) return null
-        var ch = bytes[0].toChar()
+        var ch = bytes[0].toInt().toChar()
         var offset = when {
             ch in 'a'..'z' -> 'a'
             ch !in 'A'..'Z' -> return null
@@ -60,7 +60,7 @@ internal object InternalGoSGF {
             else -> 'A' - 26
         }
         val x = ch - offset
-        ch = bytes[1].toChar()
+        ch = bytes[1].toInt().toChar()
         offset = when {
             ch in 'a'..'z' -> 'a'
             ch !in 'A'..'Z' -> return null

@@ -5,9 +5,7 @@ import com.computernerd1101.goban.internal.*
 import com.computernerd1101.goban.sgf.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.*
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.selects.select
 import kotlin.coroutines.*
 
@@ -53,8 +51,8 @@ class GoScoreManager {
         val gameContext = coroutineContext.goGameContext
         val blackPlayer = gameContext.blackPlayer
         val whitePlayer = gameContext.whitePlayer
-        blackPlayer.startScoring(this)
-        whitePlayer.startScoring(this)
+        blackPlayer.startScoring(gameContext, this)
+        whitePlayer.startScoring(gameContext, this)
         val node = gameContext.node
         val goban: FixedGoban = node.goban
         val finalGoban: Goban = goban.playable()
@@ -77,8 +75,8 @@ class GoScoreManager {
                         sendStones.addAll(group)
                     }
                     val stones = sendStones.readOnly()
-                    blackPlayer.updateScoring(this@GoScoreManager, stones, false)
-                    whitePlayer.updateScoring(this@GoScoreManager, stones, false)
+                    blackPlayer.updateScoring(gameContext, this@GoScoreManager, stones, false)
+                    whitePlayer.updateScoring(gameContext, this@GoScoreManager, stones, false)
                 }
                 _livingStones.onReceive {
                     unSubmitScore(InternalMarker)
@@ -92,8 +90,8 @@ class GoScoreManager {
                         sendStones.addAll(group)
                     }
                     val stones = sendStones.readOnly()
-                    blackPlayer.updateScoring(this@GoScoreManager, stones, true)
-                    whitePlayer.updateScoring(this@GoScoreManager, stones, true)
+                    blackPlayer.updateScoring(gameContext, this@GoScoreManager, stones, true)
+                    whitePlayer.updateScoring(gameContext, this@GoScoreManager, stones, true)
                 }
                 deferredSubmit.onAwait {
                     waiting = false
@@ -111,8 +109,8 @@ class GoScoreManager {
         }
         gameInfo.result = if (score == 0.0f) GameResult.DRAW
         else GameResult(GoColor.WHITE, score) // negative score means Black wins
-        blackPlayer.finishScoring()
-        whitePlayer.finishScoring()
+        blackPlayer.finishScoring(gameContext)
+        whitePlayer.finishScoring(gameContext)
         return null
     }
 

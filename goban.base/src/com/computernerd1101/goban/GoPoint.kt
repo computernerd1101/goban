@@ -22,7 +22,7 @@ fun GoPoint?.formatOrPass(width: Int, height: Int, locale: Locale): String =
     GoPoint.format(this, width, height, locale)
 fun GoPoint?.formatOrPass(height: Int, width: Int): String = GoPoint.format(this, width, height)
 fun String.gtpParse(width: Int, height: Int): GoPoint = GoPoint.gtpParse(this, width, height)
-fun String.gtpParesOrNull(width: Int, height: Int): GoPoint? = GoPoint.gtpParseOrNull(this, width, height)
+fun String.gtpParseOrNull(width: Int, height: Int): GoPoint? = GoPoint.gtpParseOrNull(this, width, height)
 fun Int.gtpFormatX(): Char = GoPoint.gtpFormatX(this)
 fun Char.gtpParseXOrThrow(width: Int): Int = GoPoint.gtpParseXOrThrow(this, width)
 fun Char.gtpParseX(width: Int): Int = GoPoint.gtpParseX(this, width)
@@ -194,7 +194,7 @@ class GoPoint private constructor(
                 in 33..49 -> 'a' - 24
                 50 -> return 'I'
                 51 -> return 'i'
-                else -> return '\u0000'
+                else -> return Char.MIN_VALUE
             }
             return base + x
         }
@@ -330,8 +330,8 @@ class GoPoint private constructor(
 
     fun toSGFBytes(): SGFBytes {
         return SGFBytes(2)
-            .append(toChar(x).toByte())
-            .append(toChar(y).toByte())
+            .append(toChar(x).code.toByte())
+            .append(toChar(y).code.toByte())
     }
 
     private fun readResolve(): Any {

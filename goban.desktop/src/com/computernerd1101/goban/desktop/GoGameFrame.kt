@@ -184,11 +184,12 @@ class GoGameFrame private constructor(
             resign()
         }
 
-        override suspend fun startScoring(scoreManager: GoScoreManager) {
+        override fun startScoring(game: GoGameContext, scoreManager: GoScoreManager) {
             frame.startScoring(scoreManager, InternalMarker)
         }
 
-        override suspend fun updateScoring(
+        override fun updateScoring(
+            game: GoGameContext,
             scoreManager: GoScoreManager,
             stones: GoPointSet,
             alive: Boolean
@@ -196,7 +197,7 @@ class GoGameFrame private constructor(
             frame.updateScoring(scoreManager, stones, alive, InternalMarker)
         }
 
-        override suspend fun finishScoring() {
+        override fun finishScoring(game: GoGameContext) {
             frame.finishScoring(InternalMarker)
         }
 

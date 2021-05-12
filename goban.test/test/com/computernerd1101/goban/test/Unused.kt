@@ -39,7 +39,7 @@ fun unused() {
     nullPoint.formatOrPass(19, 19, Locale.getDefault())
     nullPoint.formatOrPass(19, 19)
     "A1".gtpParse(19, 19)
-    "I1".gtpParesOrNull(19, 19)
+    "I1".gtpParseOrNull(19, 19)
     0.gtpFormatX()
     'A'.gtpParseXOrThrow(19)
     'i'.gtpParseX(19)

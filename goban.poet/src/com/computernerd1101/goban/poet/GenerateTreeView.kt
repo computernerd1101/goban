@@ -105,7 +105,7 @@ private class PreviewTreeModel(
 
     override fun getIndexOfChild(parent: Any?, child: Any?): Int {
         if (parent !== icons[0]) return -1
-        for(i in 1 until icons.size) if (child === icons[i]) return i - 1 // -1 if i == 0
+        for(i in icons.indices) if (child === icons[i]) return i - 1 // -1 if i == 0
         return -1
     }
 

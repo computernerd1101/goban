@@ -17,8 +17,9 @@ internal class ReadOnlyArrayList<out E> private constructor(
     override fun iterator(): Iterator<E> = Itr(array, offset, _size, 0)
     override fun containsAll(elements: Collection<@UnsafeVariance E>): Boolean = elements.all { contains(it) }
     override fun get(index: Int): E {
-        if (index !in 0 until _size)
-            throw IndexOutOfBoundsException(index.toString())
+        val size = _size
+        if (index !in 0 until size)
+            throw IndexOutOfBoundsException("index: $index, size: $size")
         return array[index + offset]
     }
 
@@ -49,17 +50,18 @@ internal class ReadOnlyArrayList<out E> private constructor(
     override fun listIterator(index: Int): ListIterator<E> {
         val size = _size
         if (index !in 0..size)
-            throw IndexOutOfBoundsException(index.toString())
+            throw IndexOutOfBoundsException("index: $index, size: $size")
         return ListItr(array, offset, size, index)
     }
 
     override fun subList(fromIndex: Int, toIndex: Int): List<E> {
-        if (fromIndex < 0)
-            throw IndexOutOfBoundsException("fromIndex = $fromIndex")
-        if (toIndex > _size)
-            throw IndexOutOfBoundsException("toIndex = $toIndex")
+        val size = _size
+        if (fromIndex < 0 || toIndex > size)
+            throw IndexOutOfBoundsException("fromIndex: $fromIndex, toIndex: $toIndex, size: $size")
+        if (fromIndex == toIndex)
+            return emptyList()
         if (fromIndex > toIndex)
-            throw IllegalArgumentException("fromIndex($fromIndex) > toIndex($toIndex)")
+            throw IllegalArgumentException("fromIndex: $fromIndex > toIndex: $toIndex")
         return ReadOnlyArrayList(array, fromIndex + offset, toIndex - fromIndex)
     }
 
@@ -142,6 +144,8 @@ internal class ReadOnlyArrayList<out E> private constructor(
         input.defaultReadObject()
         _size = array.size
     }
+
+    private fun readResolve(): Any = if (_size == 0) emptyList() else this
 
     private fun writeReplace(): Any {
         val offset = this.offset

@@ -431,6 +431,7 @@ sealed class AbstractMutableGoban: AbstractGoban {
             val wide = width > 32
             for(y in 0 until rows.size) {
                 var pos = y.toLong()
+                //              ((pos / 2) shl 32) or ((pos % 2) * 32)
                 pos = if (wide) pos.and(-2L).shl(31) or pos.and(1L).shl(5)
                 else pos shl 32
                 val oldRow = GobanRows.updaters[y].getAndAccumulate(rows, pos, copyRows)

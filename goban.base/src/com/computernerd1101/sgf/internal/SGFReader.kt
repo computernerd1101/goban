@@ -26,15 +26,15 @@ sealed class SGFReader(val warnings: SGFWarningList) {
             var b = readImpl()
             var newLine = false
             var lineBreak = 0
-            if (b == '\r'.toInt()) {
-                lineBreak = '\r'.toInt()
-                if (oldBreak == '\n'.toInt()) {
+            if (b == '\r'.code) {
+                lineBreak = '\r'.code
+                if (oldBreak == '\n'.code) {
                     lineBreak = 0
-                    b = '\n'.toInt()
+                    b = '\n'.code
                 } else newLine = true
-            } else if (b == '\n'.toInt()) {
-                lineBreak = '\n'.toInt()
-                if (oldBreak == '\r'.toInt()) lineBreak = 0
+            } else if (b == '\n'.code) {
+                lineBreak = '\n'.code
+                if (oldBreak == '\r'.code) lineBreak = 0
                 else newLine = true
             } else c++
             if (newLine) {
@@ -45,7 +45,7 @@ sealed class SGFReader(val warnings: SGFWarningList) {
             column = c
             oldBreak = lineBreak
             lastBreak = oldBreak
-            if (!skipSpaces || b < 0 || b > ' '.toInt()) return b
+            if (!skipSpaces || b < 0 || b > ' '.code) return b
         }
     }
 
@@ -57,8 +57,8 @@ sealed class SGFReader(val warnings: SGFWarningList) {
             sb.append(" before end of file")
         } else {
             sb.append(" but found ")
-            val showChar = if (cp >= ' '.toInt() && cp != 0x7F &&
-                (cp !in Character.MIN_SURROGATE.toInt()..Character.MAX_SURROGATE.toInt())) {
+            val showChar = if (cp >= ' '.code && cp != 0x7F &&
+                (cp !in Character.MIN_SURROGATE.code..Character.MAX_SURROGATE.code)) {
                 sb.append('\'')
                 if (Character.isSupplementaryCodePoint(cp)) {
                     sb.append(Character.highSurrogate(cp)).append(Character.lowSurrogate(cp))
@@ -67,7 +67,7 @@ sealed class SGFReader(val warnings: SGFWarningList) {
                 }
                 true
             } else false
-            if (cp !in ' '.toInt() until 0x7F) {
+            if (cp !in ' '.code until 0x7F) {
                 if (showChar) sb.append("' (")
                 sb.append("U+").append(Integer.toHexString(cp))
                 if (showChar) sb.append(')')
@@ -98,7 +98,7 @@ sealed class SGFReader(val warnings: SGFWarningList) {
             if (alreadyDecoded) return b
             val ch1: Int = readUTF8(b)
             alreadyDecoded = true
-            if (ch1 !in Character.MIN_HIGH_SURROGATE.toInt()..Character.MAX_HIGH_SURROGATE.toInt()) {
+            if (ch1 !in Character.MIN_HIGH_SURROGATE.code..Character.MAX_HIGH_SURROGATE.code) {
                 lastRead = ch1
                 return ch1
             }
@@ -109,7 +109,7 @@ sealed class SGFReader(val warnings: SGFWarningList) {
                 return ch1
             }
             val ch2: Int = readUTF8(b)
-            if (ch2 in Character.MIN_LOW_SURROGATE.toInt()..Character.MAX_LOW_SURROGATE.toInt()) {
+            if (ch2 in Character.MIN_LOW_SURROGATE.code..Character.MAX_LOW_SURROGATE.code) {
                 return Character.toCodePoint(ch1.toChar(), ch2.toChar()).also { lastRead = it }
             }
             lastRead = ch2
@@ -222,7 +222,7 @@ sealed class SGFReader(val warnings: SGFWarningList) {
     fun startReading(): SGFReader {
         var ch: Int = skipSpaces()
         if (ch < 0) throw newException("'('")
-        if (ch != '('.toInt()) {
+        if (ch != '('.code) {
             val bytes = SGFBytes()
             bytes.row = row
             bytes.column = column
@@ -230,16 +230,16 @@ sealed class SGFReader(val warnings: SGFWarningList) {
             var n = 1
             while (true) {
                 ch = read()
-                if (ch < 0 || ch == '('.toInt()) break
+                if (ch < 0 || ch == '('.code) break
                 bytes.append(ch.toByte())
-                if (ch > ' '.toInt()) n = bytes.size
+                if (ch > ' '.code) n = bytes.size
             }
             bytes.delete(n, bytes.size)
             warnings += SGFWarning(
                 bytes.row, bytes.column - 1,
                 "Junk text '${bytes.toString(Charsets.UTF_8)}'"
             )
-            if (ch != '('.toInt()) throw newException("'('")
+            if (ch != '('.code) throw newException("'('")
         }
         return this
     }
@@ -252,7 +252,7 @@ sealed class SGFReader(val warnings: SGFWarningList) {
         var ch = skipSpaces()
         var r = row
         var c = column - 1
-        while(ch in 'A'.toInt()..'Z'.toInt() || ch in 'a'.toInt()..'z'.toInt()) {
+        while(ch in 'A'.code..'Z'.code || ch in 'a'.code..'z'.code) {
             val name = readPropertyName(ch)
             val prop = readProperty()
             prop.row = r
@@ -271,11 +271,11 @@ sealed class SGFReader(val warnings: SGFWarningList) {
         val sb = StringBuilder()
         var ch = firstLetter
         do {
-            if (ch in 'A'.toInt()..'Z'.toInt()) sb.append(ch.toChar())
+            if (ch in 'A'.code..'Z'.code) sb.append(ch.toChar())
             ch = read()
-        } while (ch in 'A'.toInt()..'Z'.toInt() || ch in 'a'.toInt()..'z'.toInt())
-        if (ch <= ' '.toInt()) ch = skipSpaces()
-        if (ch != '['.toInt()) throw newException("'['")
+        } while (ch in 'A'.code..'Z'.code || ch in 'a'.code..'z'.code)
+        if (ch <= ' '.code) ch = skipSpaces()
+        if (ch != '['.code) throw newException("'['")
         return sb.toString()
     }
 
@@ -286,7 +286,7 @@ sealed class SGFReader(val warnings: SGFWarningList) {
         val list = prop.values
         while(true) {
             val ch = skipSpaces()
-            if (ch != '['.toInt()) return prop
+            if (ch != '['.code) return prop
             value = readValue()
             list.add(value)
         }
@@ -305,7 +305,7 @@ sealed class SGFReader(val warnings: SGFWarningList) {
         // previously read character is guaranteed to be '['
         while(true) {
             val ch = readText(bytes)
-            if (ch == ']'.toInt()) return value
+            if (ch == ']'.code) return value
             // ch == ':'
             bytes = SGFBytes()
             bytes.row = row
@@ -316,17 +316,17 @@ sealed class SGFReader(val warnings: SGFWarningList) {
 
     private fun readText(bytes: SGFBytes): Int {
         var ch = read()
-        while(ch != ':'.toInt() && ch != ']'.toInt()) {
-            if (ch == '\\'.toInt()) {
+        while(ch != ':'.code && ch != ']'.code) {
+            if (ch == '\\'.code) {
                 ch = read()
-                if (ch == '\r'.toInt()) {
+                if (ch == '\r'.code) {
                     ch = read()
-                    if (ch == '\n'.toInt()) ch = read()
+                    if (ch == '\n'.code) ch = read()
                     continue
                 }
-                if (ch == '\n'.toInt()) {
+                if (ch == '\n'.code) {
                     ch = read()
-                    if (ch == '\r'.toInt()) ch = read()
+                    if (ch == '\r'.code) ch = read()
                     continue
                 }
             }

@@ -9,6 +9,8 @@
       <element id="extracted-dir" path="$KOTLIN_BUNDLED$/lib/kotlin-test.jar" path-in-jar="/" />
       <element id="extracted-dir" path="$KOTLIN_BUNDLED$/lib/kotlin-stdlib-jdk7.jar" path-in-jar="/" />
       <element id="extracted-dir" path="$KOTLIN_BUNDLED$/lib/kotlin-stdlib-jdk8.jar" path-in-jar="/" />
+      <element id="library" level="project" name="org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.0-RC" />
+      <element id="library" level="project" name="org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.5.0-RC" />
     </root>
   </artifact>
 </component>

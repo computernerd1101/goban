@@ -25,15 +25,15 @@ class GameResult private constructor(
         private const val WHITE_WINS = -1 shl 24
 
         @JvmField val WHITE_UNKNOWN = GameResult(WHITE_WINS, "W+")
-        @JvmField val WHITE_TIME = GameResult(WHITE_WINS or ('T'.toInt() shl 16), "W+T")
-        @JvmField val WHITE_RESIGN = GameResult(WHITE_WINS or ('R'.toInt() shl 16), "W+R")
-        @JvmField val WHITE_FORFEIT = GameResult(WHITE_WINS or ('F'.toInt() shl 16), "W+F")
+        @JvmField val WHITE_TIME = GameResult(WHITE_WINS or ('T'.code shl 16), "W+T")
+        @JvmField val WHITE_RESIGN = GameResult(WHITE_WINS or ('R'.code shl 16), "W+R")
+        @JvmField val WHITE_FORFEIT = GameResult(WHITE_WINS or ('F'.code shl 16), "W+F")
         @JvmField val DRAW = GameResult(0, "0")
-        @JvmField val UNKNOWN = GameResult('?'.toInt() shl 16, "?")
-        @JvmField val VOID = GameResult('V'.toInt() shl 16, "Void")
-        @JvmField val BLACK_FORFEIT = GameResult(BLACK_WINS or ('F'.toInt() shl 16), "B+F")
-        @JvmField val BLACK_RESIGN = GameResult(BLACK_WINS or ('R'.toInt() shl 16), "B+R")
-        @JvmField val BLACK_TIME = GameResult(BLACK_WINS or ('T'.toInt() shl 16), "B+T")
+        @JvmField val UNKNOWN = GameResult('?'.code shl 16, "?")
+        @JvmField val VOID = GameResult('V'.code shl 16, "Void")
+        @JvmField val BLACK_FORFEIT = GameResult(BLACK_WINS or ('F'.code shl 16), "B+F")
+        @JvmField val BLACK_RESIGN = GameResult(BLACK_WINS or ('R'.code shl 16), "B+R")
+        @JvmField val BLACK_TIME = GameResult(BLACK_WINS or ('T'.code shl 16), "B+T")
         @JvmField val BLACK_UNKNOWN = GameResult(BLACK_WINS, "B+")
 
         @JvmStatic fun time(winner: GoColor): GameResult =
@@ -127,7 +127,7 @@ class GameResult private constructor(
                     ch = s[2]
                 } else i = 1
             }
-            table[ch.toInt()]?.let { return it }
+            table[ch.code]?.let { return it }
             if (color != 0) {
                 var score = 0
                 loop@ while (i < s.length) {
@@ -176,8 +176,8 @@ class GameResult private constructor(
             for (result in results) {
                 val ch = if (result === DRAW) {
                     table[0] = result
-                    table['0'.toInt()] = result
-                    'D'.toInt()
+                    table['0'.code] = result
+                    'D'.code
                 } else (result.code shr 16) and 0xFF
                 table[ch] = result
                 if (ch.toChar() in 'A'..'Z')

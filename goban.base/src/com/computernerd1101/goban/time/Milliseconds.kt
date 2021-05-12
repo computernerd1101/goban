@@ -169,20 +169,16 @@ class Milliseconds private constructor(
     operator fun compareTo(other:  Float) = value.compareTo(other)
     operator fun compareTo(other: Double) = value.compareTo(other)
 
-    @ExperimentalUnsignedTypes
     operator fun compareTo(other:  UByte) = value.compareTo(other.toLong())
-    @ExperimentalUnsignedTypes
     operator fun compareTo(other: UShort) = value.compareTo(other.toLong())
-    @ExperimentalUnsignedTypes
     operator fun compareTo(other:   UInt) = value.compareTo(other.toLong())
 
-    @ExperimentalUnsignedTypes
     inline operator fun compareTo(other: ULong) = compareToUnsigned(other.toLong())
 
     fun compareToUnsigned(other: Long) = if (value < 0L) -1 else
         (value xor Long.MIN_VALUE).compareTo(other xor Long.MIN_VALUE)
 
-    override fun   toChar() = value.toChar()
+    override fun   toChar() = value.toInt().toChar()
     override fun   toByte() = value.toByte()
     override fun  toShort() = value.toShort()
     override fun    toInt() = value.toInt()
@@ -190,10 +186,10 @@ class Milliseconds private constructor(
     override fun  toFloat() = value.toFloat()
     override fun toDouble() = value.toDouble()
 
-    @ExperimentalUnsignedTypes fun  toUByte() = toByte().toUByte()
-    @ExperimentalUnsignedTypes fun toUShort() = toShort().toUShort()
-    @ExperimentalUnsignedTypes fun   toUInt() = toInt().toUInt()
-    @ExperimentalUnsignedTypes fun  toULong() = toLong().toULong()
+    fun  toUByte() = toByte().toUByte()
+    fun toUShort() = toShort().toUShort()
+    fun   toUInt() = toInt().toUInt()
+    fun  toULong() = toLong().toULong()
 
     override fun equals(other: Any?) = this === other ||
             (other is Milliseconds && value == other.value && extra == other.extra)
@@ -282,11 +278,7 @@ fun Byte.toMilliseconds() = Milliseconds.valueOf(toLong())
 fun Short.toMilliseconds() = Milliseconds.valueOf(toLong())
 fun Int.toMilliseconds() = Milliseconds.valueOf(toLong())
 fun Long.toMilliseconds() = Milliseconds.valueOf(this)
-@ExperimentalUnsignedTypes
 fun UByte.toMilliseconds() = Milliseconds.valueOf(toLong())
-@ExperimentalUnsignedTypes
 fun UShort.toMilliseconds() = Milliseconds.valueOf(toLong())
-@ExperimentalUnsignedTypes
 fun UInt.toMilliseconds() = Milliseconds.valueOf(toLong())
-@ExperimentalUnsignedTypes
 fun ULong.toMilliseconds() = Milliseconds.valueOf(toLong())

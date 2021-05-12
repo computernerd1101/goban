@@ -105,9 +105,9 @@ class GameInfoTransferHandler(
                         sgf = SGFTree(if (isSGF) transfer
                         else {
                             val output = ByteArrayOutputStream()
-                            output.write('('.toInt())
+                            output.write('('.code)
                             transfer.copyTo(output)
-                            output.write(')'.toInt())
+                            output.write(')'.code)
                             output.toByteArray().inputStream()
                         })
                     }
@@ -116,9 +116,9 @@ class GameInfoTransferHandler(
                         sgf = SGFTree(ByteArrayInputStream(
                             if (isSGF) transfer
                             else ByteArray(transfer.size + 2).also { bytes ->
-                                bytes[0] = '('.toByte()
+                                bytes[0] = '('.code.toByte()
                                 transfer.copyInto(bytes, destinationOffset = 1)
-                                bytes[bytes.lastIndex] = ')'.toByte()
+                                bytes[bytes.lastIndex] = ')'.code.toByte()
                             }))
                     }
                     is ByteBuffer -> {
@@ -131,8 +131,8 @@ class GameInfoTransferHandler(
                             offset = 0
                         } else {
                             bytes = ByteArray(length + 2)
-                            bytes[0] = '('.toByte()
-                            bytes[bytes.lastIndex] = ')'.toByte()
+                            bytes[0] = '('.code.toByte()
+                            bytes[bytes.lastIndex] = ')'.code.toByte()
                             offset = 1
                         }
                         transfer.get(bytes, offset, length)
@@ -273,12 +273,12 @@ class GameInfoTransferHandler(
                     val output = ByteArrayOutputStream()
                     val node = SGFNode()
                     if (isSGF) {
-                        output.write('('.toInt())
+                        output.write('('.code)
                         writeRoot(node, charset)
                     }
                     info.writeSGFNode(node, charset)
                     node.write(output)
-                    if (isSGF) output.write(')'.toInt())
+                    if (isSGF) output.write(')'.code)
                     val bytes = output.toByteArray()
                     when(repClass) {
                         ByteArray::class.java -> bytes
@@ -318,9 +318,9 @@ class GameInfoTransferHandler(
         private fun writeRoot(node: SGFNode, charset: Charset?) {
             val props = node.properties
             val bytes = SGFBytes(1)
-            bytes.append('1'.toByte())
+            bytes.append('1'.code.toByte())
             props["GM"] = SGFProperty(SGFValue(bytes.clone()))
-            bytes[0] = '4'.toByte()
+            bytes[0] = '4'.code.toByte()
             props["FF"] = SGFProperty(SGFValue(bytes))
             if (charset != null)
                 props["CA"] = SGFProperty(SGFValue(charset.name(), null))

@@ -5,10 +5,11 @@ package com.computernerd1101.goban
 
 import com.computernerd1101.goban.internal.*
 import com.computernerd1101.sgf.*
+import java.io.*
 
 fun GoPointSet(vararg points: Iterable<GoPoint>) = GoPointSet.readOnly(*points)
 
-open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPoint> {
+open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPoint>, Serializable {
 
     init {
         intern.checkType(javaClass)
@@ -51,6 +52,8 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
             }
             return set
         }
+
+        private const val serialVersionUID = 1L
 
     }
 
@@ -405,6 +408,17 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
             readOnly.string = string
         }
         return string
+    }
+
+    private fun writeObject(output: ObjectOutputStream) {
+        for(updater in InternalGoPointSet.rowUpdaters)
+            output.writeLong(updater[this])
+    }
+
+    private fun readObject(input: ObjectInputStream) {
+        for(updater in InternalGoPointSet.rowUpdaters)
+            updater[this] = input.readLong()
+        sizeAndHash = InternalGoPointSet.sizeAndHash(this)
     }
 
 }

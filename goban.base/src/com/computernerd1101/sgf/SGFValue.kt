@@ -53,7 +53,7 @@ class SGFValue: RowColumn, Serializable {
         val ba: ByteArray = s.toByteArray(charset ?: Charsets.UTF_8)
         var lastIndex = 0
         for(i in ba.indices)
-            if (ba[i] == ':'.toByte()) {
+            if (ba[i].toInt() == ':'.code) {
                 bytes.append(ba, lastIndex, i)
                 lastIndex = i + 1
                 bytes = SGFBytes()

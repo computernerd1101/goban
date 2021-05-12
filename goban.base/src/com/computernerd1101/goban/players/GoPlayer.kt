@@ -2,12 +2,9 @@ package com.computernerd1101.goban.players
 
 import com.computernerd1101.goban.*
 import com.computernerd1101.goban.internal.*
-import com.computernerd1101.goban.sgf.GameResult
-import com.computernerd1101.goban.sgf.GoSGFNode
+import com.computernerd1101.goban.sgf.*
 import com.computernerd1101.goban.time.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.async
+import kotlinx.coroutines.*
 import kotlin.coroutines.*
 
 abstract class GoPlayer(val color: GoColor) {
@@ -152,15 +149,15 @@ abstract class GoPlayer(val color: GoColor) {
         gameContext.gameOver(GameResult.resign(winner = color.opponent), InternalMarker)
     }
 
-    open suspend fun startScoring(scoreManager: GoScoreManager) {
-        submitScore(coroutineContext.goGameContext, scoreManager)
+    open fun startScoring(game: GoGameContext, scoreManager: GoScoreManager) {
+        submitScore(game, scoreManager)
     }
 
-    open suspend fun updateScoring(scoreManager: GoScoreManager, stones: GoPointSet, alive: Boolean) {
-        submitScore(coroutineContext.goGameContext, scoreManager)
+    open fun updateScoring(game: GoGameContext, scoreManager: GoScoreManager, stones: GoPointSet, alive: Boolean) {
+        submitScore(game, scoreManager)
     }
 
-    open suspend fun finishScoring() = Unit
+    open fun finishScoring(game: GoGameContext) = Unit
 
     suspend fun checkPermissions() {
         checkPermissions(coroutineContext.goGameContext)

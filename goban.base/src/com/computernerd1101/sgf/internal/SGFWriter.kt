@@ -39,7 +39,7 @@ sealed class SGFWriter {
             for(i in 0 until len) {
                 var ch = s[i]
                 if (ch > 0xFF.toChar()) ch = '?'
-                bytes[i] = ch.toByte()
+                bytes[i] = ch.code.toByte()
             }
             os.write(bytes)
         }
@@ -51,34 +51,34 @@ sealed class SGFWriter {
     }
 
     fun writeTree(tree: SGFTree, tab: Int) {
-        write('('.toInt())
+        write('('.code)
         var hasPrev = false
         for (node in tree.nodes) {
-            if (hasPrev) write(' '.toInt())
+            if (hasPrev) write(' '.code)
             else hasPrev = true
             writeNode(node)
-            write('\n'.toInt())
+            write('\n'.code)
             writeTab(tab)
         }
         for (subTree in tree.subTrees) {
-            write(' '.toInt())
-            write(' '.toInt())
+            write(' '.code)
+            write(' '.code)
             writeTree(subTree, tab + 1)
-            write('\n'.toInt())
+            write('\n'.code)
             writeTab(tab)
         }
-        write(')'.toInt())
+        write(')'.code)
     }
 
     private fun writeTab(tab: Int) {
         for(i in 0 until tab) {
-            write(' '.toInt())
-            write(' '.toInt())
+            write(' '.code)
+            write(' '.code)
         }
     }
 
     fun writeNode(node: SGFNode) {
-        write(';'.toInt())
+        write(';'.code)
         for(property in node.properties) {
             write(property.key)
             writeProperty(property.value)
@@ -92,13 +92,13 @@ sealed class SGFWriter {
     }
 
     fun writeValue(value: SGFValue) {
-        var sep = '['.toInt()
+        var sep = '['.code
         for(bytes in value.parts) {
             write(sep)
-            sep = ':'.toInt()
+            sep = ':'.code
             write(bytes.escape(copy = true))
         }
-        write(']'.toInt())
+        write(']'.code)
     }
 
 

@@ -795,11 +795,11 @@ sealed class GoSGFNode {
                 propMap["N"] = SGFProperty(SGFValue(s, charset))
             var i = current.hotspot
             if (i != 0)
-                propMap["HO"] = SGFProperty(SGFValue(SGFBytes(byteArrayOf(('0' + i).toByte()))))
+                propMap["HO"] = SGFProperty(SGFValue(SGFBytes(byteArrayOf(('0' + i).code.toByte()))))
             current.positionState?.let { state ->
                 propMap[state.code] = SGFProperty(SGFValue(
                     if (state.extent == 0) SGFBytes()
-                    else SGFBytes(byteArrayOf(('0' + state.extent).toByte()))
+                    else SGFBytes(byteArrayOf(('0' + state.extent).code.toByte()))
                 ))
             }
             val d = current.positionValue
@@ -817,7 +817,7 @@ sealed class GoSGFNode {
             }
             current.newPrintMethod?.let { pm ->
                 propMap["PM"] = SGFProperty(SGFValue(SGFBytes(
-                    byteArrayOf(('0' + pm.ordinal).toByte())
+                    byteArrayOf(('0' + pm.ordinal).code.toByte())
                 )))
             }
             val territory = current.territory
@@ -1144,11 +1144,11 @@ sealed class GoSGFNode {
                     val bytes: SGFBytes = propPL.values[0].parts[0]
                     loopPL@ for (b in bytes) {
                         when (b.toInt()) {
-                            'B'.toInt(), 'b'.toInt() -> {
+                            'B'.code, 'b'.code -> {
                                 nextPlayer = GoColor.BLACK
                                 break@loopPL
                             }
-                            'W'.toInt(), 'w'.toInt() -> {
+                            'W'.code, 'w'.code -> {
                                 nextPlayer = GoColor.WHITE
                                 break@loopPL
                             }

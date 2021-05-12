@@ -26,15 +26,15 @@ val Charset.isValidSGF: Boolean
 fun SGFBytes.escape(copy: Boolean): SGFBytes {
     val ba = toByteArray()
     var start = 0
-    var b: Byte
+    var b: Int
     while(true) {
         if (start >= ba.size) return when {
             !copy -> this
             ba.isEmpty() -> clone()
             else -> SGFBytes(ba)
         }
-        b = ba[start]
-        if (b == '\\'.toByte() || b == ']'.toByte() || b == ':'.toByte())
+        b = ba[start].toInt()
+        if (b == '\\'.code || b == ']'.code || b == ':'.code)
             break
         start++
     }
@@ -44,12 +44,12 @@ fun SGFBytes.escape(copy: Boolean): SGFBytes {
         delete(start, size)
         this
     }
-    bytes.append('\\'.toByte())
+    bytes.append('\\'.code.toByte())
     for(end in (start + 1) until ba.size) {
-        b = ba[end]
-        if (b == '\\'.toByte() || b == ']'.toByte() || b == ':'.toByte()) {
+        b = ba[end].toInt()
+        if (b == '\\'.code || b == ']'.code || b == ':'.code) {
             bytes.append(ba, start, end)
-            bytes.append('\\'.toByte())
+            bytes.append('\\'.code.toByte())
             start = end
         }
     }
@@ -62,10 +62,10 @@ fun SGFBytes.escape(): ByteArray {
     val ba = toByteArray()
     var size = ba.size
     var start = -1
-    var b: Byte
+    var b: Int
     for(i in ba.indices) {
-        b = ba[i]
-        if (b != '\\'.toByte() && b != ']'.toByte() && b != ':'.toByte())
+        b = ba[i].toInt()
+        if (b != '\\'.code && b != ']'.code && b != ':'.code)
             continue
         if (start < 0) start = i
         size++
@@ -73,15 +73,15 @@ fun SGFBytes.escape(): ByteArray {
     if (start < 0) return ba
     val r = ByteArray(size)
     if (start != 0) ba.copyInto(r, endIndex=start)
-    r[start] = '\\'.toByte()
+    r[start] = '\\'.code.toByte()
     var n = start + 1
     for(end in (start + 1) until ba.size) {
-        b = ba[end]
-        if (b != '\\'.toByte() && b != ']'.toByte() && b != ':'.toByte())
+        b = ba[end].toInt()
+        if (b != '\\'.code && b != ']'.code && b != ':'.code)
             continue
         ba.copyInto(r, n, start, end)
         val range = end - start
-        r[n + range] = '\\'.toByte()
+        r[n + range] = '\\'.code.toByte()
         n += range + 1
         start = end
     }
