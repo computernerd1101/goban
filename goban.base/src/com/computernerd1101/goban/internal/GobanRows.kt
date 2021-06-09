@@ -72,7 +72,7 @@ internal object GobanRows {
             }
             val classIndex: Int = if (index < 52) index
             else index / 2 + 26 // (index - 52) / 2 + 52
-            AtomicLongFieldUpdater.newUpdater(empty[classIndex].javaClass, String(buf, 0, nBuf))
+            AtomicLongFieldUpdater.newUpdater(empty[classIndex].javaClass, buf.concatToString(0, nBuf))
         }
     }
 }

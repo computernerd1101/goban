@@ -4,17 +4,19 @@ package com.computernerd1101.goban.desktop
 
 import com.computernerd1101.goban.*
 import com.computernerd1101.goban.players.ExperimentalGoPlayerApi
+import com.computernerd1101.goban.players.GoGameManager
 import com.computernerd1101.goban.players.GoGameSetup
 import com.computernerd1101.goban.players.GoPlayer
 import java.io.PrintStream
 import java.util.*
 
 @ExperimentalGoPlayerApi
-class ProcessGTPPlayer(private val process: Process, color: GoColor): GoPlayer(color) {
+class ProcessGTPPlayer(private val process: Process, game: GoGameManager, color: GoColor): GoPlayer(game, color) {
 
     class Factory(private vararg val cmd: String): GoPlayer.Factory {
 
-        override fun createPlayer(color: GoColor) = ProcessGTPPlayer(ProcessBuilder(*cmd).start(), color)
+        override fun createPlayer(game: GoGameManager, color: GoColor) =
+            ProcessGTPPlayer(ProcessBuilder(*cmd).start(), game, color)
 
         override fun isCompatible(setup: GoGameSetup): Boolean {
             val process: Process = ProcessBuilder(*cmd).start()

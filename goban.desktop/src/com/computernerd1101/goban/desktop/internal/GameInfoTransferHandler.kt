@@ -84,13 +84,13 @@ class GameInfoTransferHandler(
                     }
                     is CharArray -> {
                         encode = Charsets.UTF_8
-                        sgf = SGFTree(String(
+                        sgf = SGFTree((
                             if (isSGF) transfer
                             else CharArray(transfer.size + 2).also { buffer ->
                                 buffer[0] = '('
                                 transfer.copyInto(buffer, destinationOffset = 1)
                                 buffer[buffer.lastIndex] = ')'
-                            }))
+                            }).concatToString())
                     }
                     is Reader -> {
                         encode = Charsets.UTF_8

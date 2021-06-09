@@ -23,6 +23,7 @@ abstract class Overtime: Cloneable {
     
     protected open fun getDisplayName(locale: Locale): String? = null
 
+    @JvmOverloads
     fun displayOvertime(e: TimeEvent, locale: Locale = Locale.getDefault()): String =
         displayOvertimeImpl(e, locale) ?: e.overtimeCode.toString()
 

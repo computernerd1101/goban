@@ -10,6 +10,6 @@ fun main() {
     frame.title = "BakaBot"
     frame.scope.launch {
         frame.isVisible = true
-        frame.gameContext.startGame()
+        frame.goGame.startGame()
     }
 }

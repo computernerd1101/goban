@@ -61,7 +61,7 @@ internal enum class GobanDimensionFormatter_ja: GobanDimensionFormatter {
                         3
                     }
                 }
-                String(buffer, start, end - start).intern()
+                buffer.concatToString(start, end - start).intern()
             }
         }
 

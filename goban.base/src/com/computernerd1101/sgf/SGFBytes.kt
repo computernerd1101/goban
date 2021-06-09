@@ -161,9 +161,9 @@ class SGFBytes: RowColumn, MutableIterable<Byte>, Cloneable, Serializable {
     override fun toString(): String {
         val n = size
         val ba = bytes
-        return String(CharArray(n) { i ->
+        return CharArray(n) { i ->
             ba[i].toInt().and(0xFF).toChar()
-        })
+        }.concatToString()
     }
 
     fun toString(enc: String?) = toString(enc?.let {

@@ -26,12 +26,12 @@ class TimeLimit private constructor(
     @Suppress("SpellCheckingInspection")
     companion object {
 
-        @JvmStatic fun fromSGF(
+        @JvmStatic @JvmOverloads fun fromSGF(
             player: GoColor,
             node: GoSGFNode,
+            owner: Any? = null,
             mainTime: Long = -1L,
-            overtime: Overtime? = Events,
-            owner: Any? = null
+            overtime: Overtime? = Events
         ): TimeLimit? {
             val tree = node.treeOrNull ?: return null
             return synchronized(tree) {
@@ -125,7 +125,7 @@ class TimeLimit private constructor(
             }
             while(pos < buf.size) buf[pos++] = '0'
             return try {
-                String(buf).toLong()
+                buf.concatToString().toLong()
             } catch (e: NumberFormatException) {
                 throw NumberFormatException("For input string: \"$s\"")
             }

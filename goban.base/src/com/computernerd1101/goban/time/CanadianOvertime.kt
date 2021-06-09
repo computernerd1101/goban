@@ -67,7 +67,7 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime(), PropertyTranslator
     }
 
     override fun displayOvertimeImpl(e: TimeEvent, locale: Locale): String? =
-        (gobanFormatResources(locale).getObject("OvertimeFormatter") as? OvertimeFormatter2)
+        (gobanFormatResources(locale).getObject("CanadianOvertimeFormatter") as? OvertimeFormatter2)
             ?.format(e.overtimeCode, moves)
 
     override fun parseThis(s: String): Boolean = Regex.parse(s, this) != null

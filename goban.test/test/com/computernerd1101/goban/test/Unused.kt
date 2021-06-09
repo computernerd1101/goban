@@ -3,24 +3,23 @@
 package com.computernerd1101.goban.test
 
 import com.computernerd1101.goban.*
+import com.computernerd1101.goban.desktop.GoGameFrame
 import com.computernerd1101.goban.markup.*
 import com.computernerd1101.goban.players.*
 import com.computernerd1101.goban.sgf.GameResult
 import com.computernerd1101.sgf.*
 import java.util.*
 
-abstract class UnusedPlayer(color: GoColor): GoPlayer(color) {
+abstract class UnusedPlayer(game: GoGameManager, color: GoColor): GoPlayer(game, color) {
 
-    suspend fun unused() {
-        checkPermissions()
-        getTimeEvent()
-        getOvertime()
+    fun unused() {
     }
 
 }
 
 fun unused() {
     GoGameSetup()
+    GoGameManager(GoGameFrame).scoreManager
     lineMarkup(0, 0, 1, 1)
     arrowMarkup(0, 0, 1, 1)
     LineMarkupSet().isNullOrEmpty()
@@ -73,5 +72,6 @@ fun unused() {
     SGFWarningList().warnings
     SGFTree(listOf(SGFNode(1)))
     SGFTree(listOf(SGFNode(emptyMap())), emptyList())
+    GoGameFrame()
 }
 

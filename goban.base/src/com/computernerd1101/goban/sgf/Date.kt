@@ -392,7 +392,7 @@ class DateSet(): MutableIterable<Date>, Serializable {
                     31 -> Table2d.Table1d.YearTable.MonthTable31::class.java
                     else -> Table2d.Table1d.YearTable.MonthTable::class.java
                 } as Class<Table2d.Table1d.YearTable.MonthTable>
-                AtomicReferenceFieldUpdater.newUpdater(type, Date::class.java, String(buf, 0, nBuf))
+                AtomicReferenceFieldUpdater.newUpdater(type, Date::class.java, buf.concatToString(0, nBuf))
             }
         }
 

@@ -17,6 +17,6 @@ fun main() {
     val frame = GoGameFrame(setup)
     frame.scope.launch {
         frame.isVisible = true
-        frame.gameContext.startGame()
+        frame.goGame.startGame()
     }
 }

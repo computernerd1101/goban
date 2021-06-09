@@ -7,24 +7,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.select
 import kotlin.coroutines.*
 
-val CoroutineContext.goGameContext: GoGameContext get() = this[GoGameContext] ?: throw IllegalStateException(
-    "Missing Go game context"
-)
-
-private fun GoPlayer.Factory.safeCreatePlayer(color: GoColor): GoPlayer {
-    val player = createPlayer(color)
-    val realColor = player.color
-    if (realColor != color)
-        throw IllegalStateException("GoPlayer.Factory.createPlayer(GoColor." + color.name +
-            ") returned a GoPlayer whose color was ${realColor.name}")
-    return player
-}
-
-class GoGameContext: CoroutineContext.Element {
-
-    companion object Key: CoroutineContext.Key<GoGameContext> {
-        private val updateHypothetical = atomicUpdater<GoGameContext, GoSGFSetupNode?>("hypothetical")
-    }
+class GoGameManager {
 
     val blackPlayer: GoPlayer
     val whitePlayer: GoPlayer
@@ -45,10 +28,15 @@ class GoGameContext: CoroutineContext.Element {
 
     val gameInfo: GameInfo
 
-    override val key: CoroutineContext.Key<GoGameContext> get() = Key
+    private companion object {
+        private val updateHypothetical = atomicUpdater<GoGameManager, GoSGFSetupNode?>("_hypothetical")
+    }
 
+    @Volatile private var _hypothetical: GoSGFSetupNode? = null
     @Suppress("unused")
-    @Volatile var hypothetical: GoSGFSetupNode? = null; private set
+    val hypothetical: GoSGFSetupNode? get() = _hypothetical
+
+    val job: Job = Job()
 
     constructor(defaultPlayerFactory: GoPlayer.Factory): this(null, defaultPlayerFactory)
 
@@ -85,39 +73,24 @@ class GoGameContext: CoroutineContext.Element {
     @Suppress("unused")
     @ExperimentalGoPlayerApi
     @Throws(GoSGFResumeException::class)
-    constructor(sgf: GoSGF, player1: GoPlayer, player2: GoPlayer) {
+    constructor(sgf: GoSGF, blackPlayer: GoPlayer.Factory, whitePlayer: GoPlayer.Factory) {
         this.sgf = sgf
-        if (player1.color == GoColor.BLACK) {
-            if (player2.color == GoColor.BLACK)
-                throw IllegalArgumentException("Two black players")
-            blackPlayer = player1
-            whitePlayer = player2
-        } else {
-            if (player2.color == GoColor.WHITE)
-                throw IllegalArgumentException("Two white players")
-            whitePlayer = player1
-            blackPlayer = player2
-        }
+        this.blackPlayer = blackPlayer.safeCreatePlayer(GoColor.BLACK)
+        this.whitePlayer = whitePlayer.safeCreatePlayer(GoColor.WHITE)
         gameInfo = sgf.onResume()
         _node = sgf.lastNodeBeforePasses()
     }
 
-    suspend fun startGame() {
-        var context = coroutineContext
-        val game = context[Key]
-        when {
-            game == null -> context += this
-            game !== this ->
-                throw IllegalStateException("A single coroutine cannot play two games of Go simultaneously.")
-        }
-        withContext(context) {
-            startGameWithContext(InternalMarker)
-        }
+    private fun GoPlayer.Factory.safeCreatePlayer(color: GoColor): GoPlayer {
+        val player = createPlayer(this@GoGameManager, color)
+        val realColor = player.color
+        if (realColor != color)
+            throw IllegalStateException("GoPlayer.Factory.createPlayer(GoColor." + color.name +
+                    ") returned a GoPlayer whose color was ${realColor.name}")
+        return player
     }
 
-    private suspend fun CoroutineScope.startGameWithContext(marker: InternalMarker) {
-        marker.ignore()
-        val deferredGameOver = gameOverContinuation.suspendAsync(this)
+    suspend fun startGame() {
         val handicap = gameInfo.handicap
         if (handicap != 0 && node == sgf.rootNode) {
             val goban = Goban(sgf.width, sgf.height)
@@ -137,6 +110,10 @@ class GoGameContext: CoroutineContext.Element {
             blackPlayer.update()
             whitePlayer.update()
         }
+        var context = coroutineContext
+        if (context[Job] !== job) context += job
+        val scope = CoroutineScope(context)
+        val deferredGameOver = gameOverContinuation.suspendAsync(scope)
         var passCount = 0
         var lastNonPass: GoSGFNode = node
         var deferredUndoMove: Deferred<GoSGFNode>? = null
@@ -155,11 +132,11 @@ class GoGameContext: CoroutineContext.Element {
                 player = whitePlayer
                 opponent = blackPlayer
             }
-            val deferredMove = player.generateMoveAsync(this, InternalMarker)
-            if (deferredUndoMove == null) deferredUndoMove = undoMoveContinuation.suspendAsync(this)
+            val deferredMove = player.generateMoveAsync(scope, InternalMarker)
+            if (deferredUndoMove == null) deferredUndoMove = undoMoveContinuation.suspendAsync(scope)
             select<Unit> {
                 deferredMove.onAwait { move ->
-                    val node = this@GoGameContext.node.createNextMoveNode(move, turnPlayer)
+                    val node = this@GoGameManager.node.createNextMoveNode(move, turnPlayer)
                     if (node.isLegalOrForced) {
                         if (move == null) passCount++
                         else {
@@ -198,14 +175,14 @@ class GoGameContext: CoroutineContext.Element {
                 }
             }
             if (passCount >= 2) {
-                val scoreManager = GoScoreManager()
-                this@GoGameContext.scoreManager = scoreManager
+                val scoreManager = GoScoreManager(this, InternalMarker)
+                _scoreManager = scoreManager
                 val requestResume: GoColor = scoreManager.computeScore() ?: break
                 if (gameInfo.rules.territoryScore) {
                     val hypotheticalNode = node.createNextSetupNode(node.goban)
                     hypotheticalNode.turnPlayer = requestResume.opponent
                     setNode(hypotheticalNode, InternalMarker)
-                    updateHypothetical.compareAndSet(this@GoGameContext, null, hypotheticalNode)
+                    updateHypothetical.compareAndSet(this, null, hypotheticalNode)
                     // TODO start hypothetical play
                 } else {
                     setNode(lastNonPass, InternalMarker)
@@ -243,7 +220,8 @@ class GoGameContext: CoroutineContext.Element {
         return response
     }
 
-    var scoreManager: GoScoreManager? = null; private set
+    private var _scoreManager: GoScoreManager? = null
+    val scoreManager: GoScoreManager? get() = _scoreManager
 
 }
 

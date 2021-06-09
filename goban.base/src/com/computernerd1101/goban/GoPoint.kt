@@ -36,13 +36,13 @@ class GoPoint private constructor(
     cache: Cache
 ): Iterable<GoPoint>, Comparable<GoPoint>, Serializable {
 
-    @Transient private val string: String = String(buffer, 1, 2).intern()
-    @Transient private val gtp: String = String(buffer, 4, if (y < 9) 2 else 3).intern()
+    @Transient private val string: String = buffer.concatToString(1, 2).intern()
+    @Transient private val gtp: String = buffer.concatToString(4, if (y < 9) 2 else 3).intern()
 
     @Transient
     @get:JvmName("selfRect")
     val selfRect: GoRectangle = GoRectangle(this, this,
-        String(buffer, 0, 4).intern(), InternalGoRectangle)
+        buffer.concatToString(0, 4).intern(), InternalGoRectangle)
 
     infix fun rect(other: GoPoint): GoRectangle = rect(other, other.x, other.y)
 
@@ -134,7 +134,7 @@ class GoPoint private constructor(
             val offset = when(i) {
                 in 0..25 -> 'a'
                 in 26..51 -> 'A' - 26
-                else -> return '\u0000'
+                else -> return Char.MIN_VALUE
             }
             return offset + i
         }
@@ -305,7 +305,7 @@ class GoPoint private constructor(
     operator fun component2() = y
 
     fun copy(x: Int = this.x, y: Int = this.y): GoPoint {
-        return GoPoint(x, y)
+        return pointAt(x, y)
     }
 
     override fun compareTo(other: GoPoint): Int {
@@ -314,9 +314,7 @@ class GoPoint private constructor(
 
     override fun iterator(): Iterator<GoPoint> = Itr(this)
 
-    private class Itr(point: GoPoint): Iterator<GoPoint> {
-
-        private var next: GoPoint? = point
+    private class Itr(private var next: GoPoint?): Iterator<GoPoint> {
 
         override fun hasNext() = next != null
 

@@ -21,9 +21,8 @@ public class TestSuspendJava implements Continuation<Integer> {
         System.out.println(o);
     }
 
-    @NotNull
     @Override
-    public CoroutineContext getContext() {
+    public @NotNull CoroutineContext getContext() {
         return EmptyCoroutineContext.INSTANCE;
     }
 }

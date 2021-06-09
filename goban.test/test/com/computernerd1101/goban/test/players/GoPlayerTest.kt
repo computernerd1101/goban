@@ -5,7 +5,6 @@ import com.computernerd1101.goban.desktop.GoGameFrame
 import com.computernerd1101.goban.players.*
 import com.computernerd1101.goban.time.ByoYomi
 import kotlinx.coroutines.*
-import kotlinx.coroutines.swing.Swing
 import java.awt.*
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
@@ -17,17 +16,17 @@ fun main() {
     setup.isFreeHandicap = true
     setup.gameInfo.timeLimit = 30000L
     setup.gameInfo.overtime = ByoYomi(periods = 3, millis = 20000L)
-    val game = GoGameContext(setup, GoGameFrame)
+    val game = GoGameManager(setup, GoGameFrame)
+    val job = game.job
     val blackPlayer = game.blackPlayer as GoGameFrame.Player
     assert(!blackPlayer.isFrameInitialized)
     val whitePlayer = game.whitePlayer as GoGameFrame.Player
     assert(!whitePlayer.isFrameInitialized)
-    val handler = CoroutineExceptionHandler { _, throwable ->
-        println(throwable)
+    val handler = Thread.UncaughtExceptionHandler { _, e ->
+        println(e)
     }
-    val scope = CoroutineScope(handler + game + Dispatchers.Swing)
-    val blackFrame = GoGameFrame(scope)
-    val whiteFrame = GoGameFrame(scope)
+    val blackFrame = GoGameFrame(game)
+    val whiteFrame = GoGameFrame(game)
     blackPlayer.initFrame(blackFrame)
     assert(blackPlayer.isFrameInitialized)
     whitePlayer.initFrame(whiteFrame)
@@ -36,7 +35,7 @@ fun main() {
     whiteFrame.title = GoColor.WHITE.toString()
     val windowListener = object: WindowAdapter() {
         override fun windowClosed(e: WindowEvent?) {
-            scope.cancel()
+            job.cancel()
         }
     }
     blackFrame.addWindowListener(windowListener)
@@ -45,7 +44,8 @@ fun main() {
     whiteFrame.extendedState = Frame.MAXIMIZED_BOTH
     whiteFrame.isVisible = true
     blackFrame.isVisible = true
-    scope.launch {
+    blackFrame.scope.launch {
+        Thread.currentThread().uncaughtExceptionHandler = handler
         val y = blackFrame.locationOnScreen.y
         blackFrame.extendedState = Frame.MAXIMIZED_HORIZ
         whiteFrame.extendedState = Frame.MAXIMIZED_HORIZ
@@ -59,7 +59,7 @@ fun main() {
         whiteFrame.setSize(width, height)
         game.startGame()
     }
-    while(scope.isActive) Unit
+    while(job.isActive) Unit
     blackFrame.dispose()
     whiteFrame.dispose()
 }

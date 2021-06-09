@@ -1433,7 +1433,7 @@ sealed class GoSGFNode {
         @JvmField val LABELS: Array<String> = CharArray(1).let { buffer ->
             Array(52) {
                 buffer[0] = ((if (it < 26) 'A' else ('a' - 26)) + it)
-                String(buffer)
+                buffer.concatToString()
             }
         }
 

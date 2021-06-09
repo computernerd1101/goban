@@ -26,12 +26,12 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
             buffer[2] = 'w'
             for(i in 0..9) {
                 buffer[3] = '0' + i
-                rowUpdaters[i] = atomicLongUpdater(String(buffer, 0, 4))
+                rowUpdaters[i] = atomicLongUpdater(buffer.concatToString(0, 4))
             }
             for(i in 10..51) {
                 buffer[3] = '0' + i / 10
                 buffer[4] = '0' + i % 10
-                rowUpdaters[i] = atomicLongUpdater(String(buffer))
+                rowUpdaters[i] = atomicLongUpdater(buffer.concatToString())
             }
         }
 

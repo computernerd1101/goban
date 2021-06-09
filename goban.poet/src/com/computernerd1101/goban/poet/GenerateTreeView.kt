@@ -1,15 +1,11 @@
 package com.computernerd1101.goban.poet
 
-import java.awt.Color
-import java.awt.Component
+import java.awt.*
 import java.io.File
 import javax.imageio.ImageIO
 import javax.swing.*
 import javax.swing.event.TreeModelListener
-import javax.swing.tree.DefaultTreeCellRenderer
-import javax.swing.tree.TreeCellRenderer
-import javax.swing.tree.TreeModel
-import javax.swing.tree.TreePath
+import javax.swing.tree.*
 
 fun main(args: Array<String>) {
     val dir = File("goban.desktop/src/com/computernerd1101/goban/desktop/icons/treeview")

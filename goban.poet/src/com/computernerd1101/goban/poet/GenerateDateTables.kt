@@ -39,7 +39,7 @@ fun main() {
     """.trimMargin()
     )
     generateUpdaterArray(buf, 6)
-    buf.append("""|Any::class.java, String(buffer))
+    buf.append("""|Any::class.java, buffer.concatToString())
        |            }
        |            buffer[0] = 'w'
        |            buffer[1] = 'e'
@@ -48,7 +48,7 @@ fun main() {
        |            weakUpdaters = 
     """.trimMargin())
     generateUpdaterArray(buf, 4)
-    buf.append("""|WeakDateTable::class.java, String(buffer, 0, 6))
+    buf.append("""|WeakDateTable::class.java, buffer.concatToString(0, 6))
        |            }
        |        }
        |    }

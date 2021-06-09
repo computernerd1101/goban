@@ -3,13 +3,16 @@ package com.computernerd1101.goban.players
 import com.computernerd1101.goban.*
 import com.computernerd1101.goban.internal.*
 import com.computernerd1101.goban.sgf.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 import kotlinx.coroutines.selects.select
 import kotlin.coroutines.*
 
-class GoScoreManager {
+class GoScoreManager internal constructor(val game: GoGameManager, marker: InternalMarker) {
+
+    init {
+        marker.ignore()
+    }
 
     private val _deadStones = Channel<GoPointSet>(Channel.UNLIMITED)
     val deadStones: SendChannel<GoPointSet> = SendOnlyChannel(_deadStones)
@@ -46,14 +49,16 @@ class GoScoreManager {
 
     suspend fun computeScore(): GoColor? {
         submitPlayerFlags = 0
-        val scope = CoroutineScope(coroutineContext)
+        val job = game.job
+        var context = coroutineContext
+        if (context[Job] !== job) context += job
+        val scope = CoroutineScope(context)
         val deferredSubmit: Deferred<GoColor?> = submitted.suspendAsync(scope)
-        val gameContext = coroutineContext.goGameContext
-        val blackPlayer = gameContext.blackPlayer
-        val whitePlayer = gameContext.whitePlayer
-        blackPlayer.startScoring(gameContext, this)
-        whitePlayer.startScoring(gameContext, this)
-        val node = gameContext.node
+        val blackPlayer = game.blackPlayer
+        val whitePlayer = game.whitePlayer
+        blackPlayer.startScoring()
+        whitePlayer.startScoring()
+        val node = game.node
         val goban: FixedGoban = node.goban
         val finalGoban: Goban = goban.playable()
         val receiveStones = MutableGoPointSet()
@@ -75,8 +80,8 @@ class GoScoreManager {
                         sendStones.addAll(group)
                     }
                     val stones = sendStones.readOnly()
-                    blackPlayer.updateScoring(gameContext, this@GoScoreManager, stones, false)
-                    whitePlayer.updateScoring(gameContext, this@GoScoreManager, stones, false)
+                    blackPlayer.updateScoring(stones, false)
+                    whitePlayer.updateScoring(stones, false)
                 }
                 _livingStones.onReceive {
                     unSubmitScore(InternalMarker)
@@ -90,8 +95,8 @@ class GoScoreManager {
                         sendStones.addAll(group)
                     }
                     val stones = sendStones.readOnly()
-                    blackPlayer.updateScoring(gameContext, this@GoScoreManager, stones, true)
-                    whitePlayer.updateScoring(gameContext, this@GoScoreManager, stones, true)
+                    blackPlayer.updateScoring(stones, true)
+                    whitePlayer.updateScoring(stones, true)
                 }
                 deferredSubmit.onAwait {
                     waiting = false
@@ -100,17 +105,17 @@ class GoScoreManager {
             }
             if (resumeRequest != null) return resumeRequest
         }
-        val territory: Boolean = gameContext.gameInfo.rules.territoryScore
+        val territory: Boolean = game.gameInfo.rules.territoryScore
         val scoreGoban: MutableGoban = finalGoban.getScoreGoban(territory, node.territory)
-        val gameInfo = gameContext.gameInfo
+        val gameInfo = game.gameInfo
         var score = gameInfo.komi.toFloat() + (scoreGoban.whiteCount - scoreGoban.blackCount)
         if (territory && node is GoSGFMoveNode) {
             score += node.getPrisonerScoreMargin(GoColor.WHITE)
         }
         gameInfo.result = if (score == 0.0f) GameResult.DRAW
         else GameResult(GoColor.WHITE, score) // negative score means Black wins
-        blackPlayer.finishScoring(gameContext)
-        whitePlayer.finishScoring(gameContext)
+        blackPlayer.finishScoring()
+        whitePlayer.finishScoring()
         return null
     }
 

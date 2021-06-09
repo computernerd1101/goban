@@ -1,9 +1,6 @@
 package com.computernerd1101.goban.poet
 
-import java.awt.BasicStroke
-import java.awt.BorderLayout
-import java.awt.Color
-import java.awt.GridBagLayout
+import java.awt.*
 import java.awt.geom.Path2D
 import java.io.File
 import javax.imageio.ImageIO

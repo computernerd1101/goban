@@ -81,9 +81,4 @@ class TimeEvent(
         }
     }
 
-    @Suppress("UNUSED_PARAMETER")
-    private fun readObject(ois: ObjectInputStream) {
-        throw InvalidObjectException("cannot deserialize source of type TimeLimit")
-    }
-
 }

@@ -17,7 +17,7 @@ internal object InternalGoRectangle {
         buffer[2] = y1.toGoPointChar()
         buffer[offset] = x2.toGoPointChar()
         buffer[offset + 1] = y2.toGoPointChar()
-        return String(buffer)
+        return buffer.concatToString()
     }
 
     private class ThreadLocalBuffer(val offset: Int): ThreadLocal<CharArray>() {

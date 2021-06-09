@@ -4,13 +4,19 @@ package com.computernerd1101.goban.test.sandbox
 
 import kotlin.reflect.*
 
+@MyAnnotation(1)
+@MyAnnotation(2)
 fun main() {
-    val f: (Int, Int) -> Int = ::testLambda
-    println(f(2, 3))
+    testUIntVarArg(0u, 1u, 2u, 3u)
 }
 
-fun testLambda(a: Int, b: Int): Int = a + b
+fun testUIntVarArg(vararg values: UInt) {
+    println(values.javaClass)
+}
 
+@Repeatable
+@Retention(AnnotationRetention.SOURCE)
+annotation class MyAnnotation(val value: Int)
 
 @Suppress("unused")
 internal class MyList<E>(private val delegate: MutableList<E>): MutableList<E> by delegate {

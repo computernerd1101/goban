@@ -15,27 +15,28 @@ import kotlin.random.*
  * amongst all legal moves except for multi-stone suicide.
  */
 class BakaBot private constructor(
+    game: GoGameManager,
     color: GoColor,
     @get:JvmName("getKotlinRandom")
     val random: Random,
     @Suppress("unused")
     @get:JvmName("getRandom")
     val javaRandom: java.util.Random
-): GoPlayer(color) {
+): GoPlayer(game, color) {
 
-    constructor(color: GoColor): this(color, Random)
+    constructor(game: GoGameManager, color: GoColor): this(game, color, Random)
 
-    constructor(color: GoColor, random: Random):
-            this(color, random, random.asJavaRandom())
+    constructor(game: GoGameManager, color: GoColor, random: Random):
+            this(game, color, random, random.asJavaRandom())
 
     @Suppress("unused")
-    constructor(color: GoColor, random: java.util.Random):
-            this(color, random.asKotlinRandom(), random)
+    constructor(game: GoGameManager, color: GoColor, random: java.util.Random):
+            this(game, color, random.asKotlinRandom(), random)
 
     companion object DefaultFactory: GoPlayer.Factory {
 
-        override fun createPlayer(color: GoColor) =
-            BakaBot(color)
+        override fun createPlayer(game: GoGameManager, color: GoColor) =
+            BakaBot(game, color)
 
     }
 
@@ -72,8 +73,8 @@ class BakaBot private constructor(
                 this.random = random.asKotlinRandom()
             }
 
-        override fun createPlayer(color: GoColor): BakaBot =
-            BakaBot(color, random)
+        override fun createPlayer(game: GoGameManager, color: GoColor): BakaBot =
+            BakaBot(game, color, random)
 
     }
 
@@ -82,7 +83,7 @@ class BakaBot private constructor(
 
     private var goban: Goban? = null
 
-    private fun getPoints(game: GoGameContext, marker: InternalMarker): Array<GoPoint?> {
+    private fun getPoints(marker: InternalMarker): Array<GoPoint?> {
         marker.ignore()
         var points = this.points
         if (points == null) {
@@ -96,7 +97,7 @@ class BakaBot private constructor(
         return points
     }
 
-    private fun getGoban(game: GoGameContext, marker: InternalMarker): Goban {
+    private fun getGoban(marker: InternalMarker): Goban {
         marker.ignore()
         var goban = this.goban
         if (goban == null) {
@@ -114,8 +115,7 @@ class BakaBot private constructor(
 
     override suspend fun generateHandicapStones(handicap: Int, goban: Goban) = withContext(Dispatchers.IO) {
         goban.clear()
-        val game = coroutineContext.goGameContext
-        val points = getPoints(game, InternalMarker)
+        val points = getPoints(InternalMarker)
         val width = goban.width
         val height = goban.height
         val size = width * height
@@ -132,9 +132,8 @@ class BakaBot private constructor(
 
     override suspend fun generateMove(): GoPoint? = withContext(Dispatchers.IO, moveGenerator)
     private val moveGenerator: suspend CoroutineScope.() -> GoPoint? = {
-        val game = coroutineContext.goGameContext
-        val points = getPoints(game, InternalMarker)
-        val goban = getGoban(game, InternalMarker)
+        val points = getPoints(InternalMarker)
+        val goban = getGoban(InternalMarker)
         val node = game.node
         val nodeGoban = node.goban
         superkoRestrictions.clear()

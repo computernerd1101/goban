@@ -16,56 +16,34 @@ import java.util.*
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater
 import javax.swing.*
+import javax.swing.Timer
 import kotlin.coroutines.*
 import kotlin.math.min
 
 class GoGameFrame private constructor(
-    _context: CoroutineContext,
-    _scope: CoroutineScope?,
-    resources: ResourceBundle = gobanDesktopResources()
+    game: GoGameManager?,
+    resources: ResourceBundle
 ): JFrame() {
 
-    @JvmOverloads
-    constructor(context: CoroutineContext = EmptyCoroutineContext): this(context, null)
+    constructor(): this(null, gobanDesktopResources())
+
+    constructor(goGame: GoGameManager): this(goGame, gobanDesktopResources())
 
     @Suppress("unused")
     val context: CoroutineContext get() = scope.coroutineContext
 
-    constructor(scope: CoroutineScope): this(scope.coroutineContext, scope)
-
-    val scope: CoroutineScope
-
-    constructor(setup: GoGameSetup): this(GoGameContext(setup, PlayerFactory)) {
+    constructor(setup: GoGameSetup): this(GoGameManager(setup, PlayerFactory)) {
         (blackPlayer as? Player)?.initFrame(this)
         (whitePlayer as? Player)?.initFrame(this)
     }
 
-    val blackPlayer: GoPlayer
-    val whitePlayer: GoPlayer
-    val gameContext: GoGameContext
+    val goGame: GoGameManager = game ?: GoGameManager { _game, color -> Player(_game, color, this) }
+    val blackPlayer: GoPlayer get() = goGame.blackPlayer
+    val whitePlayer: GoPlayer get() = goGame.whitePlayer
+
+    val scope: CoroutineScope = CoroutineScope(Dispatchers.Swing + goGame.job)
 
     init {
-        var context = _context
-        var scope = _scope
-        var interceptor = context[ContinuationInterceptor]
-        if (interceptor != Dispatchers.Swing) {
-            scope = null
-            if (interceptor != null) {
-                context = context.minusKey(ContinuationInterceptor)
-                interceptor = null
-            }
-        }
-        gameContext = context[GoGameContext] ?: GoGameContext { color -> Player(color, this) }.also {
-            context += it
-            scope = null
-        }
-        blackPlayer = gameContext.blackPlayer
-        whitePlayer = gameContext.whitePlayer
-        if (interceptor == null) {
-            // scope is definitely null at this point
-            context += Dispatchers.Swing
-        }
-        this.scope = scope ?: CoroutineScope(context)
         title = "CN13 Goban"
         defaultCloseOperation = DISPOSE_ON_CLOSE
         setSize(1000, 500)
@@ -75,11 +53,11 @@ class GoGameFrame private constructor(
 
     class Player: GoPlayer {
 
-        constructor(color: GoColor): super(color) {
+        constructor(game: GoGameManager, color: GoColor): super(game, color) {
             _frame = null
         }
 
-        constructor(color: GoColor, frame: GoGameFrame): super(color) {
+        constructor(game: GoGameManager, color: GoColor, frame: GoGameFrame): super(game, color) {
             _frame = frame
         }
 
@@ -142,7 +120,7 @@ class GoGameFrame private constructor(
             // resumeNode can be a setup node, but everything after that up to and including currentNode
             // must be a move node, and everything between but excluding resumeNode and currentNode
             // must have a different turn player than currentNode.
-            val currentNode = coroutineContext[GoGameContext]?.node as? GoSGFMoveNode ?: return false
+            val currentNode = game.node as? GoSGFMoveNode ?: return false
             if (currentNode === resumeNode) return false
             var parentNode: GoSGFNode = currentNode.parent ?: return false
             while(parentNode !== resumeNode) {
@@ -150,13 +128,13 @@ class GoGameFrame private constructor(
                     return false
                 parentNode = parentNode.parent ?: return false
             }
-            return (getOpponent() as? Player)?.frame === frame ||
+            return (opponent as? Player)?.frame === frame ||
                 frame.acceptUndoMove(color, InternalMarker)
         }
 
-        override suspend fun requestOpponentTimeExtension(requestedMilliseconds: Long): Long {
+        override fun requestOpponentTimeExtension(requestedMilliseconds: Long): Long {
             val frame = this.frame
-            return if (requestedMilliseconds > 0L && ((getOpponent() as? Player)?.frame === frame))
+            return if (requestedMilliseconds > 0L && ((opponent as? Player)?.frame === frame))
                 extendOpponentTime(InternalMarker)
             else {
                 frame.displayAddOneMinuteStatus(color.opponent, -1, InternalMarker)
@@ -164,7 +142,7 @@ class GoGameFrame private constructor(
             }
         }
 
-        internal suspend fun extendOpponentTime(marker: InternalMarker): Long {
+        internal fun extendOpponentTime(marker: InternalMarker): Long {
             marker.ignore()
             return extendOpponentTime(ONE_MINUTE_IN_MILLIS)
         }
@@ -179,44 +157,31 @@ class GoGameFrame private constructor(
             _frame?.onTimeEvent(player, e, gobanDesktopResources(), InternalMarker)
         }
 
-        internal suspend fun resign(marker: InternalMarker) {
+        internal fun resign(marker: InternalMarker) {
             marker.ignore()
             resign()
         }
 
-        override fun startScoring(game: GoGameContext, scoreManager: GoScoreManager) {
-            frame.startScoring(scoreManager, InternalMarker)
+        override fun startScoring() {
+            frame.startScoring(InternalMarker)
         }
 
-        override fun updateScoring(
-            game: GoGameContext,
-            scoreManager: GoScoreManager,
-            stones: GoPointSet,
-            alive: Boolean
-        ) {
-            frame.updateScoring(scoreManager, stones, alive, InternalMarker)
+        override fun updateScoring(stones: GoPointSet, alive: Boolean) {
+            frame.updateScoring(stones, alive, InternalMarker)
         }
 
-        override fun finishScoring(game: GoGameContext) {
+        override fun finishScoring() {
             frame.finishScoring(InternalMarker)
         }
 
-        internal fun submitScore(
-            game: GoGameContext,
-            scoreManager: GoScoreManager,
-            marker: InternalMarker
-        ) {
+        internal fun submitScore(marker: InternalMarker) {
             marker.ignore()
-            submitScore(game, scoreManager)
+            submitScore()
         }
 
-        internal fun requestResumePlay(
-            game: GoGameContext,
-            scoreManager: GoScoreManager,
-            marker: InternalMarker
-        ) {
+        internal fun requestResumePlay(marker: InternalMarker) {
             marker.ignore()
-            requestResumePlay(game, scoreManager)
+            requestResumePlay()
         }
 
     }
@@ -231,7 +196,7 @@ class GoGameFrame private constructor(
     @Suppress("UNCHECKED_CAST")
     companion object PlayerFactory: GoPlayer.Factory {
 
-        override fun createPlayer(color: GoColor): GoPlayer = Player(color)
+        override fun createPlayer(game: GoGameManager, color: GoColor): GoPlayer = Player(game, color)
 
         private val updateGameAction: AtomicReferenceFieldUpdater<GoGameFrame, GameAction?> =
             AtomicReferenceFieldUpdater.newUpdater(
@@ -256,25 +221,25 @@ class GoGameFrame private constructor(
         private val updateInitLayout: AtomicIntegerFieldUpdater<GoGameFrame> =
             AtomicIntegerFieldUpdater.newUpdater(GoGameFrame::class.java, "initLayoutOnce")
 
-        private val updateBlackAddOneMinute: AtomicReferenceFieldUpdater<GoGameFrame, Deferred<Unit>?> =
+        private val updateBlackAddOneMinute: AtomicReferenceFieldUpdater<GoGameFrame, Timer?> =
             AtomicReferenceFieldUpdater.newUpdater(
                 GoGameFrame::class.java,
-                Deferred::class.java as Class<Deferred<Unit>>,
-                "deferredBlackAddOneMinute"
+                Timer::class.java,
+                "blackAddOneMinute"
             )
 
-        private val updateWhiteAddOneMinute: AtomicReferenceFieldUpdater<GoGameFrame, Deferred<Unit>?> =
+        private val updateWhiteAddOneMinute: AtomicReferenceFieldUpdater<GoGameFrame, Timer?> =
             AtomicReferenceFieldUpdater.newUpdater(
                 GoGameFrame::class.java,
-                Deferred::class.java as Class<Deferred<Unit>>,
-                "deferredWhiteAddOneMinute"
+                Timer::class.java,
+                "whiteAddOneMinute"
             )
 
-        private val updateResign: AtomicReferenceFieldUpdater<GoGameFrame, Deferred<Unit>?> =
+        private val updateResign: AtomicReferenceFieldUpdater<GoGameFrame, Timer?> =
             AtomicReferenceFieldUpdater.newUpdater(
                 GoGameFrame::class.java,
-                Deferred::class.java as Class<Deferred<Unit>>,
-                "deferredResign"
+                Timer::class.java,
+                "resignTimer"
             )
 
         const val ONE_MINUTE_IN_MILLIS: Long = 60000L
@@ -285,18 +250,18 @@ class GoGameFrame private constructor(
         private val southBorder = BorderFactory.createMatteBorder(0, 0, 1, 0, Color.LIGHT_GRAY)
     }
 
-    private val sgf = gameContext.sgf
+    private val sgf = goGame.sgf
     private val superkoRestrictions = MutableGoPointSet()
     private val suicideRestrictions = MutableGoPointSet()
     private val goPointGroup = MutableGoPointSet()
     private val prototypeGoban = Goban(sgf.width, sgf.height)
-    private var scoreGoban: MutableGoban = gameContext.node.territory
+    private var scoreGoban: MutableGoban = goGame.node.territory
     private val allPoints = GoRectangle(0, 0, sgf.width - 1, sgf.height - 1)
 
     @Volatile private var gameAction: GameAction? = null
     private var handicap = 0
     private var continuation: Continuation<GoPoint?>? = null
-    private var scoreManager: GoScoreManager? = null
+    //private var scoreManager: GoScoreManager? = null
 
     internal suspend fun generateHandicapStones(
         handicap: Int,
@@ -331,8 +296,8 @@ class GoGameFrame private constructor(
         val action = if (player == GoColor.BLACK) GameAction.PLAY_BLACK else GameAction.PLAY_WHITE
         if (!updateGameAction.compareAndSet(this@GoGameFrame, null, action))
             throw IllegalStateException("Cannot request move while another operation is pending.")
-        val goban = gameContext.node.goban
-        val allowSuicide = gameContext.gameInfo.rules.allowSuicide
+        val goban = goGame.node.goban
+        val allowSuicide = goGame.gameInfo.rules.allowSuicide
         suicideRestrictions.clear()
         for (y in 0 until goban.height) for (x in 0 until goban.width) {
             val p = GoPoint(x, y)
@@ -349,7 +314,7 @@ class GoGameFrame private constructor(
 
     internal fun update(marker: InternalMarker) {
         marker.ignore()
-        val node = gameContext.node
+        val node = goGame.node
         if (node is GoSGFMoveNode) {
             node.getSuperkoRestrictions(superkoRestrictions)
         } else {
@@ -375,9 +340,9 @@ class GoGameFrame private constructor(
     fun requestUndoMove() {
         val player: Player
         var resumeNode: GoSGFNode?
-        val node = gameContext.node as? GoSGFMoveNode ?: return
+        val node = goGame.node as? GoSGFMoveNode ?: return
         val black = (blackPlayer as? Player)?.takeIf { it.frame === this }
-        val white = (whitePlayer as? Player)
+        val white = whitePlayer as? Player
         when {
             white?.frame !== this -> {
                 player = black ?: return
@@ -404,7 +369,9 @@ class GoGameFrame private constructor(
         }
         displayRequestUndoStatus(0, InternalMarker)
         var deferred: Deferred<Boolean>? = null
-        deferred = scope.async {
+        // Make absolutely sure that the captured local variable deferred
+        // is initialized before the coroutine starts
+        deferred = scope.async(start = CoroutineStart.LAZY) {
             val response = player.requestUndoMove(resumeNode, InternalMarker)
             val mostRecent = updateRequestUndoMove.compareAndSet(this@GoGameFrame, deferred, null)
             when {
@@ -420,6 +387,7 @@ class GoGameFrame private constructor(
             response
         }
         deferredRequestUndoMove = deferred
+        deferred.start()
     }
 
     @Suppress("unused")
@@ -471,31 +439,25 @@ class GoGameFrame private constructor(
         }
     }
 
-    internal fun startScoring(scoreManager: GoScoreManager, marker: InternalMarker) {
+    internal fun startScoring(marker: InternalMarker) {
         marker.ignore()
         if (updateGameAction.compareAndSet(this, null, GameAction.COUNT_SCORE)) {
-            this.scoreManager = scoreManager
-            val goban = gameContext.node.goban
+            val goban = goGame.node.goban
             prototypeGoban.copyFrom(goban)
             gobanView.goban = goban
-            scoreGoban = prototypeGoban.getScoreGoban(gameContext.gameInfo.rules.territoryScore)
+            scoreGoban = prototypeGoban.getScoreGoban(goGame.gameInfo.rules.territoryScore)
             gobanView.repaint()
             actionButton.text = gobanDesktopResources().getString("Score.Submit")
             actionButton.isEnabled = true
         }
     }
 
-    internal fun updateScoring(
-        scoreManager: GoScoreManager,
-        stones: GoPointSet,
-        alive: Boolean,
-        marker: InternalMarker
-    ) {
+    internal fun updateScoring(stones: GoPointSet, alive: Boolean, marker: InternalMarker) {
         marker.ignore()
-        if (gameAction == GameAction.COUNT_SCORE && this.scoreManager === scoreManager) {
-            if (alive) prototypeGoban.copyFrom(gameContext.node.goban, stones)
+        if (gameAction == GameAction.COUNT_SCORE) {
+            if (alive) prototypeGoban.copyFrom(goGame.node.goban, stones)
             else prototypeGoban.setAll(stones, null)
-            scoreGoban = prototypeGoban.getScoreGoban(gameContext.gameInfo.rules.territoryScore, scoreGoban)
+            scoreGoban = prototypeGoban.getScoreGoban(goGame.gameInfo.rules.territoryScore, scoreGoban)
             gobanView.repaint()
             actionButton.isEnabled = true
         }
@@ -504,28 +466,26 @@ class GoGameFrame private constructor(
     internal fun finishScoring(marker: InternalMarker) {
         marker.ignore()
         if (updateGameAction.compareAndSet(this, GameAction.COUNT_SCORE, null)) {
-            scoreManager = null
-            scoreGoban = gameContext.node.territory
+            scoreGoban = goGame.node.territory
             gobanView.repaint()
         }
     }
 
     fun requestResumePlay() {
-        val scoreManager = this.scoreManager ?: return
         val blackPlayer = (this.blackPlayer as? Player)?.takeIf { it.frame === this }
         val whitePlayer = this.whitePlayer as? Player
         val player: Player = when {
             whitePlayer?.frame !== this -> blackPlayer ?: return
             blackPlayer == null -> whitePlayer
             else -> {
-                val node = gameContext.node
+                val node = goGame.node
                 if ((node.turnPlayer == GoColor.WHITE) == (node is GoSGFMoveNode)) whitePlayer else blackPlayer
             }
         }
-        player.requestResumePlay(gameContext, scoreManager, InternalMarker)
+        player.requestResumePlay(InternalMarker)
     }
 
-    private val gobanView = object: GobanView(gameContext.node.goban) {
+    private val gobanView = object: GobanView(goGame.node.goban) {
 
         var isShiftDown: Boolean = false
 
@@ -655,7 +615,7 @@ class GoGameFrame private constructor(
                     g.draw(getMarkupSquare(p))
                 }
             }
-            val p = (gameContext.node as? GoSGFMoveNode)?.playStoneAt
+            val p = (goGame.node as? GoSGFMoveNode)?.playStoneAt
             if (p != null) {
                 val color = goban[p]
                 if (color == GoColor.BLACK) g.paint = Color.WHITE
@@ -759,7 +719,7 @@ class GoGameFrame private constructor(
         labelWhiteTime.horizontalAlignment = SwingConstants.RIGHT
         labelBlackOvertime.horizontalAlignment = SwingConstants.RIGHT
         labelWhiteOvertime.horizontalAlignment = SwingConstants.RIGHT
-        var timeEvent = blackPlayer.getTimeEvent(gameContext)
+        var timeEvent = blackPlayer.timeEvent
         if (timeEvent == null) {
             displayBlackTime.foreground = Color.DARK_GRAY
             displayBlackTime.text = none
@@ -769,7 +729,7 @@ class GoGameFrame private constructor(
             displayBlackTime.foreground = Color.WHITE
             onTimeEvent(whitePlayer, timeEvent, resources, InternalMarker)
         }
-        timeEvent = whitePlayer.getTimeEvent(gameContext)
+        timeEvent = whitePlayer.timeEvent
         if (timeEvent == null) {
             displayWhiteTime.foreground = Color.DARK_GRAY
             displayWhiteTime.text = none
@@ -779,7 +739,7 @@ class GoGameFrame private constructor(
             displayWhiteTime.foreground = Color.BLACK
             onTimeEvent(whitePlayer, timeEvent, resources, InternalMarker)
         }
-        val overtime = gameContext.gameInfo.overtime
+        val overtime = goGame.gameInfo.overtime
         if (overtime == null) {
             displayBlackOvertime.foreground = Color.DARK_GRAY
             displayWhiteOvertime.foreground = Color.DARK_GRAY
@@ -822,10 +782,12 @@ class GoGameFrame private constructor(
     internal fun initLayout(resources: ResourceBundle, marker: InternalMarker) {
         marker.ignore()
         if (initLayoutOnce != 0) return
+        val blackPlayer = this.blackPlayer
         val isBlackLocal: Boolean = if (blackPlayer is Player) {
             if (!blackPlayer.isFrameInitialized) return
             blackPlayer.frame === this
         } else false
+        val whitePlayer = this.whitePlayer
         val isWhiteLocal: Boolean = if (whitePlayer is Player) {
             if (!whitePlayer.isFrameInitialized) return
             whitePlayer.frame === this
@@ -905,21 +867,17 @@ class GoGameFrame private constructor(
         val localOpponent = opponent as Player
         return ActionListener {
             displayAddOneMinuteStatus(localOpponent.color.opponent, 1, InternalMarker)
-            scope.launch {
-                localOpponent.extendOpponentTime(InternalMarker)
-            }
+            localOpponent.extendOpponentTime(InternalMarker)
         }
     }
 
     private fun requestAddOneMinuteListener(opponent: GoPlayer) = ActionListener {
         displayAddOneMinuteStatus(opponent.color.opponent, 0, InternalMarker)
-        scope.launch {
-            opponent.requestOpponentTimeExtension(ONE_MINUTE_IN_MILLIS)
-        }
+        opponent.requestOpponentTimeExtension(ONE_MINUTE_IN_MILLIS)
     }
 
-    @Suppress("unused") @Volatile private var deferredBlackAddOneMinute: Deferred<Unit>? = null
-    @Suppress("unused") @Volatile private var deferredWhiteAddOneMinute: Deferred<Unit>? = null
+    @Volatile private var blackAddOneMinute: Timer? = null
+    @Volatile private var whiteAddOneMinute: Timer? = null
 
     internal fun displayAddOneMinuteStatus(
         player: GoColor,
@@ -927,15 +885,14 @@ class GoGameFrame private constructor(
         marker: InternalMarker
     ) {
         marker.ignore()
-        val label: JLabel
-        val updater: AtomicReferenceFieldUpdater<GoGameFrame, Deferred<Unit>?>
-        if (player.isBlack) {
-            label = labelBlackAddOneMinute
-            updater = updateBlackAddOneMinute
-        } else {
-            label = labelWhiteAddOneMinute
-            updater = updateWhiteAddOneMinute
+        lateinit var label: JLabel
+        lateinit var updater: AtomicReferenceFieldUpdater<GoGameFrame, Timer?>
+        var timer: Timer? = null
+        timer = Timer(1000) {
+            if (updater.compareAndSet(this, timer, null))
+                label.isVisible = false
         }
+        timer.isRepeats = false
         val key: String = if (status > 0) {
             label.background = Color.GREEN
             "Request.Allowed"
@@ -943,16 +900,19 @@ class GoGameFrame private constructor(
             label.background = if (status == 0) Color.YELLOW else Color.RED
             "Request.Waiting"
         }
+        if (player.isBlack) {
+            label = labelBlackAddOneMinute
+            updater = updateBlackAddOneMinute
+            blackAddOneMinute = timer
+        } else {
+            label = labelWhiteAddOneMinute
+            updater = updateWhiteAddOneMinute
+            whiteAddOneMinute = timer
+        }
         label.foreground = if (status == 0) Color.BLACK else Color.WHITE
         label.text = gobanDesktopResources().getString(key)
         label.isVisible = true
-        var deferred: Deferred<Unit>? = null
-        deferred = scope.async {
-            updater[this@GoGameFrame] = deferred
-            delay(1000L)
-            if (updater.compareAndSet(this@GoGameFrame, deferred, null))
-                label.isVisible = false
-        }
+        timer.start()
     }
 
     internal fun onTimeEvent(player: GoPlayer, e: TimeEvent, resources: ResourceBundle, marker: InternalMarker) {
@@ -981,7 +941,7 @@ class GoGameFrame private constructor(
             labelTime.foreground = Color.BLACK
         }
         displayTime.text = timeLimitFormatter.format(timeRemaining)
-        val overtime = player.getOvertime(gameContext)
+        val overtime = player.overtime
         if (overtime != null) {
             if (e.isOvertime) {
                 labelOvertime.text = resources.getString("OvertimeRemaining.Prefix") +
@@ -994,38 +954,40 @@ class GoGameFrame private constructor(
         }
     }
 
-    @Suppress("unused")
-    @Volatile private var deferredResign: Deferred<Unit>? = null
+    @Volatile private var resignTimer: Timer? = null
 
     private fun resign(marker: InternalMarker) {
         val updateResign = GoGameFrame.updateResign
         val updateGameAction = GoGameFrame.updateGameAction
         val labelResign = this.labelResign
-        var deferred: Deferred<Unit>? = null
-        deferred = scope.async {
-            if (updateResign.compareAndSet(this@GoGameFrame, null, deferred)) {
-                labelResign.isVisible = true
-                delay(1000L)
-                labelResign.isVisible = false
-                updateResign.compareAndSet(this@GoGameFrame, deferred, null)
-            } else {
-                labelResign.isVisible = false
-                updateResign[this@GoGameFrame] = null
-                val player: Player = when {
-                    (blackPlayer as? Player)?.frame === this@GoGameFrame ->
-                        if ((whitePlayer as? Player)?.frame !== this@GoGameFrame) blackPlayer
-                        else when(updateGameAction[this@GoGameFrame]) {
-                            GameAction.PLAY_BLACK -> blackPlayer
-                            GameAction.PLAY_WHITE -> whitePlayer
-                            else -> return@async
-                        }
-                    (whitePlayer as? Player)?.frame === this@GoGameFrame -> whitePlayer
-                    else -> return@async
-                }
-                player.resign(marker)
-                updateGameAction[this@GoGameFrame] = null
-                update(marker)
+        var timer: Timer? = null
+        val blackPlayer = this.blackPlayer
+        val whitePlayer = this.whitePlayer
+        timer = Timer(1000) {
+            labelResign.isVisible = false
+            updateResign.compareAndSet(this, timer, null)
+        }
+        timer.isRepeats = false
+        if (updateResign.compareAndSet(this, null, timer)) {
+            labelResign.isVisible = false
+            timer.start()
+        } else {
+            labelResign.isVisible = false
+            resignTimer = null
+            val player: Player = when {
+                (blackPlayer as? Player)?.frame === this@GoGameFrame ->
+                    if ((whitePlayer as? Player)?.frame !== this@GoGameFrame) blackPlayer
+                    else when(updateGameAction[this@GoGameFrame]) {
+                        GameAction.PLAY_BLACK -> blackPlayer
+                        GameAction.PLAY_WHITE -> whitePlayer
+                        else -> return
+                    }
+                (whitePlayer as? Player)?.frame === this@GoGameFrame -> whitePlayer
+                else -> return
             }
+            player.resign(marker)
+            updateGameAction[this@GoGameFrame] = null
+            update(marker)
         }
     }
 
@@ -1055,11 +1017,8 @@ class GoGameFrame private constructor(
             actionButton.isEnabled = false
             val action = gameAction
             if (action == GameAction.COUNT_SCORE) {
-                val scoreManager = this.scoreManager
-                if (scoreManager != null) {
-                    blackPlayer.submitScoreFromFrame(scoreManager)
-                    whitePlayer.submitScoreFromFrame(scoreManager)
-                }
+                blackPlayer.submitScoreFromFrame()
+                whitePlayer.submitScoreFromFrame()
             } else {
                 if (action == GameAction.HANDICAP)
                     actionButton.text = GoPoint.format(null, sgf.width, sgf.height)
@@ -1073,10 +1032,9 @@ class GoGameFrame private constructor(
         contentPane = split
     }
 
-    private fun GoPlayer.submitScoreFromFrame(scoreManager: GoScoreManager) {
-        val player = this as? Player
-        if (player !== null && player.frame === this@GoGameFrame)
-            player.submitScore(gameContext, scoreManager, InternalMarker)
+    private fun GoPlayer.submitScoreFromFrame() {
+        if (this is Player && frame === this@GoGameFrame)
+            submitScore(InternalMarker)
     }
 
     private var goCursor: GoPoint? = null
@@ -1129,7 +1087,7 @@ class GoGameFrame private constructor(
                 updateHandicapText(targetHandicap, currentHandicap)
             }
             GameAction.COUNT_SCORE -> {
-                val scoreManager = this.scoreManager ?: return
+                val scoreManager = goGame.scoreManager ?: return
                 val channel = if (isShiftDown) scoreManager.livingStones else scoreManager.deadStones
                 scope.launch {
                     channel.send(goPointGroup)

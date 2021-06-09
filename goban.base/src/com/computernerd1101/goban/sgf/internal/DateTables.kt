@@ -39,7 +39,7 @@ internal open class DateTable12<T>(@JvmField val queue: ReferenceQueue<*>) {
                 buffer[6] = (if (digit < 10) '0' else 'A' - 10) + digit
                 digit = index and 0xF
                 buffer[7] = (if (digit < 10) '0' else 'A' - 10) + digit
-                AtomicReferenceFieldUpdater.newUpdater(type, Any::class.java, String(buffer))
+                AtomicReferenceFieldUpdater.newUpdater(type, Any::class.java, buffer.concatToString())
             }
             buffer[0] = 'w'
             buffer[1] = 'e'
@@ -55,7 +55,7 @@ internal open class DateTable12<T>(@JvmField val queue: ReferenceQueue<*>) {
                 buffer[4] = (if (digit < 10) '0' else 'A' - 10) + digit
                 digit = index and 0xF
                 buffer[5] = (if (digit < 10) '0' else 'A' - 10) + digit
-                AtomicReferenceFieldUpdater.newUpdater(type, WeakDateTable::class.java, String(buffer, 0, 6))
+                AtomicReferenceFieldUpdater.newUpdater(type, WeakDateTable::class.java, buffer.concatToString(0, 6))
             }
         }
     }
