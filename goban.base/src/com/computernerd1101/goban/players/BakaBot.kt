@@ -51,7 +51,7 @@ class BakaBot private constructor(
             set(random) {
                 if (field !== random) {
                     field = random
-                    randomUpdater[this] = null
+                    lazyRandom = null
                 }
             }
 

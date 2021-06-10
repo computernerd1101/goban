@@ -47,6 +47,15 @@ class GoGameManager {
         var node = sgf.rootNode
         gameInfo = setup?.gameInfo ?: GameInfo()
         node.gameInfo = gameInfo
+        if (setup?.isFreeHandicap != true) {
+            // If setup is null, then handicap is zero, in which case goban will be null.
+            val goban = setup?.generateFixedHandicap()
+            if (goban != null) {
+                gameInfo.handicap = goban.blackCount
+                node = node.createNextSetupNode(goban)
+            }
+        }
+        _node = node
         var player1 = setup?.blackPlayer ?: defaultPlayerFactory
         var player2 = setup?.whitePlayer ?: defaultPlayerFactory
         if (setup?.randomPlayer?.nextBoolean() == true) {
@@ -59,15 +68,6 @@ class GoGameManager {
         }
         blackPlayer = player1.safeCreatePlayer(GoColor.BLACK)
         whitePlayer = player2.safeCreatePlayer(GoColor.WHITE)
-        if (setup?.isFreeHandicap != true) {
-            // If setup is null, then handicap is zero, in which case goban will be null.
-            val goban = setup?.generateFixedHandicap()
-            if (goban != null) {
-                gameInfo.handicap = goban.blackCount
-                node = node.createNextSetupNode(goban)
-            }
-        }
-        _node = node
     }
 
     @Suppress("unused")

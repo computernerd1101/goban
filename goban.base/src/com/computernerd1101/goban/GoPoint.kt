@@ -36,8 +36,8 @@ class GoPoint private constructor(
     cache: Cache
 ): Iterable<GoPoint>, Comparable<GoPoint>, Serializable {
 
-    @Transient private val string: String = buffer.concatToString(1, 2).intern()
-    @Transient private val gtp: String = buffer.concatToString(4, if (y < 9) 2 else 3).intern()
+    @Transient private val string: String = buffer.concatToString(1, 3).intern()
+    @Transient private val gtp: String = buffer.concatToString(4, if (y < 9) 6 else 7).intern()
 
     @Transient
     @get:JvmName("selfRect")
