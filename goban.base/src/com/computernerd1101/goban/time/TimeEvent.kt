@@ -1,6 +1,5 @@
 package com.computernerd1101.goban.time
 
-import java.io.*
 import java.util.*
 
 @FunctionalInterface

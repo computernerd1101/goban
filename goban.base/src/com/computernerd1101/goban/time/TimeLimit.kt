@@ -118,7 +118,6 @@ class TimeLimit private constructor(
             }
             var pos = s1.length
             val buf = s1.toCharArray(CharArray(pos + 3))
-            s2?.toCharArray(buf, pos)
             if (s2 != null) {
                 s2.toCharArray(buf, pos)
                 pos += s2.length
@@ -169,7 +168,7 @@ class TimeLimit private constructor(
         // In case overtime?.filterEvent(timeEvent) accesses this
         // through timeEvent.getSource(),
         // this.timeEvent will already be non-null.
-        _timeEvent = getFilteredEvent(_timeEvent)
+        _timeEvent = /*Events.(this).*/getFilteredEvent(_timeEvent)
     }
 
     fun addTimeListener(l: TimeListener?) {
@@ -246,13 +245,13 @@ class TimeLimit private constructor(
         synchronized(this) {
             val overtime = this.overtime
             var e = _timeEvent
-            e = if (overtime != null) {
-                val e2 = overtime.extendTime(e, extension)
+            if (overtime != null) {
                 val source = e.source
-                if (source == null || source === e2.source) e2
-                else TimeEvent(source, e2.timeRemaining, e2.overtimeCode, e2.flags)
-            } else Companion.extendTime(e, extension)
-            Events.updateTimeEvent(e, true)
+                e = overtime.extendTime(e, extension)
+                if (source != null && source !== e.source)
+                    e = TimeEvent(source, e.timeRemaining, e.overtimeCode, e.flags)
+            } else e = Companion.extendTime(e, extension)
+            /*this.*/Events.updateTimeEvent(e, true)
         }
     }
 
@@ -261,7 +260,7 @@ class TimeLimit private constructor(
         // even synthetic public method access$updateTimeEvent,
         // which is called by a TimerTask lambda,
         // cannot be called without access to receiver of private type Events.
-        val event = if (filter) getFilteredEvent(e) else e
+        val event = if (filter) /*Events.(this).*/getFilteredEvent(e) else e
         // The owner of this method is the same as that of the private property _timeEvent,
         // so a public synthetic setter will not be generated for that property.
         _timeEvent = event

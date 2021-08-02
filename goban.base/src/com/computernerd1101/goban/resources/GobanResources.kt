@@ -1,4 +1,4 @@
-@file:Suppress("unused", "ClassName")
+@file:Suppress("unused", "ClassName", "SpellCheckingInspection")
 
 package com.computernerd1101.goban.resources
 

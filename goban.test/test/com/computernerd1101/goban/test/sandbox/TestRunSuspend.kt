@@ -4,7 +4,7 @@ import kotlinx.coroutines.delay
 
 suspend fun main(args: Array<String>) {
     for(arg in args) {
-        delay(1000L)
         println(arg)
+        delay(1000L)
     }
 }

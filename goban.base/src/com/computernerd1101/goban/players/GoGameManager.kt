@@ -36,8 +36,6 @@ class GoGameManager {
     @Suppress("unused")
     val hypothetical: GoSGFSetupNode? get() = _hypothetical
 
-    val job: Job = Job()
-
     constructor(defaultPlayerFactory: GoPlayer.Factory): this(null, defaultPlayerFactory)
 
     constructor(setup: GoGameSetup?, defaultPlayerFactory: GoPlayer.Factory) {
@@ -110,9 +108,7 @@ class GoGameManager {
             blackPlayer.update()
             whitePlayer.update()
         }
-        var context = coroutineContext
-        if (context[Job] !== job) context += job
-        val scope = CoroutineScope(context)
+        val scope = CoroutineScope(coroutineContext)
         val deferredGameOver = gameOverContinuation.suspendAsync(scope)
         var passCount = 0
         var lastNonPass: GoSGFNode = node

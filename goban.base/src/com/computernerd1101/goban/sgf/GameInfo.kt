@@ -210,7 +210,7 @@ class GameInfo: Serializable {
 
     var timeLimit: Long = 0L
         set(time) {
-            field = if (time < 0) 0 else time
+            field = if (time < 0L) 0L else time
         }
     var malformedTimeLimit: SGFProperty? = null
     fun parseTimeLimit(prop: SGFProperty, warnings: SGFWarningList?): Long {

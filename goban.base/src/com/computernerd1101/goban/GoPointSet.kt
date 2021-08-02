@@ -752,7 +752,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                     for(y in y1..y2)
                         InternalGoPointSet.rowUpdaters[y][readOnly] = newBits
                     InternalGoPointSet.sizeAndHash[readOnly] =
-                        elements.size.toLong() xor elements.hashCode().toLong().shl(32)
+                        elements.size.toLong() or elements.hashCode().toLong().shl(32)
                     this.readOnly = readOnly
                 }
                 readOnly.copyRect(elements, InternalMarker)
@@ -761,7 +761,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                 val rows: LongArray = ThreadLocalRows.get()
                 for(y in 0..51) rows[y] = 0L
                 for((x, y) in elements)
-                    rows[y] = rows[y] xor (1L shl x)
+                    rows[y] = rows[y] or (1L shl x)
                 for(y in 0..51) {
                     val newBits = rows[y]
                     if (InternalGoPointSet.copyRowFrom(this, y, newBits))

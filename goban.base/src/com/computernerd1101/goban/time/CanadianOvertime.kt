@@ -11,7 +11,7 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime(), PropertyTranslator
     operator fun component2() = moves
 
     @TimeProperty(name="Seconds", min=1L)
-    var millis: Long = if (millis > 0) millis else throw IllegalArgumentException("millis")
+    var millis: Long = if (millis > 0L) millis else throw IllegalArgumentException("millis")
         set(value) {
             if (value <= 0L) throw IllegalArgumentException("millis")
             field = value

@@ -8,6 +8,7 @@ import com.computernerd1101.goban.markup.*
 import com.computernerd1101.goban.players.*
 import com.computernerd1101.goban.sgf.GameResult
 import com.computernerd1101.sgf.*
+import kotlinx.coroutines.Job
 import java.util.*
 
 abstract class UnusedPlayer(game: GoGameManager, color: GoColor): GoPlayer(game, color) {
@@ -18,7 +19,6 @@ abstract class UnusedPlayer(game: GoGameManager, color: GoColor): GoPlayer(game,
 }
 
 fun unused() {
-    GoGameSetup()
     GoGameManager(GoGameFrame).scoreManager
     lineMarkup(0, 0, 1, 1)
     arrowMarkup(0, 0, 1, 1)
@@ -39,7 +39,6 @@ fun unused() {
     nullPoint.formatOrPass(19, 19)
     "A1".gtpParse(19, 19)
     "I1".gtpParseOrNull(19, 19)
-    0.gtpFormatX()
     'A'.gtpParseXOrThrow(19)
     'i'.gtpParseX(19)
     MutableGoPointSet(GoPoint(0, 0), GoPoint(1, 1))
@@ -73,5 +72,7 @@ fun unused() {
     SGFTree(listOf(SGFNode(1)))
     SGFTree(listOf(SGFNode(emptyMap())), emptyList())
     GoGameFrame()
+    GoGameFrame(Job())
+    GoGameFrame(GoGameSetup(), Job())
 }
 

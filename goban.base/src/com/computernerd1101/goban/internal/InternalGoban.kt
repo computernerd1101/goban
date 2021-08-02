@@ -12,7 +12,7 @@ internal object InternalGoban: LongBinaryOperator {
         val index = when {
             !wide -> height - 1
             height <= 26 -> height*2 - 1
-            else -> height + 25
+            else -> height + 25 // height + 26 - 1
         }
         return GobanRows.empty[index]
     }

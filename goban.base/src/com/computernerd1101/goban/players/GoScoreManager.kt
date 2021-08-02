@@ -49,10 +49,7 @@ class GoScoreManager internal constructor(val game: GoGameManager, marker: Inter
 
     suspend fun computeScore(): GoColor? {
         submitPlayerFlags = 0
-        val job = game.job
-        var context = coroutineContext
-        if (context[Job] !== job) context += job
-        val scope = CoroutineScope(context)
+        val scope = CoroutineScope(coroutineContext)
         val deferredSubmit: Deferred<GoColor?> = submitted.suspendAsync(scope)
         val blackPlayer = game.blackPlayer
         val whitePlayer = game.whitePlayer
@@ -64,47 +61,45 @@ class GoScoreManager internal constructor(val game: GoGameManager, marker: Inter
         val receiveStones = MutableGoPointSet()
         val sendStones = MutableGoPointSet()
         val group = MutableGoPointSet()
+        var resumeRequest: GoColor? = null
         var waiting = true
-        while(waiting) {
-            var resumeRequest: GoColor? = null
-            select<Unit> {
-                _deadStones.onReceive {
-                    unSubmitScore(InternalMarker)
-                    receiveStones.copyFrom(it)
-                    sendStones.clear()
-                    for(point in receiveStones) {
-                        if (goban[point] == null) continue
-                        goban.getGroup(point, group)
-                        finalGoban.setAll(group, null)
-                        receiveStones.removeAll(group)
-                        sendStones.addAll(group)
-                    }
-                    val stones = sendStones.readOnly()
-                    blackPlayer.updateScoring(stones, false)
-                    whitePlayer.updateScoring(stones, false)
+        while(waiting) select<Unit> {
+            _deadStones.onReceive {
+                unSubmitScore(InternalMarker)
+                receiveStones.copyFrom(it)
+                sendStones.clear()
+                for (point in receiveStones) {
+                    if (goban[point] == null) continue
+                    goban.getGroup(point, group)
+                    finalGoban.setAll(group, null)
+                    receiveStones.removeAll(group)
+                    sendStones.addAll(group)
                 }
-                _livingStones.onReceive {
-                    unSubmitScore(InternalMarker)
-                    receiveStones.copyFrom(it)
-                    sendStones.clear()
-                    for(point in receiveStones) {
-                        val color = goban[point] ?: continue
-                        goban.getGroup(point, group)
-                        finalGoban.setAll(group, color)
-                        receiveStones.removeAll(group)
-                        sendStones.addAll(group)
-                    }
-                    val stones = sendStones.readOnly()
-                    blackPlayer.updateScoring(stones, true)
-                    whitePlayer.updateScoring(stones, true)
-                }
-                deferredSubmit.onAwait {
-                    waiting = false
-                    resumeRequest = it
-                }
+                val stones = sendStones.readOnly()
+                blackPlayer.updateScoring(stones, false)
+                whitePlayer.updateScoring(stones, false)
             }
-            if (resumeRequest != null) return resumeRequest
+            _livingStones.onReceive {
+                unSubmitScore(InternalMarker)
+                receiveStones.copyFrom(it)
+                sendStones.clear()
+                for (point in receiveStones) {
+                    val color = goban[point] ?: continue
+                    goban.getGroup(point, group)
+                    finalGoban.setAll(group, color)
+                    receiveStones.removeAll(group)
+                    sendStones.addAll(group)
+                }
+                val stones = sendStones.readOnly()
+                blackPlayer.updateScoring(stones, true)
+                whitePlayer.updateScoring(stones, true)
+            }
+            deferredSubmit.onAwait {
+                waiting = false
+                resumeRequest = it
+            }
         }
+        if (resumeRequest != null) return resumeRequest
         val territory: Boolean = game.gameInfo.rules.territoryScore
         val scoreGoban: MutableGoban = finalGoban.getScoreGoban(territory, node.territory)
         val gameInfo = game.gameInfo

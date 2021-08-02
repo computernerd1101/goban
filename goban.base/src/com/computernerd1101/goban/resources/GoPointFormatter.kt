@@ -2,18 +2,19 @@
 
 package com.computernerd1101.goban.resources
 
-import com.computernerd1101.goban.GoPoint
+import com.computernerd1101.goban.*
 
 internal fun interface GoPointFormatter {
 
     fun format(point: GoPoint?, width: Int, height: Int): String
 
+    // GTP = Go Text Protocol
     companion object GTP: GoPointFormatter {
 
         override fun format(point: GoPoint?, width: Int, height: Int): String {
             if (point == null) return "Pass"
             val y = height - point.y
-            return if (y in 1..52) point.gtpFormat(height) else "${GoPoint.gtpFormatX(point.x)}$y"
+            return if (y in 1..52) point.gtpFormat(height) else "${point.x.gtpFormatX()}$y"
         }
 
     }
@@ -24,7 +25,7 @@ internal object GoPointFormatter_ja: GoPointFormatter {
 
     private val cache: Array<String> = Array(52 * 52) { index ->
         (GobanDimensionFormatter_ja.Y.format(index / 52, 52) +
-                "\u306e" + // hiragana "no" (possessive particle)
+                '\u306e' + // hiragana "no" (possessive particle)
                 GobanDimensionFormatter_ja.X.format(index % 52, 52)).intern()
     }
 

@@ -22,17 +22,27 @@ import kotlin.math.min
 
 class GoGameFrame private constructor(
     game: GoGameManager?,
+    context: CoroutineContext,
     resources: ResourceBundle
 ): JFrame() {
 
-    constructor(): this(null, gobanDesktopResources())
+    constructor(): this(null, Dispatchers.Swing, gobanDesktopResources())
 
-    constructor(goGame: GoGameManager): this(goGame, gobanDesktopResources())
+    constructor(goGame: GoGameManager): this(goGame, Dispatchers.Swing, gobanDesktopResources())
 
-    @Suppress("unused")
-    val context: CoroutineContext get() = scope.coroutineContext
+    constructor(job: Job): this(null, Dispatchers.Swing + job, gobanDesktopResources())
+
+    constructor(goGame: GoGameManager, job: Job): this(goGame, Dispatchers.Swing + job, gobanDesktopResources())
 
     constructor(setup: GoGameSetup): this(GoGameManager(setup, PlayerFactory)) {
+        initPlayers()
+    }
+
+    constructor(setup: GoGameSetup, job: Job): this(GoGameManager(setup, PlayerFactory), job) {
+        initPlayers()
+    }
+
+    private fun initPlayers() {
         (blackPlayer as? Player)?.initFrame(this)
         (whitePlayer as? Player)?.initFrame(this)
     }
@@ -41,7 +51,10 @@ class GoGameFrame private constructor(
     val blackPlayer: GoPlayer get() = goGame.blackPlayer
     val whitePlayer: GoPlayer get() = goGame.whitePlayer
 
-    val scope: CoroutineScope = CoroutineScope(Dispatchers.Swing + goGame.job)
+    val scope: CoroutineScope = CoroutineScope(context)
+
+    @Suppress("unused")
+    val context: CoroutineContext get() = scope.coroutineContext
 
     init {
         title = "CN13 Goban"
@@ -294,7 +307,7 @@ class GoGameFrame private constructor(
     internal suspend fun generateMove(player: GoColor, marker: InternalMarker): GoPoint? {
         marker.ignore()
         val action = if (player == GoColor.BLACK) GameAction.PLAY_BLACK else GameAction.PLAY_WHITE
-        if (!updateGameAction.compareAndSet(this@GoGameFrame, null, action))
+        if (!updateGameAction.compareAndSet(this, null, action))
             throw IllegalStateException("Cannot request move while another operation is pending.")
         val goban = goGame.node.goban
         val allowSuicide = goGame.gameInfo.rules.allowSuicide
@@ -615,11 +628,11 @@ class GoGameFrame private constructor(
                     g.draw(getMarkupSquare(p))
                 }
             }
-            val p = (goGame.node as? GoSGFMoveNode)?.playStoneAt
+            val node = goGame.node
+            val p = (node as? GoSGFMoveNode)?.playStoneAt
             if (p != null) {
-                val color = goban[p]
-                if (color == GoColor.BLACK) g.paint = Color.WHITE
-                else if (color == GoColor.WHITE) g.paint = Color.BLACK
+                val color = goban[p]?.opponent ?: node.turnPlayer
+                g.paint = if (color == GoColor.BLACK) Color.BLACK else Color.WHITE
                 g.draw(getMarkupCircle(p))
             }
         }
@@ -893,13 +906,6 @@ class GoGameFrame private constructor(
                 label.isVisible = false
         }
         timer.isRepeats = false
-        val key: String = if (status > 0) {
-            label.background = Color.GREEN
-            "Request.Allowed"
-        } else {
-            label.background = if (status == 0) Color.YELLOW else Color.RED
-            "Request.Waiting"
-        }
         if (player.isBlack) {
             label = labelBlackAddOneMinute
             updater = updateBlackAddOneMinute
@@ -908,6 +914,13 @@ class GoGameFrame private constructor(
             label = labelWhiteAddOneMinute
             updater = updateWhiteAddOneMinute
             whiteAddOneMinute = timer
+        }
+        val key: String = if (status > 0) {
+            label.background = Color.GREEN
+            "Request.Allowed"
+        } else {
+            label.background = if (status == 0) Color.YELLOW else Color.RED
+            "Request.Waiting"
         }
         label.foreground = if (status == 0) Color.BLACK else Color.WHITE
         label.text = gobanDesktopResources().getString(key)
@@ -958,35 +971,37 @@ class GoGameFrame private constructor(
 
     private fun resign(marker: InternalMarker) {
         val updateResign = GoGameFrame.updateResign
-        val updateGameAction = GoGameFrame.updateGameAction
         val labelResign = this.labelResign
         var timer: Timer? = null
         val blackPlayer = this.blackPlayer
         val whitePlayer = this.whitePlayer
         timer = Timer(1000) {
+            // One second has passed. Forget that the button was clicked.
             labelResign.isVisible = false
             updateResign.compareAndSet(this, timer, null)
         }
         timer.isRepeats = false
         if (updateResign.compareAndSet(this, null, timer)) {
-            labelResign.isVisible = false
+            // Button clicked for the first time. Wait one second.
+            labelResign.isVisible = true
             timer.start()
         } else {
+            // Button clicked for the second time. Really resign.
             labelResign.isVisible = false
             resignTimer = null
             val player: Player = when {
-                (blackPlayer as? Player)?.frame === this@GoGameFrame ->
-                    if ((whitePlayer as? Player)?.frame !== this@GoGameFrame) blackPlayer
-                    else when(updateGameAction[this@GoGameFrame]) {
+                (blackPlayer as? Player)?.frame === this ->
+                    if ((whitePlayer as? Player)?.frame !== this) blackPlayer
+                    else when(gameAction) {
                         GameAction.PLAY_BLACK -> blackPlayer
                         GameAction.PLAY_WHITE -> whitePlayer
                         else -> return
                     }
-                (whitePlayer as? Player)?.frame === this@GoGameFrame -> whitePlayer
+                (whitePlayer as? Player)?.frame === this -> whitePlayer
                 else -> return
             }
             player.resign(marker)
-            updateGameAction[this@GoGameFrame] = null
+            gameAction = null
             update(marker)
         }
     }
@@ -1089,8 +1104,9 @@ class GoGameFrame private constructor(
             GameAction.COUNT_SCORE -> {
                 val scoreManager = goGame.scoreManager ?: return
                 val channel = if (isShiftDown) scoreManager.livingStones else scoreManager.deadStones
+                val group = goPointGroup
                 scope.launch {
-                    channel.send(goPointGroup)
+                    channel.send(group)
                 }
             }
             // PLAY_BLACK, PLAY_WHITE

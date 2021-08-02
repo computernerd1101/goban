@@ -4,6 +4,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 import java.util.concurrent.atomic.*
 import kotlin.coroutines.*
+import kotlin.random.Random
+import kotlin.random.asJavaRandom
 
 /*
  * class Cacheable(val index: Int) {
@@ -153,3 +155,9 @@ fun <T: Any, V> AtomicReferenceFieldUpdater<T, V>.compareAndExchange(target: T, 
     }
     return expect
 }
+
+val defaultPlatformRandom: java.util.Random = try {
+    Random::class.java.getMethod("access\$getDefaultRandom\$cp").invoke(null) as Random
+} catch (e: Throwable) {
+    Random
+}.asJavaRandom()

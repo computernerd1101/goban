@@ -2,7 +2,7 @@
 
 package com.computernerd1101.goban.resources
 
-import com.computernerd1101.goban.GoPoint
+import com.computernerd1101.goban.gtpFormatX
 
 internal interface GobanDimensionFormatter {
 
@@ -12,7 +12,7 @@ internal interface GobanDimensionFormatter {
         @JvmField val X = Default.X
         @JvmField val Y = Default.Y
 
-        @JvmField val LETTERS: Array<String> = Array(52) { x -> "${GoPoint.gtpFormatX(x)}".intern() }
+        @JvmField val LETTERS: Array<String> = Array(52) { x -> "${x.gtpFormatX()}".intern() }
         @JvmField val NUMBERS: Array<String> = Array(52) { y -> "${y + 1}".intern() }
 
     }
@@ -32,7 +32,9 @@ internal interface GobanDimensionFormatter {
 
 }
 
+@Suppress("SpellCheckingInspection")
 //                                1     2     3     4     5     6     7     8     9
+//                                ichi  ni    san   yon   go    roku  nana  hachi kyuu
 private const val KANJI_DIGITS = "\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d"
 
 internal enum class GobanDimensionFormatter_ja: GobanDimensionFormatter {
@@ -44,7 +46,7 @@ internal enum class GobanDimensionFormatter_ja: GobanDimensionFormatter {
     Y {
 
         private val kanji: Array<String> = CharArray(3).let { buffer ->
-            buffer[1] = '\u5341' // 10
+            buffer[1] = '\u5341' // juu = 10
             Array(99) { y ->
                 val start = when {
                     y >= 19 -> { // y + 1 >= 20

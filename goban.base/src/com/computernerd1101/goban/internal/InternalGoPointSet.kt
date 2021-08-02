@@ -47,7 +47,7 @@ internal object InternalGoPointSet {
         sizeAndHash[set] = sizeAndHash(set)
     }
 
-    fun sizeAndHash(set: GoPointSet): Long  {
+    fun sizeAndHash(set: GoPointSet): Long {
         var words = 0L
         for(y in 0..51)
             words += sizeAndHash(y, rowUpdaters[y][set])
@@ -62,8 +62,8 @@ internal object InternalGoPointSet {
             val bit = unseen and -unseen
             unseen -= bit
             // add x + 52*y to hash and add 1 to size, broken up as follows:
-            //       add x to hash                                     add 52*y to hash and add 1 to size
-            words += trailingZerosPow2(bit).toLong().shl(32) + inc
+            //       add x to hash                              add 52*y to hash and add 1 to size
+            words += (trailingZerosPow2(bit).toLong() shl 32) + inc
         }
         return words
     }

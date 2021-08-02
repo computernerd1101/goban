@@ -124,8 +124,8 @@ sealed class AbstractGoban(
         getGroup(p.x, p.y, group)
 
     @JvmOverloads
-    fun getGroup(x: Int, y: Int, chain: MutableGoPointSet? = null): GoPointSet =
-        getChainOrGroup(x, y, chain, isChain = false)
+    fun getGroup(x: Int, y: Int, group: MutableGoPointSet? = null): GoPointSet =
+        getChainOrGroup(x, y, group, isChain = false)
 
     private fun getChainOrGroup(x: Int, y: Int, chainOrGroup: MutableGoPointSet?, isChain: Boolean): GoPointSet {
         if (x !in 0 until width)
@@ -431,8 +431,8 @@ sealed class AbstractMutableGoban: AbstractGoban {
             val wide = width > 32
             for(y in 0 until rows.size) {
                 var pos = y.toLong()
-                //              ((pos / 2) shl 32) or ((pos % 2) * 32)
-                pos = if (wide) pos.and(-2L).shl(31) or pos.and(1L).shl(5)
+                //              ((pos / 2) shl 32)     or ((pos % 2) * 32)
+                pos = if (wide) ((pos and -2L) shl 31) or ((pos and 1L) shl 5)
                 else pos shl 32
                 val oldRow = GobanRows.updaters[y].getAndAccumulate(rows, pos, copyRows)
                 val newRow = copyRows.applyAsLong(oldRow, pos)

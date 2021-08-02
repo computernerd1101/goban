@@ -7,6 +7,7 @@ import com.computernerd1101.goban.sgf.internal.*
 import com.computernerd1101.sgf.*
 import java.io.*
 import java.nio.charset.Charset
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater
 import java.util.function.IntBinaryOperator
 import kotlin.math.min
 
@@ -1546,12 +1547,16 @@ class GoSGFMoveNode internal constructor(
 
     companion object {
 
-        /** Updates [GoSGFMoveNode.flags] */
-        private val updateFlags = atomicIntUpdater<GoSGFMoveNode>("flags")
+        init {
+            Flags.update = atomicIntUpdater("flags")
+        }
 
     }
 
     private object Flags {
+        /** Updates [GoSGFMoveNode.flags] */
+        @JvmStatic lateinit var update: AtomicIntegerFieldUpdater<GoSGFMoveNode>
+
         const val BLACK_TIME = 0x1
         const val WHITE_TIME = 0x2
         const val BLACK_OVERTIME = 0x4
@@ -1571,7 +1576,7 @@ class GoSGFMoveNode internal constructor(
                 flag = Flags.FORCED xor -1
                 op = BinOp.AND
             }
-            updateFlags.getAndAccumulate(this, flag, op)
+            Flags.update.getAndAccumulate(this, flag, op)
         }
 
     @Suppress("unused")
@@ -1598,7 +1603,7 @@ class GoSGFMoveNode internal constructor(
                     return@synchronized false
                 parent = parent.parent
             }
-            return true
+            true
         }
     }
 
@@ -1624,25 +1629,23 @@ class GoSGFMoveNode internal constructor(
             val superkoType = superko ?: gameInfo?.rules?.superko ?: Superko.NATURAL
             val goban = this.goban
             val nextGoban = tree.threadLocalGoban.goban
-            for(y in 0 until goban.height) {
-                for(x in 0 until goban.width) {
-                    val point = GoPoint(x, y)
-                    if (goban[point] != null) continue
-                    nextGoban.copyFrom(goban)
-                    nextGoban.play(point, nextPlayer)
-                    if (nextGoban contentEquals goban) continue // single-stone suicide
-                    var parent = this.parent
-                    while(parent is GoSGFMoveNode) {
-                        if (nextGoban contentEquals parent.goban) {
-                            if (superkoType == Superko.POSITIONAL || InternalGoSGF.violatesSituationalSuperko(
-                                    nextPlayer, parent, superkoType == Superko.NATURAL
-                            )) {
-                                tmpSet.add(point)
-                                break
-                            }
+            for(y in 0 until goban.height) for(x in 0 until goban.width) {
+                val point = GoPoint(x, y)
+                if (goban[point] != null) continue
+                nextGoban.copyFrom(goban)
+                nextGoban.play(point, nextPlayer)
+                if (nextGoban contentEquals goban) continue // single-stone suicide
+                var parent = this.parent
+                while(parent is GoSGFMoveNode) {
+                    if (nextGoban contentEquals parent.goban) {
+                        if (superkoType == Superko.POSITIONAL || InternalGoSGF.violatesSituationalSuperko(
+                                nextPlayer, parent, superkoType == Superko.NATURAL
+                        )) {
+                            tmpSet.add(point)
+                            break
                         }
-                        parent = parent.parent
                     }
+                    parent = parent.parent
                 }
             }
             if (set == null) return@synchronized tmpSet.readOnly()
@@ -1740,40 +1743,40 @@ class GoSGFMoveNode internal constructor(
 
         val hasTime: Boolean
             @JvmName("hasTime")
-            get() = node.flags and (if (color == GoColor.BLACK) Flags.BLACK_TIME else Flags.WHITE_TIME) != 0
+            get() = Flags.update[node] and (if (color == GoColor.BLACK) Flags.BLACK_TIME else Flags.WHITE_TIME) != 0
 
         var time: Long
             get() = _time
             set(time) {
                 _time = time
-                updateFlags.getAndAccumulate(node,
+                Flags.update.getAndAccumulate(node,
                     if (color == GoColor.BLACK) Flags.BLACK_TIME
                     else Flags.WHITE_TIME, BinOp.OR)
             }
 
         fun omitTime() {
             _time = 0L
-            updateFlags.getAndAccumulate(node,
+            Flags.update.getAndAccumulate(node,
                 if (color == GoColor.BLACK) Flags.BLACK_TIME xor -1
                 else Flags.WHITE_TIME xor -1, BinOp.AND)
         }
 
         val hasOvertime: Boolean
             @JvmName("hasOvertime")
-            get() = node.flags and (if (color == GoColor.BLACK) Flags.BLACK_OVERTIME else Flags.WHITE_OVERTIME) != 0
+            get() = Flags.update[node] and (if (color == GoColor.BLACK) Flags.BLACK_OVERTIME else Flags.WHITE_OVERTIME) != 0
 
         var overtime: Int
             get() = _overtime
             set(overtime) {
                 _overtime = overtime
-                updateFlags.getAndAccumulate(node,
+                Flags.update.getAndAccumulate(node,
                     if (color == GoColor.BLACK) Flags.BLACK_OVERTIME
                     else Flags.WHITE_OVERTIME, BinOp.OR)
             }
 
         fun omitOvertime() {
             _overtime = 0
-            updateFlags.getAndAccumulate(node,
+            Flags.update.getAndAccumulate(node,
                 if (color == GoColor.BLACK) Flags.BLACK_OVERTIME xor -1
                 else Flags.WHITE_OVERTIME xor -1, BinOp.AND)
         }

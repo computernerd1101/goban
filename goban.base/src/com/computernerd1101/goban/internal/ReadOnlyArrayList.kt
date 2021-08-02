@@ -62,7 +62,8 @@ internal class ReadOnlyArrayList<out E> private constructor(
             return emptyList()
         if (fromIndex > toIndex)
             throw IllegalArgumentException("fromIndex: $fromIndex > toIndex: $toIndex")
-        return ReadOnlyArrayList(array, fromIndex + offset, toIndex - fromIndex)
+        return if (fromIndex == 0 && toIndex == size) this
+        else ReadOnlyArrayList(array, fromIndex + offset, toIndex - fromIndex)
     }
 
     @Suppress("unused", "ReplaceJavaStaticMethodWithKotlinAnalog")

@@ -17,7 +17,6 @@ fun main() {
     setup.gameInfo.timeLimit = 30000L
     setup.gameInfo.overtime = ByoYomi(periods = 3, millis = 20000L)
     val game = GoGameManager(setup, GoGameFrame)
-    val job = game.job
     val blackPlayer = game.blackPlayer as GoGameFrame.Player
     assert(!blackPlayer.isFrameInitialized)
     val whitePlayer = game.whitePlayer as GoGameFrame.Player
@@ -25,8 +24,9 @@ fun main() {
     val handler = Thread.UncaughtExceptionHandler { _, e ->
         println(e)
     }
-    val blackFrame = GoGameFrame(game)
-    val whiteFrame = GoGameFrame(game)
+    val job = Job()
+    val blackFrame = GoGameFrame(game, job)
+    val whiteFrame = GoGameFrame(game, job)
     blackPlayer.initFrame(blackFrame)
     assert(blackPlayer.isFrameInitialized)
     whitePlayer.initFrame(whiteFrame)

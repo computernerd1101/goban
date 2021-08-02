@@ -1,13 +1,9 @@
 package com.computernerd1101.goban.players
 
 import com.computernerd1101.goban.*
-import com.computernerd1101.goban.internal.InternalMarker
-import com.computernerd1101.goban.internal.atomicUpdater
-import com.computernerd1101.goban.internal.getOrDefault
+import com.computernerd1101.goban.internal.*
 import com.computernerd1101.goban.sgf.GoSGFMoveNode
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import kotlin.random.*
 
 /**
@@ -21,17 +17,22 @@ class BakaBot private constructor(
     val random: Random,
     @Suppress("unused")
     @get:JvmName("getRandom")
-    val javaRandom: java.util.Random
+    val javaRandom: java.util.Random,
+    marker: InternalMarker
 ): GoPlayer(game, color) {
+
+    init {
+        marker.ignore()
+    }
 
     constructor(game: GoGameManager, color: GoColor): this(game, color, Random)
 
     constructor(game: GoGameManager, color: GoColor, random: Random):
-            this(game, color, random, random.asJavaRandom())
+            this(game, color, random, random.asJavaRandom(), InternalMarker)
 
     @Suppress("unused")
     constructor(game: GoGameManager, color: GoColor, random: java.util.Random):
-            this(game, color, random.asKotlinRandom(), random)
+            this(game, color, random.asKotlinRandom(), random, InternalMarker)
 
     companion object DefaultFactory: GoPlayer.Factory {
 
@@ -69,12 +70,12 @@ class BakaBot private constructor(
             @JvmName("getRandom") get() =
                 lazyRandom ?: randomUpdater.getOrDefault(this, random.asJavaRandom())
             @JvmName("setRandom") set(random) {
-                randomUpdater[this] = random
+                lazyRandom = random
                 this.random = random.asKotlinRandom()
             }
 
         override fun createPlayer(game: GoGameManager, color: GoColor): BakaBot =
-            BakaBot(game, color, random)
+            BakaBot(game, color, random, javaRandom, InternalMarker)
 
     }
 

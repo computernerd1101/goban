@@ -217,11 +217,7 @@ class GoPoint private constructor(
         fun gtpParseX(ch: Char, width: Int): Int =
             if (width in 1..52) gtpParseX(ch, width, throws = false) else -1
 
-        @OptIn(ExperimentalContracts::class)
         private fun String.gtpParse(width: Int, height: Int, throws: Boolean): GoPoint? {
-            contract {
-                returns(null) implies !throws
-            }
             if (width !in 1..52) {
                 if (throws) throw IllegalArgumentException("width=$width is not in the range [1,52]")
                 return null

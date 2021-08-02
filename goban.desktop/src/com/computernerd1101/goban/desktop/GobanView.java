@@ -211,9 +211,9 @@ public class GobanView extends JComponent {
         return goban == null || p.x >= goban.width || p.y >= goban.height ? null : goban.get(p);
     }
 
-    @Nullable public GoColor getStoneColorAt(@NotNull GoPoint p) { return getStoneAt(p); }
+    public @Nullable GoColor getStoneColorAt(@NotNull GoPoint p) { return getStoneAt(p); }
 
-    @Nullable public PointMarkup getPointMarkupAt(@NotNull GoPoint p) {
+    public @Nullable PointMarkup getPointMarkupAt(@NotNull GoPoint p) {
         AbstractGoban goban = this.goban;
         if (goban == null || p.x >= goban.width || p.y >= goban.height) return null;
         PointMarkupMap map = pointMarkup;
@@ -236,7 +236,7 @@ public class GobanView extends JComponent {
         return 1f;
     }
 
-    @NotNull public Color getMarkupColorAt(@NotNull GoPoint p) {
+    public @NotNull Color getMarkupColorAt(@NotNull GoPoint p) {
         return defaultMarkupColor;
     }
 
@@ -295,6 +295,31 @@ public class GobanView extends JComponent {
     }
 
     @NotNull public Shape getMarkupTriangle(@NotNull GoPoint p) {
+        /*
+         *                (not to scale)
+         *                     /|\
+         *                    / | \
+         *                   /  |  \
+         *                  /   |   \
+         *                 /    |    \ sqrt(3)/8
+         *                /     |     \
+         *               /      |      \
+         *              /       | 1/4   \
+         *   sqrt(3)/4 /        |        \ __
+         *            / ..      |      .. \
+         *           /    ..    |    ..    \
+         *          /       ..  |  .. 1/8   \
+         *         /          __|__          \ sqrt(3)/8
+         *        /         _/  .  \_         \
+         *       /        _/    . 60 \_        \
+         *      /       _/      .      \_ 1/4   \
+         *     /      _/        .        \_      \
+         *    /     _/          . 1/8      \_     \
+         *   /    _/            .            \_    \
+         *  /  __/              . 90        30 \__  \
+         * /_________________________________________\
+         *         sqrt(3)/8    |    sqrt(3)/8
+         */
         final double halfWidth = 0.21650635094610965; // sqrt(3)/8
         int x = p.x, y = p.y;
         Path2D.Double path = new Path2D.Double();
@@ -553,21 +578,21 @@ public class GobanView extends JComponent {
                 g.draw(line);
             }
         }
-        Color stoneFill, stoneEdge;
-        if (stoneAlpha == 1f) {
-            stoneFill = Color.BLACK;
-            stoneEdge = Color.WHITE;
-        } else {
-            int alphaMask = (int)(stoneAlpha * 255f) << 24;
-            stoneFill = new Color(alphaMask, true);
-            stoneEdge = new Color(alphaMask | 0xFFFFFF, true);
-        }
-        if (stone == GoColor.WHITE) {
-            Color tmp = stoneFill;
-            stoneFill = stoneEdge;
-            stoneEdge = tmp;
-        }
         if (stone != null) {
+            Color stoneFill, stoneEdge;
+            if (stoneAlpha == 1f) {
+                stoneFill = Color.BLACK;
+                stoneEdge = Color.WHITE;
+            } else {
+                int alphaMask = (int)(stoneAlpha * 255f) << 24;
+                stoneFill = new Color(alphaMask, true);
+                stoneEdge = new Color(alphaMask | 0xFFFFFF, true);
+            }
+            if (stone == GoColor.WHITE) {
+                Color tmp = stoneFill;
+                stoneFill = stoneEdge;
+                stoneEdge = tmp;
+            }
             if (circle == null) circle = new Ellipse2D.Double();
             circle.x = x - 0.5;
             circle.y = y - 0.5;
