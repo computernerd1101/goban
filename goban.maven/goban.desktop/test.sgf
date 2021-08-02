@@ -1,0 +1,16 @@
+(;GM[1]FF[4]SZ[19]AP[CN13 Goban]HO[2]
+  (;B[pd]
+    (;W[dp]KM[6.5]GN[gameInfo11]
+      (;B[pp]
+      )
+      (;B[dd]
+      )
+    )
+    (;W[pp]GN[gameInfo12]
+     ;B[dd]
+    )
+  )
+  (;AB[pd][dp]PL[W]VW[cc:qq]HA[2]GN[gameInfo2]
+   ;W[pp]
+  )
+)
