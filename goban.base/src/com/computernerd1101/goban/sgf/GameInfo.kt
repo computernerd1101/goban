@@ -1,7 +1,6 @@
 package com.computernerd1101.goban.sgf
 
 import com.computernerd1101.goban.*
-import com.computernerd1101.goban.internal.InternalMarker
 import com.computernerd1101.goban.sgf.internal.*
 import com.computernerd1101.goban.time.*
 import com.computernerd1101.sgf.*
@@ -20,26 +19,19 @@ fun GameInfo.Player?.isNullOrEmpty(): Boolean {
 
 class GameInfo: Serializable {
 
-    private var players: Players = Players(InternalMarker)
+    @JvmInline
+    value class Players internal constructor(val info: GameInfo) {
 
-    @get:JvmName("players")
-    val player: Players get() = players
-
-    inner class Players internal constructor(marker: InternalMarker) {
-
-        init {
-            marker.ignore()
-        }
-
-        operator fun get(color: GoColor): Player {
-            return getPlayer(color)
-        }
+        operator fun get(color: GoColor): Player = info.getPlayer(color)
 
         operator fun set(color: GoColor, player: Player) {
-            setPlayer(color, player)
+            info.setPlayer(color, player)
         }
 
     }
+
+    @get:JvmName("players")
+    val player: Players get() = Players(this)
 
     fun getPlayer(color: GoColor): Player {
         return if (color == GoColor.BLACK) blackPlayer else whitePlayer
@@ -584,7 +576,6 @@ class GameInfo: Serializable {
     }
     
     private fun readObject(ois: ObjectInputStream) {
-        players = Players(InternalMarker)
         val fields: ObjectInputStream.GetField = ois.readFields()
         black = fields["black", null] as? Player ?: Player()
         white = fields["white", null] as? Player ?: Player()

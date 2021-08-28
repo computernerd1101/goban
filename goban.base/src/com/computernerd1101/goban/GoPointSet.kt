@@ -18,20 +18,20 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
     companion object {
 
         init {
-            InternalGoPointSet.sizeAndHash = atomicLongUpdater("sizeAndHash")
-            val rowUpdaters = InternalGoPointSet.rowUpdaters
+            InternalGoPointSet.SIZE_AND_HASH = atomicLongUpdater("sizeAndHash")
+            val rows = InternalGoPointSet.ROWS
             val buffer = CharArray(5)
             buffer[0] = 'r'
             buffer[1] = 'o'
             buffer[2] = 'w'
             for(i in 0..9) {
                 buffer[3] = '0' + i
-                rowUpdaters[i] = atomicLongUpdater(buffer.concatToString(0, 4))
+                rows[i] = atomicLongUpdater(buffer.concatToString(0, 4))
             }
             for(i in 10..51) {
                 buffer[3] = '0' + i / 10
                 buffer[4] = '0' + i % 10
-                rowUpdaters[i] = atomicLongUpdater(buffer.concatToString())
+                rows[i] = atomicLongUpdater(buffer.concatToString())
             }
         }
 
@@ -45,7 +45,7 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
         fun readOnly(vararg points: Iterable<GoPoint>): GoPointSet {
             val set = GoPointSet(InternalGoPointSet)
             InternalGoPointSet.init(set, points)
-            if (InternalGoPointSet.sizeAndHash[set] == 0L) return EMPTY
+            if (InternalGoPointSet.SIZE_AND_HASH[set] == 0L) return EMPTY
             for(elements in points) {
                 if (elements is GoPointSet && elements !is MutableGoPointSet && set == elements)
                     return elements
@@ -130,7 +130,7 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
         if (compressed == null) {
             val rows: LongArray = Compressed.get()
             for (i in 0..51)
-                rows[i] = InternalGoPointSet.rowUpdaters[i][readOnly]
+                rows[i] = InternalGoPointSet.ROWS[i][readOnly]
             rows[52] = 0L // It should always be zero, but just in case
             var bit = 1L shl 51
             var yMin = 0
@@ -283,7 +283,7 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
     internal fun copyCache(other: GoPointSet, intern: InternalGoPointSet): Boolean {
         if (sizeAndHash != other.sizeAndHash) return false
         for(y in 0..51) {
-            val updater = intern.rowUpdaters[y]
+            val updater = intern.ROWS[y]
             if (updater[this] != updater[other]) return false
         }
         val compressed = this.compressed
@@ -318,23 +318,23 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
     open fun edit() = MutableGoPointSet(this)
 
     override fun contains(element: GoPoint): Boolean {
-        return InternalGoPointSet.rowUpdaters[element.y][this] and (1L shl element.x) != 0L
+        return InternalGoPointSet.ROWS[element.y][this] and (1L shl element.x) != 0L
     }
 
     override fun containsAll(elements: Collection<GoPoint>): Boolean {
         when(elements) {
-            is GoPointSet -> for(updater in InternalGoPointSet.rowUpdaters)
+            is GoPointSet -> for(updater in InternalGoPointSet.ROWS)
                 if (updater[this].inv() and updater[elements] != 0L) return false
             is GoRectangle -> {
                 val bits = InternalGoRectangle.rowBits(elements)
                 for (y in elements.start.y..elements.end.y) {
-                    if (InternalGoPointSet.rowUpdaters[y][this].inv() and bits != 0L) return false
+                    if (InternalGoPointSet.ROWS[y][this].inv() and bits != 0L) return false
                 }
             }
             is GoPointKeys<*> -> {
                 elements.expungeStaleRows()
                 for(y in 0..51)
-                    if (InternalGoPointSet.rowUpdaters[y][this].inv() and elements.rowBits(y) != 0L) return false
+                    if (InternalGoPointSet.ROWS[y][this].inv() and elements.rowBits(y) != 0L) return false
             }
             is GoPointEntries<*, *> -> {
                 elements.expungeStaleRows()
@@ -351,7 +351,7 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
         return this === other || when(other) {
             is GoPointSet -> {
                 if ( sizeAndHash != other.sizeAndHash) return false
-                for(updater in InternalGoPointSet.rowUpdaters)
+                for(updater in InternalGoPointSet.ROWS)
                     if (updater[this] != updater[other]) return false
                 true
             }
@@ -359,14 +359,15 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
                 // automatically calls other.expungeStaleRows()
                 if (size != other.size) return false
                 for(i in 0..51) {
-                    if (InternalGoPointSet.rowUpdaters[i][this] != other.rowBits(i)) return false
+                    if (InternalGoPointSet.ROWS[i][this] != other.rowBits(i)) return false
                 }
                 true
             }
             is GoRectangle -> {
                 val bits: Long = InternalGoRectangle.rowBits(other)
+                if (size != other.size) return false
                 for(y in 0..51) {
-                    if (InternalGoPointSet.rowUpdaters[y][this] != if (y in other.start.y..other.end.y) bits else 0)
+                    if (InternalGoPointSet.ROWS[y][this] != if (y in other.start.y..other.end.y) bits else 0)
                         return false
                 }
                 true
@@ -411,12 +412,12 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
     }
 
     private fun writeObject(output: ObjectOutputStream) {
-        for(updater in InternalGoPointSet.rowUpdaters)
+        for(updater in InternalGoPointSet.ROWS)
             output.writeLong(updater[this])
     }
 
     private fun readObject(input: ObjectInputStream) {
-        for(updater in InternalGoPointSet.rowUpdaters)
+        for(updater in InternalGoPointSet.ROWS)
             updater[this] = input.readLong()
         sizeAndHash = InternalGoPointSet.sizeAndHash(this)
     }
@@ -450,7 +451,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
         if (isEmpty()) return EMPTY
         var readOnly = this.readOnly
         if (readOnly != null) for(y in 0..51) {
-            val updater = InternalGoPointSet.rowUpdaters[y]
+            val updater = InternalGoPointSet.ROWS[y]
             if (updater[this] != updater[readOnly]) {
                 readOnly = null
                 break
@@ -477,9 +478,9 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
         override fun remove() {
             val (x, y) = lastReturned ?: throw IllegalStateException()
             val mask = (1L shl x).inv()
-            val row = InternalGoPointSet.rowUpdaters[y].getAndAccumulate(set, mask, BinOp.AND)
+            val row = InternalGoPointSet.ROWS[y].getAndAccumulate(set, mask, BinOp.AND)
             if (row and mask != row) {
-                InternalGoPointSet.sizeAndHash.addAndGet(this@MutableGoPointSet,
+                InternalGoPointSet.SIZE_AND_HASH.addAndGet(this@MutableGoPointSet,
                     -(x + y*52L).shl(32) - 1L)
             }
             lastReturned = null
@@ -490,9 +491,9 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
     override fun add(element: GoPoint): Boolean {
         val (x, y) = element
         val bit = 1L shl x
-        val oldBits = InternalGoPointSet.rowUpdaters[y].getAndAccumulate(this, bit, BinOp.OR)
+        val oldBits = InternalGoPointSet.ROWS[y].getAndAccumulate(this, bit, BinOp.OR)
         return if (oldBits and bit == 0L) {
-            InternalGoPointSet.sizeAndHash.addAndGet(this,
+            InternalGoPointSet.SIZE_AND_HASH.addAndGet(this,
                 (x + y*52L).shl(32) + 1L)
             true
         } else false
@@ -501,9 +502,9 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
     override fun remove(element: GoPoint): Boolean {
         val (x, y) = element
         val bit = 1L shl x
-        val oldBits = InternalGoPointSet.rowUpdaters[y].getAndAccumulate(this, bit.inv(), BinOp.AND)
+        val oldBits = InternalGoPointSet.ROWS[y].getAndAccumulate(this, bit.inv(), BinOp.AND)
         return if (oldBits and bit != 0L) {
-            InternalGoPointSet.sizeAndHash.addAndGet(this,
+            InternalGoPointSet.SIZE_AND_HASH.addAndGet(this,
                 -((x + y*52L) shl 32) - 1L)
             true
         } else false
@@ -514,12 +515,12 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
         when(elements) {
             is GoPointSet -> {
                 for(y in 0..51) {
-                    val updater = InternalGoPointSet.rowUpdaters[y]
+                    val updater = InternalGoPointSet.ROWS[y]
                     var newBits = updater[elements]
                     val oldBits = updater.getAndAccumulate(this, newBits, BinOp.OR)
                     newBits = newBits and oldBits.inv()
                     if (newBits != 0L) {
-                        InternalGoPointSet.sizeAndHash.addAndGet(
+                        InternalGoPointSet.SIZE_AND_HASH.addAndGet(
                             this,
                             InternalGoPointSet.sizeAndHash(y, newBits)
                         )
@@ -531,10 +532,10 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                 elements.expungeStaleRows()
                 for(y in 0..51) {
                     var newBits = elements.rowBits(y)
-                    val oldBits = InternalGoPointSet.rowUpdaters[y].getAndAccumulate(this, newBits, BinOp.OR)
+                    val oldBits = InternalGoPointSet.ROWS[y].getAndAccumulate(this, newBits, BinOp.OR)
                     newBits = newBits and oldBits.inv()
                     if (newBits != 0L) {
-                        InternalGoPointSet.sizeAndHash.addAndGet(
+                        InternalGoPointSet.SIZE_AND_HASH.addAndGet(
                             this,
                             InternalGoPointSet.sizeAndHash(y, newBits)
                         )
@@ -545,10 +546,10 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
             is GoRectangle -> {
                 val mask = InternalGoRectangle.rowBits(elements)
                 for(y in elements.start.y..elements.end.y) {
-                    val oldBits = InternalGoPointSet.rowUpdaters[y].accumulateAndGet(this, mask, BinOp.OR)
+                    val oldBits = InternalGoPointSet.ROWS[y].accumulateAndGet(this, mask, BinOp.OR)
                     val newBits = mask and oldBits.inv()
                     if (newBits != 0L) {
-                        InternalGoPointSet.sizeAndHash.addAndGet(
+                        InternalGoPointSet.SIZE_AND_HASH.addAndGet(
                             this,
                             InternalGoPointSet.sizeAndHash(y, newBits)
                         )
@@ -569,12 +570,12 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
         when {
             elements is GoPointSet -> {
                 for(y in 0..51) {
-                    val updater = InternalGoPointSet.rowUpdaters[y]
+                    val updater = InternalGoPointSet.ROWS[y]
                     var modBits = updater[elements]
                     val oldBits = updater.getAndAccumulate(this, modBits.inv(), BinOp.AND)
                     modBits = modBits and oldBits
                     if (modBits != 0L) {
-                        InternalGoPointSet.sizeAndHash.addAndGet(
+                        InternalGoPointSet.SIZE_AND_HASH.addAndGet(
                             this,
                             -InternalGoPointSet.sizeAndHash(y, modBits)
                         )
@@ -586,11 +587,11 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                 elements.expungeStaleRows()
                 for(y in 0..51) {
                     var modBits = elements.rowBits(y)
-                    val oldBits = InternalGoPointSet.rowUpdaters[y].getAndAccumulate(
+                    val oldBits = InternalGoPointSet.ROWS[y].getAndAccumulate(
                         this, modBits.inv(), BinOp.AND)
                     modBits = modBits and oldBits
                     if (modBits != 0L) {
-                        InternalGoPointSet.sizeAndHash.addAndGet(
+                        InternalGoPointSet.SIZE_AND_HASH.addAndGet(
                             this,
                             -InternalGoPointSet.sizeAndHash(y, modBits)
                         )
@@ -605,11 +606,11 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
             elements is GoRectangle -> {
                 val mask = InternalGoRectangle.rowBits(elements)
                 for(y in elements.start.y..elements.end.y) {
-                    val oldBits = InternalGoPointSet.rowUpdaters[y].accumulateAndGet(
+                    val oldBits = InternalGoPointSet.ROWS[y].accumulateAndGet(
                         this, mask.inv(), BinOp.AND)
                     val modBits = mask and oldBits
                     if (modBits != 0L) {
-                        InternalGoPointSet.sizeAndHash.addAndGet(
+                        InternalGoPointSet.SIZE_AND_HASH.addAndGet(
                             this,
                             -InternalGoPointSet.sizeAndHash(y, modBits)
                         )
@@ -638,12 +639,12 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
         when(elements) {
             is GoPointSet -> {
                 for(y in 0..51) {
-                    val updater = InternalGoPointSet.rowUpdaters[y]
+                    val updater = InternalGoPointSet.ROWS[y]
                     var modBits = updater[elements]
                     val oldBits = updater.getAndAccumulate(this, modBits, BinOp.AND)
                     modBits = modBits.inv() and oldBits
                     if (modBits != 0L) {
-                        InternalGoPointSet.sizeAndHash.addAndGet(
+                        InternalGoPointSet.SIZE_AND_HASH.addAndGet(
                             this,
                             -InternalGoPointSet.sizeAndHash(y, modBits)
                         )
@@ -655,11 +656,11 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                 elements.expungeStaleRows()
                 for(y in 0..51) {
                     var modBits = elements.rowBits(y)
-                    val oldBits = InternalGoPointSet.rowUpdaters[y].getAndAccumulate(
+                    val oldBits = InternalGoPointSet.ROWS[y].getAndAccumulate(
                         this, modBits, BinOp.AND)
                     modBits = modBits.inv() and oldBits
                     if (modBits != 0L) {
-                        InternalGoPointSet.sizeAndHash.addAndGet(
+                        InternalGoPointSet.SIZE_AND_HASH.addAndGet(
                             this,
                             -InternalGoPointSet.sizeAndHash(y, modBits)
                         )
@@ -679,11 +680,11 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                 val y2 = elements.end.y
                 for(y in 0 until y1) if (clearRow(y)) modified = true
                 for(y in y1..y2) {
-                    val oldBits = InternalGoPointSet.rowUpdaters[y].accumulateAndGet(
+                    val oldBits = InternalGoPointSet.ROWS[y].accumulateAndGet(
                         this, mask, BinOp.AND)
                     val modBits = mask.inv() and oldBits
                     if (modBits != 0L) {
-                        InternalGoPointSet.sizeAndHash.addAndGet(
+                        InternalGoPointSet.SIZE_AND_HASH.addAndGet(
                             this,
                             -InternalGoPointSet.sizeAndHash(y, modBits)
                         )
@@ -715,7 +716,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
         when(elements) {
             is GoPointSet -> {
                 for(y in 0..51) {
-                    val newBits = InternalGoPointSet.rowUpdaters[y][elements]
+                    val newBits = InternalGoPointSet.ROWS[y][elements]
                     if (InternalGoPointSet.copyRowFrom(this, y, newBits))
                         modified = true
                 }
@@ -744,14 +745,14 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                 var readOnly = this.readOnly
                 if (readOnly != null) for(y in 0..51) {
                     val expected = if (y in y1..y2) 0L else newBits
-                    if (InternalGoPointSet.rowUpdaters[y][readOnly] != expected)
+                    if (InternalGoPointSet.ROWS[y][readOnly] != expected)
                         readOnly = null
                 }
                 if (readOnly == null) {
                     readOnly = GoPointSet(InternalGoPointSet)
                     for(y in y1..y2)
-                        InternalGoPointSet.rowUpdaters[y][readOnly] = newBits
-                    InternalGoPointSet.sizeAndHash[readOnly] =
+                        InternalGoPointSet.ROWS[y][readOnly] = newBits
+                    InternalGoPointSet.SIZE_AND_HASH[readOnly] =
                         elements.size.toLong() or elements.hashCode().toLong().shl(32)
                     this.readOnly = readOnly
                 }
@@ -791,7 +792,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
             }
             is GoPointSet -> {
                 for (y in 0..51)
-                    if (invertRow(y, InternalGoPointSet.rowUpdaters[y][elements])) modified = true
+                    if (invertRow(y, InternalGoPointSet.ROWS[y][elements])) modified = true
             }
             else -> {
                 val rows: LongArray = ThreadLocalRows.get()
@@ -808,7 +809,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
     private fun invertRow(y: Int, invBits: Long): Boolean {
         var modified = false
         var words = 0L
-        val oldBits = InternalGoPointSet.rowUpdaters[y].getAndAccumulate(this, invBits, BinOp.XOR)
+        val oldBits = InternalGoPointSet.ROWS[y].getAndAccumulate(this, invBits, BinOp.XOR)
         var modBits = invBits and oldBits.inv()
         if (modBits != 0L) {
             words += InternalGoPointSet.sizeAndHash(y, modBits)
@@ -820,7 +821,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
             modified = true
         }
         if (modified && words != 0L)
-            InternalGoPointSet.sizeAndHash.addAndGet(this, words)
+            InternalGoPointSet.SIZE_AND_HASH.addAndGet(this, words)
         return modified
     }
 
@@ -829,9 +830,9 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
     }
 
     private fun clearRow(y: Int): Boolean {
-        val bits = InternalGoPointSet.rowUpdaters[y].getAndSet(this, 0L)
+        val bits = InternalGoPointSet.ROWS[y].getAndSet(this, 0L)
         return if (bits != 0L) {
-            InternalGoPointSet.sizeAndHash.addAndGet(this,
+            InternalGoPointSet.SIZE_AND_HASH.addAndGet(this,
                 -InternalGoPointSet.sizeAndHash(y, bits))
             true
         } else false
@@ -855,9 +856,9 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
             val clashes = sets3[2]
             clashes.clear()
             for(set in sets) if (set != null) {
-                for(updater in InternalGoPointSet.rowUpdaters)
+                for(updater in InternalGoPointSet.ROWS)
                     updater[tmp] = updater[set]
-                InternalGoPointSet.sizeAndHash[tmp] = InternalGoPointSet.sizeAndHash(tmp)
+                InternalGoPointSet.SIZE_AND_HASH[tmp] = InternalGoPointSet.sizeAndHash(tmp)
                 tmp.retainAll(all)
                 clashes.addAll(tmp)
                 all.addAll(set)

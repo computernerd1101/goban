@@ -112,10 +112,10 @@ class LineMarkupSet: MutableIterable<LineMarkup> {
     companion object {
 
         /** Updates [LineMarkupSet.count] */
-        private val countUpdater =
+        private val COUNT =
             atomicIntUpdater<LineMarkupSet>("count")
         /** Updates [LineMarkupSet.startMap] */
-        private val startMapUpdater =
+        private val START_MAP =
             atomicUpdater<LineMarkupSet, MutableGoPointMap<WeakMap>?>("startMap")
 
     }
@@ -140,7 +140,7 @@ class LineMarkupSet: MutableIterable<LineMarkup> {
             }
         }
         map = MutableGoPointMap()
-        while(!startMapUpdater.compareAndSet(this, null, map)) {
+        while(!START_MAP.compareAndSet(this, null, map)) {
             val m = startMap
             if (m != null) return m
         }
@@ -244,7 +244,7 @@ class LineMarkupSet: MutableIterable<LineMarkup> {
                     if (endMap != null && endMap.size <= 0)
                         currentMap.endMap = null
                 }
-                if (countUpdater.decrementAndGet(this@LineMarkupSet) <= 0)
+                if (COUNT.decrementAndGet(this@LineMarkupSet) <= 0)
                     startMap = null
             }
 
@@ -288,7 +288,7 @@ class LineMarkupSet: MutableIterable<LineMarkup> {
                 }
             }
         }
-        if (delta != 0) countUpdater.addAndGet(this, delta)
+        if (delta != 0) COUNT.addAndGet(this, delta)
         return true
     }
 
@@ -317,7 +317,7 @@ class LineMarkupSet: MutableIterable<LineMarkup> {
                     if (endMap.size == 0) weak.endMap = null
                 }
             }
-            if (delta != 0) countUpdater.addAndGet(this, delta)
+            if (delta != 0) COUNT.addAndGet(this, delta)
         }
     }
 
@@ -354,7 +354,7 @@ class LineMarkupSet: MutableIterable<LineMarkup> {
             endMap.remove(b)
             if (endMap.size <= 0)
                 weakMap.endMap = null
-            if (countUpdater.decrementAndGet(this) <= 0)
+            if (COUNT.decrementAndGet(this) <= 0)
                 this.startMap = null
         }
         return m

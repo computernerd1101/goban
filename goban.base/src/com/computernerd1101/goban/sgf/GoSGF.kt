@@ -106,7 +106,7 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
     @Volatile
     private var warningList: SGFWarningList? = null
     var warnings: SGFWarningList
-        get() = warningList ?: updateWarnings.getOrDefault(this, SGFWarningList())
+        get() = warningList ?: WARNINGS.getOrDefault(this, SGFWarningList())
         set(list) {
             warningList = if (list.javaClass == SGFWarningList::class.java) list
             else SGFWarningList(list)
@@ -119,7 +119,7 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
         const val NO_MARKUP_VARIATION = 2
 
         /** Updates [GoSGF.warningList] */
-        private val updateWarnings = atomicUpdater<GoSGF, SGFWarningList?>("warningList")
+        private val WARNINGS = atomicUpdater<GoSGF, SGFWarningList?>("warningList")
 
     }
 
@@ -135,7 +135,10 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
     @Throws(SGFException::class)
     private constructor(reader: GoSGFReader): this(reader.width, reader.height) {
         val tree = reader.tree
-        val warnings = reader.warnings
+        val warnings = reader.warnings.let { list ->
+            if (list.javaClass == SGFWarningList::class.java) list
+            else SGFWarningList(list)
+        }
         warningList = warnings
         val node = tree.nodes[0]
         node.properties["CA"]?.let { prop ->
@@ -382,7 +385,7 @@ sealed class GoSGFNode {
         while(true) {
             val mode = _figure
             if (mode and LOCK_FIGURE == 0 &&
-                updateFigure.compareAndSet(this, mode, mode or LOCK_FIGURE))
+                FIGURE.compareAndSet(this, mode, mode or LOCK_FIGURE))
                 return
         }
     }
@@ -399,7 +402,7 @@ sealed class GoSGFNode {
         const val FIGURE_DEFAULT = 0x8000
 
         /** Updates [GoSGFNode._figure] */
-        private val updateFigure = atomicIntUpdater<GoSGFNode>("_figure")
+        private val FIGURE = atomicIntUpdater<GoSGFNode>("_figure")
         
     }
 
@@ -1282,8 +1285,8 @@ sealed class GoSGFNode {
             val markupMA = markupPoints[2]
             val markupTR = markupPoints[3]
             propLB?.values?.forEach next@{ value ->
-                val bytesList = value.parts
-                val bytes = bytesList[0]
+                val parts = value.parts
+                val bytes = parts[0]
                 val point = InternalGoSGF.parsePoint(bytes, ignoreCase)
                 if (point == null) {
                     warnings += SGFWarning(bytes.row, bytes.column, InternalGoSGF.malformedPoint(bytes.toString()))
@@ -1295,11 +1298,11 @@ sealed class GoSGFNode {
                     return@next
                 }
                 var s: String
-                val bytesCount = bytes.size
-                if (bytesCount > 1) {
-                    val bytes2 = bytesList[1]
+                val partsCount = parts.size
+                if (partsCount > 1) {
+                    val bytes2 = parts[1]
                     s = InternalGoSGF.parseSGFBytesList(bytes2.row, bytes2.column,
-                        bytesList.subList(1, bytesCount),
+                        parts.subList(1, partsCount),
                         this.tree.charset, warnings)
                     if (s.isNotEmpty()) {
                         labelMap[point] = s
@@ -1482,10 +1485,10 @@ sealed class GoSGFNode {
         if (prop == null) return points
         var pointSet = points
         for(value in prop.values) {
-            val bytes = value.parts
-            val s1 = bytes[0]
-            val s2 = if (bytes.size >= 2) bytes[1] else null
-            pointSet = parsePointRect(pointSet, s1, s2)
+            val parts = value.parts
+            val b1 = parts[0]
+            val b2 = if (parts.size >= 2) parts[1] else null
+            pointSet = parsePointRect(pointSet, b1, b2)
         }
         return pointSet
     }
@@ -1548,14 +1551,14 @@ class GoSGFMoveNode internal constructor(
     companion object {
 
         init {
-            Flags.update = atomicIntUpdater("flags")
+            Flags.FLAGS = atomicIntUpdater("flags")
         }
 
     }
 
     private object Flags {
         /** Updates [GoSGFMoveNode.flags] */
-        @JvmStatic lateinit var update: AtomicIntegerFieldUpdater<GoSGFMoveNode>
+        @JvmStatic lateinit var FLAGS: AtomicIntegerFieldUpdater<GoSGFMoveNode>
 
         const val BLACK_TIME = 0x1
         const val WHITE_TIME = 0x2
@@ -1576,7 +1579,7 @@ class GoSGFMoveNode internal constructor(
                 flag = Flags.FORCED xor -1
                 op = BinOp.AND
             }
-            Flags.update.getAndAccumulate(this, flag, op)
+            Flags.FLAGS.getAndAccumulate(this, flag, op)
         }
 
     @Suppress("unused")
@@ -1743,40 +1746,42 @@ class GoSGFMoveNode internal constructor(
 
         val hasTime: Boolean
             @JvmName("hasTime")
-            get() = Flags.update[node] and (if (color == GoColor.BLACK) Flags.BLACK_TIME else Flags.WHITE_TIME) != 0
+            get() = Flags.FLAGS[node] and (if (color == GoColor.BLACK) Flags.BLACK_TIME else Flags.WHITE_TIME) != 0
 
         var time: Long
             get() = _time
             set(time) {
                 _time = time
-                Flags.update.getAndAccumulate(node,
+                Flags.FLAGS.getAndAccumulate(node,
                     if (color == GoColor.BLACK) Flags.BLACK_TIME
                     else Flags.WHITE_TIME, BinOp.OR)
             }
 
         fun omitTime() {
             _time = 0L
-            Flags.update.getAndAccumulate(node,
+            Flags.FLAGS.getAndAccumulate(node,
                 if (color == GoColor.BLACK) Flags.BLACK_TIME xor -1
                 else Flags.WHITE_TIME xor -1, BinOp.AND)
         }
 
         val hasOvertime: Boolean
             @JvmName("hasOvertime")
-            get() = Flags.update[node] and (if (color == GoColor.BLACK) Flags.BLACK_OVERTIME else Flags.WHITE_OVERTIME) != 0
+            get() = Flags.FLAGS[node] and (
+                    if (color == GoColor.BLACK) Flags.BLACK_OVERTIME else Flags.WHITE_OVERTIME
+                    ) != 0
 
         var overtime: Int
             get() = _overtime
             set(overtime) {
                 _overtime = overtime
-                Flags.update.getAndAccumulate(node,
+                Flags.FLAGS.getAndAccumulate(node,
                     if (color == GoColor.BLACK) Flags.BLACK_OVERTIME
                     else Flags.WHITE_OVERTIME, BinOp.OR)
             }
 
         fun omitOvertime() {
             _overtime = 0
-            Flags.update.getAndAccumulate(node,
+            Flags.FLAGS.getAndAccumulate(node,
                 if (color == GoColor.BLACK) Flags.BLACK_OVERTIME xor -1
                 else Flags.WHITE_OVERTIME xor -1, BinOp.AND)
         }

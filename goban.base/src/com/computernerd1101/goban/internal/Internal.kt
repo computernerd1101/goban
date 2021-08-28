@@ -2,10 +2,12 @@ package com.computernerd1101.goban.internal
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
+import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.*
 import kotlin.coroutines.*
 import kotlin.random.Random
 import kotlin.random.asJavaRandom
+import kotlin.random.asKotlinRandom
 
 /*
  * class Cacheable(val index: Int) {
@@ -94,7 +96,7 @@ private val deBruijn64tab = byteArrayOf(
 // Normally, bit would be (x and -x), where x would be the input variable.
 // However, this function is module-internal, and every caller in this module
 // inputs a value that is already a power of 2, since that value is
-// useful outside of each call to this function.
+// useful outside each call to this function.
 internal fun trailingZerosPow2(bit: Long) = deBruijn64tab[(bit*deBruijn64).ushr(64 - 6).toInt()].toInt()
 
 private const val deBruijn32: Int = 0x077CB531
@@ -155,9 +157,3 @@ fun <T: Any, V> AtomicReferenceFieldUpdater<T, V>.compareAndExchange(target: T, 
     }
     return expect
 }
-
-val defaultPlatformRandom: java.util.Random = try {
-    Random::class.java.getMethod("access\$getDefaultRandom\$cp").invoke(null) as Random
-} catch (e: Throwable) {
-    Random
-}.asJavaRandom()

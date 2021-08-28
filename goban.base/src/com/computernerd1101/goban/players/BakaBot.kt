@@ -4,35 +4,45 @@ import com.computernerd1101.goban.*
 import com.computernerd1101.goban.internal.*
 import com.computernerd1101.goban.sgf.GoSGFMoveNode
 import kotlinx.coroutines.*
+import java.util.concurrent.ThreadLocalRandom
 import kotlin.random.*
 
 /**
  * A very stupid robot that chooses its moves completely at random
  * amongst all legal moves except for multi-stone suicide.
  */
-class BakaBot private constructor(
-    game: GoGameManager,
-    color: GoColor,
-    @get:JvmName("getKotlinRandom")
-    val random: Random,
-    @Suppress("unused")
-    @get:JvmName("getRandom")
-    val javaRandom: java.util.Random,
-    marker: InternalMarker
-): GoPlayer(game, color) {
+class BakaBot: GoPlayer {
 
-    init {
-        marker.ignore()
+    constructor(game: GoGameManager, color: GoColor): super(game, color) {
+        random = Random
+        javaRandom = ThreadLocalRandom.current()
     }
 
-    constructor(game: GoGameManager, color: GoColor): this(game, color, Random)
+    constructor(game: GoGameManager, color: GoColor, random: Random): super(game, color) {
+        this.random = random
+        javaRandom = if (random === Random) ThreadLocalRandom.current() else random.asJavaRandom()
 
-    constructor(game: GoGameManager, color: GoColor, random: Random):
-            this(game, color, random, random.asJavaRandom(), InternalMarker)
+    }
+
+    constructor(game: GoGameManager, color: GoColor, random: java.util.Random): super(game, color) {
+        this.random = if (random === ThreadLocalRandom.current()) Random else random.asKotlinRandom()
+        javaRandom = random
+    }
 
     @Suppress("unused")
-    constructor(game: GoGameManager, color: GoColor, random: java.util.Random):
-            this(game, color, random.asKotlinRandom(), random, InternalMarker)
+    constructor(game: GoGameManager, color: GoColor, seed: Int): this(game, color, seed.toLong())
+
+    constructor(game: GoGameManager, color: GoColor, seed: Long): super(game, color) {
+        val random = java.util.Random(seed)
+        this.random = random.asKotlinRandom()
+        javaRandom = random
+    }
+
+    @get:JvmName("getKotlinRandom")
+    val random: Random
+
+    @get:JvmName("getRandom")
+    val javaRandom: java.util.Random
 
     companion object DefaultFactory: GoPlayer.Factory {
 
@@ -42,43 +52,99 @@ class BakaBot private constructor(
     }
 
     @Suppress("unused")
-    class Factory(random: Random): GoPlayer.Factory {
+    class Factory: GoPlayer.Factory {
 
-        constructor(): this(Random)
+        constructor() {
+            _random = Random
+        }
 
-        @get:JvmName("getKotlinRandom")
-        var random: Random = random
+        constructor(random: Random) {
+            _random = RandomWrapper.kotlinWrapper(random)
+        }
+
+        constructor(random: java.util.Random) {
+            _random = RandomWrapper.javaWrapper(random)
+        }
+
+        constructor(seed: Int): this(seed.toLong())
+
+        constructor(seed: Long) {
+            _random = java.util.Random(seed).asKotlinRandom()
+        }
+
+        /*
+         * _random is either a kotlin.random.Random wrapped around a java.util.Random, or vice versa,
+         * or kotlin.random.Random.Default. That way, neither random nor javaRandom will allocate new
+         * wrapper objects with their getters. They will either return the wrapper object that already
+         * exists, or unwrap it. The setters are thread-safe because they only have one field to write to.
+         */
+        @Volatile private var _random: Any
+
+        var random: Random
+            @JvmName("getKotlinRandom")
+            get() = when(val random = _random) {
+                is Random -> random
+                else -> (random as java.util.Random).asKotlinRandom()
+            }
             @JvmName("setKotlinRandom")
             set(random) {
-                if (field !== random) {
-                    field = random
-                    lazyRandom = null
-                }
+                _random = RandomWrapper.kotlinWrapper(random)
             }
-
-        private companion object {
-            val randomUpdater = atomicUpdater<Factory, java.util.Random?>("lazyRandom")
-        }
-
-        @Volatile private var lazyRandom: java.util.Random? = null
-
-        constructor(random: java.util.Random): this(random.asKotlinRandom()) {
-            lazyRandom = random
-        }
 
         var javaRandom: java.util.Random
-            @JvmName("getRandom") get() =
-                lazyRandom ?: randomUpdater.getOrDefault(this, random.asJavaRandom())
+            @JvmName("getRandom") get() {
+                val random = _random
+                return when {
+                    random is java.util.Random -> random
+                    random === Random -> ThreadLocalRandom.current()
+                    else -> (random as Random).asJavaRandom()
+                }
+            }
             @JvmName("setRandom") set(random) {
-                lazyRandom = random
-                this.random = random.asKotlinRandom()
+                _random = RandomWrapper.javaWrapper(random)
             }
 
-        override fun createPlayer(game: GoGameManager, color: GoColor): BakaBot =
-            BakaBot(game, color, random, javaRandom, InternalMarker)
+        /**
+         * Sets the seed of [javaRandom]. If [javaRandom] is a direct instance of [java.util.Random],
+         * and not a subclass thereof, then [setSeed] sets the seed of the instance that already exists.
+         * Otherwise, [javaRandom] is set to a new direct instance of [java.util.Random] with the given [seed].
+         */
+        fun setSeed(seed: Long) {
+            val random = _random
+            if (random !== Random && random is Random) {
+                val javaRandom: java.util.Random = random.asJavaRandom()
+                if (javaRandom.javaClass == java.util.Random::class.java) {
+                    javaRandom.setSeed(seed)
+                    return
+                }
+            }
+            _random = java.util.Random(seed).asKotlinRandom()
+        }
+
+        override fun createPlayer(game: GoGameManager, color: GoColor): BakaBot = when(val random = _random) {
+            is Random -> BakaBot(game, color, random)
+            else -> BakaBot(game, color, random as java.util.Random)
+        }
 
     }
 
+    private object RandomWrapper: Random() {
+
+        override fun nextBits(bitCount: Int): Int = Random.nextBits(bitCount)
+
+        private val kotlinWrapper = java.util.Random().asKotlinRandom().javaClass
+        private val javaWrapper = RandomWrapper.asJavaRandom().javaClass
+
+        @JvmStatic fun kotlinWrapper(random: Random): Any = if (random === Random || kotlinWrapper.isInstance(random))
+            random else random.asJavaRandom()
+
+        @JvmStatic fun javaWrapper(random: java.util.Random): Any = when {
+            random === ThreadLocalRandom.current() -> Random
+            javaWrapper.isInstance(random) -> random
+            else -> random.asKotlinRandom()
+        }
+
+    }
 
     private var points: Array<GoPoint?>? = null
 
@@ -131,8 +197,7 @@ class BakaBot private constructor(
         }
     }
 
-    override suspend fun generateMove(): GoPoint? = withContext(Dispatchers.IO, moveGenerator)
-    private val moveGenerator: suspend CoroutineScope.() -> GoPoint? = {
+    override suspend fun generateMove(): GoPoint? = withContext(Dispatchers.IO) {
         val points = getPoints(InternalMarker)
         val goban = getGoban(InternalMarker)
         val node = game.node

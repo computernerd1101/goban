@@ -60,7 +60,7 @@ class GoRectangle internal constructor(
             is GoPointSet -> {
                 val mask: Long = InternalGoRectangle.rowBits(this).inv()
                 for(y in 0..51) {
-                    var row = InternalGoPointSet.rowUpdaters[y][elements]
+                    var row = InternalGoPointSet.ROWS[y][elements]
                     if (y in start.y..end.y) row = row and mask
                     if (row != 0L) return false
                 }
@@ -144,7 +144,7 @@ class GoRectangle internal constructor(
         val x = end.x - start.x // x2 - x1
         val y = end.y - start.y // y2 - y1
         // sum[y0=y1..y2]sum[x0=x1..x2](x0+52*y0) = (y+1)*(x+1)*(x/2 + y*26 + start.hashCode())
-        // Proof: sum[y0=y1..y2]sum[x0=x1..x2](x0+52*y0)
+        // Proof: sum[y0=y1..y2]sum[x0=x1..x2](x0 + 52*y0)
         // = sum[y0=0..y]sum[x0=0..x](x0 + x1 + 52*(y0 + y1))
         // = sum[y0=0..y]sum[x0=0..x](x0 + 52*y0)             + sum[y0=0..y]sum[x0=0..x](x1 + 52*y1)
         // = sum[y0=0..y](sum[x0=0..x]x0 + 52*sum[x0=0..x]y0) + (y+1)*(x+1)*(x1 + 52*y1)

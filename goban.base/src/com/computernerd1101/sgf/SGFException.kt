@@ -40,7 +40,7 @@ open class SGFException(
 
     val warnings: SGFWarningList
         @JvmName("warnings")
-        get() = warningList ?: updateWarnings.getOrDefault(this, SGFWarningList())
+        get() = warningList ?: WARNINGS.getOrDefault(this, SGFWarningList())
 
     @JvmName("addWarnings")
     operator fun plusAssign(warnings: SGFWarningList) {
@@ -59,7 +59,7 @@ open class SGFException(
     companion object {
 
         /** Updates [SGFException.warningList] */
-        private val updateWarnings = atomicUpdater<SGFException, SGFWarningList?>("warningList")
+        private val WARNINGS = atomicUpdater<SGFException, SGFWarningList?>("warningList")
 
         private const val serialVersionUID = 1L
 
@@ -149,23 +149,21 @@ open class SGFWarningList: Serializable {
 
     fun addWarnings(other: SGFWarningList) {
         other.warningList?.let { list2 ->
-            val list1 = warningList ?: updateWarnings.getOrDefault(this, arrayListOf())
+            val list1 = warningList ?: WARNINGS.getOrDefault(this, arrayListOf())
             list1.addAll(list2)
         }
     }
 
     fun addWarning(warning: SGFWarning) {
-        val list = warningList ?: updateWarnings.getOrDefault(this, arrayListOf())
+        val list = warningList ?: WARNINGS.getOrDefault(this, arrayListOf())
         list.add(warning)
     }
 
-    @Suppress("NOTHING_TO_INLINE")
-    inline operator fun plusAssign(other: SGFWarningList) {
+    operator fun plusAssign(other: SGFWarningList) {
         addWarnings(other)
     }
 
-    @Suppress("NOTHING_TO_INLINE")
-    inline operator fun plusAssign(warning: SGFWarning) {
+    operator fun plusAssign(warning: SGFWarning) {
         addWarning(warning)
     }
 
@@ -178,7 +176,7 @@ open class SGFWarningList: Serializable {
 
     companion object {
 
-        private val updateWarnings = atomicUpdater<SGFWarningList, ArrayList<SGFWarning>?>("warningList")
+        private val WARNINGS = atomicUpdater<SGFWarningList, ArrayList<SGFWarning>?>("warningList")
 
         private val EMPTY_ARRAY = arrayOf<SGFWarning>()
 

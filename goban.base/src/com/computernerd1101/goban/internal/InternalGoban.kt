@@ -6,7 +6,7 @@ import java.util.function.LongBinaryOperator
 
 internal object InternalGoban: LongBinaryOperator {
 
-    lateinit var count: AtomicLongFieldUpdater<AbstractGoban>
+    lateinit var COUNT: AtomicLongFieldUpdater<AbstractGoban>
 
     fun emptyRows(wide: Boolean, height: Int): GobanRows1 {
         val index = when {
@@ -23,7 +23,7 @@ internal object InternalGoban: LongBinaryOperator {
         var count = 0L
         for(i in 0 until src.size) {
             val row = src[i]
-            val oldRow = GobanRows.updaters[i].getAndSet(dst, row)
+            val oldRow = GobanRows.ROWS[i].getAndSet(dst, row)
             count += countStonesInRow(row) - countStonesInRow(oldRow)
         }
         return count
@@ -61,7 +61,7 @@ internal object InternalGoban: LongBinaryOperator {
             x < 32 -> y*2
             else -> y*2 + 1
         }
-        val row = GobanRows.updaters[y2].getAndAccumulate(goban.rows,
+        val row = GobanRows.ROWS[y2].getAndAccumulate(goban.rows,
             (1L shl x2) or when(newColor) {
                 null -> 0L
                 GoColor.BLACK -> NEW_BLACK
@@ -89,7 +89,7 @@ internal object InternalGoban: LongBinaryOperator {
                 GoColor.BLACK -> recount += BLACK
                 GoColor.WHITE -> recount += WHITE
             }
-            count.addAndGet(goban, recount)
+            COUNT.addAndGet(goban, recount)
         }
         return actual
     }
@@ -191,7 +191,7 @@ internal object GobanBulk: LongBinaryOperator {
         for(y in y1..y2) {
             val row = when {
                 rectRow != 0L -> rectRow
-                rows is GoPointSet -> InternalGoPointSet.rowUpdaters[y][rows]
+                rows is GoPointSet -> InternalGoPointSet.ROWS[y][rows]
                 else -> (rows as LongArray)[y]
             }
             if (setRow(goban, i++, row.toInt() and mask1, color))
@@ -211,7 +211,7 @@ internal object GobanBulk: LongBinaryOperator {
         if (color == null) removeBits *= InternalGoban.MASK // remove both black and white
         else if (color == GoColor.BLACK) removeBits = removeBits shl 32 // remove white
         // else remove black
-        val row = GobanRows.updaters[i].getAndAccumulate(goban.rows, removeBits, this)
+        val row = GobanRows.ROWS[i].getAndAccumulate(goban.rows, removeBits, this)
         val recount: Long = if (color == null)
             -InternalGoban.countStonesInRow(row and removeBits)
         else {
@@ -223,7 +223,7 @@ internal object GobanBulk: LongBinaryOperator {
                     InternalGoban.countStonesInRow(row and removeBits)
         }
         return if (recount != 0L) {
-            InternalGoban.count.addAndGet(goban, recount)
+            InternalGoban.COUNT.addAndGet(goban, recount)
             true
         } else false
     }

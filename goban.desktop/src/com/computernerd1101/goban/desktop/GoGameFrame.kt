@@ -84,7 +84,7 @@ class GoGameFrame private constructor(
         fun initFrame(frame: GoGameFrame): GoGameFrame {
             val current = _frame
             if (current != null) return current
-            if (updateFrame.compareAndSet(this, null, frame)) {
+            if (FRAME.compareAndSet(this, null, frame)) {
                 val resources = gobanDesktopResources()
                 frame.initLayout(resources, InternalMarker)
                 val opponent: GoGameFrame? =
@@ -98,7 +98,7 @@ class GoGameFrame private constructor(
 
         private companion object {
 
-            private val updateFrame: AtomicReferenceFieldUpdater<Player, GoGameFrame?> =
+            private val FRAME: AtomicReferenceFieldUpdater<Player, GoGameFrame?> =
                 AtomicReferenceFieldUpdater.newUpdater(
                     Player::class.java,
                     GoGameFrame::class.java,
@@ -211,12 +211,12 @@ class GoGameFrame private constructor(
 
         override fun createPlayer(game: GoGameManager, color: GoColor): GoPlayer = Player(game, color)
 
-        private val updateGameAction: AtomicReferenceFieldUpdater<GoGameFrame, GameAction?> =
+        private val GAME_ACTION: AtomicReferenceFieldUpdater<GoGameFrame, GameAction?> =
             AtomicReferenceFieldUpdater.newUpdater(
                 GoGameFrame::class.java, GameAction::class.java, "gameAction"
             )
 
-        private val updateUndoContinuation:
+        private val UNDO_CONTINUATION:
                 AtomicReferenceFieldUpdater<GoGameFrame, Continuation<Boolean>?> =
             AtomicReferenceFieldUpdater.newUpdater(
                 GoGameFrame::class.java,
@@ -224,31 +224,31 @@ class GoGameFrame private constructor(
                 "undoContinuation"
             )
 
-        private val updateRequestUndoMove: AtomicReferenceFieldUpdater<GoGameFrame, Deferred<Boolean>?> =
+        private val DEFERRED_REQUEST_UNDO_MOVE: AtomicReferenceFieldUpdater<GoGameFrame, Deferred<Boolean>?> =
             AtomicReferenceFieldUpdater.newUpdater(
                 GoGameFrame::class.java,
                 Deferred::class.java as Class<Deferred<Boolean>>,
                 "deferredRequestUndoMove"
             )
 
-        private val updateInitLayout: AtomicIntegerFieldUpdater<GoGameFrame> =
+        private val INIT_LAYOUT_ONCE: AtomicIntegerFieldUpdater<GoGameFrame> =
             AtomicIntegerFieldUpdater.newUpdater(GoGameFrame::class.java, "initLayoutOnce")
 
-        private val updateBlackAddOneMinute: AtomicReferenceFieldUpdater<GoGameFrame, Timer?> =
+        private val BLACK_ADD_ONE_MINUTE: AtomicReferenceFieldUpdater<GoGameFrame, Timer?> =
             AtomicReferenceFieldUpdater.newUpdater(
                 GoGameFrame::class.java,
                 Timer::class.java,
                 "blackAddOneMinute"
             )
 
-        private val updateWhiteAddOneMinute: AtomicReferenceFieldUpdater<GoGameFrame, Timer?> =
+        private val WHITE_ADD_ONE_MINUTE: AtomicReferenceFieldUpdater<GoGameFrame, Timer?> =
             AtomicReferenceFieldUpdater.newUpdater(
                 GoGameFrame::class.java,
                 Timer::class.java,
                 "whiteAddOneMinute"
             )
 
-        private val updateResign: AtomicReferenceFieldUpdater<GoGameFrame, Timer?> =
+        private val RESIGN_TIMER: AtomicReferenceFieldUpdater<GoGameFrame, Timer?> =
             AtomicReferenceFieldUpdater.newUpdater(
                 GoGameFrame::class.java,
                 Timer::class.java,
@@ -288,7 +288,7 @@ class GoGameFrame private constructor(
             goban.clear()
         else if (goban.whiteCount > 0)
             goban.clear(GoColor.WHITE)
-        if (!updateGameAction.compareAndSet(this, null, GameAction.HANDICAP))
+        if (!GAME_ACTION.compareAndSet(this, null, GameAction.HANDICAP))
             throw IllegalStateException("Cannot generate handicap stones while another operation is pending.")
         superkoRestrictions.clear()
         this.handicap = handicap
@@ -307,7 +307,7 @@ class GoGameFrame private constructor(
     internal suspend fun generateMove(player: GoColor, marker: InternalMarker): GoPoint? {
         marker.ignore()
         val action = if (player == GoColor.BLACK) GameAction.PLAY_BLACK else GameAction.PLAY_WHITE
-        if (!updateGameAction.compareAndSet(this, null, action))
+        if (!GAME_ACTION.compareAndSet(this, null, action))
             throw IllegalStateException("Cannot request move while another operation is pending.")
         val goban = goGame.node.goban
         val allowSuicide = goGame.gameInfo.rules.allowSuicide
@@ -344,7 +344,7 @@ class GoGameFrame private constructor(
         while(true) {
             val action = gameAction
             if (action != GameAction.PLAY_BLACK && action != GameAction.PLAY_WHITE) return false
-            if (updateGameAction.compareAndSet(this, action, null)) return true
+            if (GAME_ACTION.compareAndSet(this, action, null)) return true
         }
     }
 
@@ -386,7 +386,7 @@ class GoGameFrame private constructor(
         // is initialized before the coroutine starts
         deferred = scope.async(start = CoroutineStart.LAZY) {
             val response = player.requestUndoMove(resumeNode, InternalMarker)
-            val mostRecent = updateRequestUndoMove.compareAndSet(this@GoGameFrame, deferred, null)
+            val mostRecent = DEFERRED_REQUEST_UNDO_MOVE.compareAndSet(this@GoGameFrame, deferred, null)
             when {
                 response -> {
                     displayRequestUndoStatus(1, InternalMarker)
@@ -409,7 +409,7 @@ class GoGameFrame private constructor(
     internal suspend fun acceptUndoMove(player: GoColor, marker: InternalMarker): Boolean {
         marker.ignore()
         val allowed: Boolean = suspendCoroutine { continuation ->
-            val oldContinuation = updateUndoContinuation.getAndSet(this, continuation)
+            val oldContinuation = UNDO_CONTINUATION.getAndSet(this, continuation)
             if (oldContinuation != null) oldContinuation.resume(false)
             else panelOpponentRequestUndo.isVisible = true
         }
@@ -417,7 +417,7 @@ class GoGameFrame private constructor(
             val cancelAction: GameAction =
                 if (player == GoColor.BLACK) GameAction.PLAY_BLACK
                 else GameAction.PLAY_WHITE
-            if (updateGameAction.compareAndSet(this, cancelAction, null))
+            if (GAME_ACTION.compareAndSet(this, cancelAction, null))
                 actionButton.isEnabled = false
         }
         return allowed
@@ -443,7 +443,7 @@ class GoGameFrame private constructor(
         label.text = gobanDesktopResources().getString(key)
         label.isVisible = true
         if (status != 0) {
-            val updater = updateRequestUndoMove
+            val updater = DEFERRED_REQUEST_UNDO_MOVE
             scope.launch {
                 delay(1000L)
                 if (updater[this@GoGameFrame] == null)
@@ -454,7 +454,7 @@ class GoGameFrame private constructor(
 
     internal fun startScoring(marker: InternalMarker) {
         marker.ignore()
-        if (updateGameAction.compareAndSet(this, null, GameAction.COUNT_SCORE)) {
+        if (GAME_ACTION.compareAndSet(this, null, GameAction.COUNT_SCORE)) {
             val goban = goGame.node.goban
             prototypeGoban.copyFrom(goban)
             gobanView.goban = goban
@@ -478,7 +478,7 @@ class GoGameFrame private constructor(
 
     internal fun finishScoring(marker: InternalMarker) {
         marker.ignore()
-        if (updateGameAction.compareAndSet(this, GameAction.COUNT_SCORE, null)) {
+        if (GAME_ACTION.compareAndSet(this, GameAction.COUNT_SCORE, null)) {
             scoreGoban = goGame.node.territory
             gobanView.repaint()
         }
@@ -651,7 +651,7 @@ class GoGameFrame private constructor(
                 buttonDenyUndo -> false
                 else -> return@ActionListener
             }
-            val continuation = updateUndoContinuation.getAndSet(this, null)
+            val continuation = UNDO_CONTINUATION.getAndSet(this, null)
             panelOpponentRequestUndo.isVisible = false
             continuation?.resume(allow)
         }
@@ -805,7 +805,7 @@ class GoGameFrame private constructor(
             if (!whitePlayer.isFrameInitialized) return
             whitePlayer.frame === this
         } else false
-        if (!updateInitLayout.compareAndSet(this, 0, 1)) return
+        if (!INIT_LAYOUT_ONCE.compareAndSet(this, 0, 1)) return
         val blackTimeRemainingKey: String
         val whiteTimeRemainingKey: String
         val blackAddOneMinuteKey: String
@@ -908,11 +908,11 @@ class GoGameFrame private constructor(
         timer.isRepeats = false
         if (player.isBlack) {
             label = labelBlackAddOneMinute
-            updater = updateBlackAddOneMinute
+            updater = BLACK_ADD_ONE_MINUTE
             blackAddOneMinute = timer
         } else {
             label = labelWhiteAddOneMinute
-            updater = updateWhiteAddOneMinute
+            updater = WHITE_ADD_ONE_MINUTE
             whiteAddOneMinute = timer
         }
         val key: String = if (status > 0) {
@@ -970,7 +970,7 @@ class GoGameFrame private constructor(
     @Volatile private var resignTimer: Timer? = null
 
     private fun resign(marker: InternalMarker) {
-        val updateResign = GoGameFrame.updateResign
+        val updateResign = GoGameFrame.RESIGN_TIMER
         val labelResign = this.labelResign
         var timer: Timer? = null
         val blackPlayer = this.blackPlayer

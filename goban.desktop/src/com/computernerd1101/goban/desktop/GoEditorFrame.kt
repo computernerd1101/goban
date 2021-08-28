@@ -1451,11 +1451,11 @@ class GoEditorFrame private constructor(
         move.moveVariation(0)
         if (p == null) selectSGFTreePathFast(move)
         else {
-            updateSuppressComputeScores.incrementAndGet(this)
+            SUPPRESS_COMPUTE_SCORES.incrementAndGet(this)
             try {
                 selectSGFTreePathFast(move)
             } finally {
-                updateSuppressComputeScores.decrementAndGet(this)
+                SUPPRESS_COMPUTE_SCORES.decrementAndGet(this)
             }
         }
         val nextButton = if (player == GoColor.BLACK) {
@@ -1756,7 +1756,7 @@ class GoEditorFrame private constructor(
     @Suppress("RemoveExplicitTypeArguments")
     companion object {
 
-        private val updateSuppressComputeScores: AtomicIntegerFieldUpdater<GoEditorFrame> =
+        private val SUPPRESS_COMPUTE_SCORES: AtomicIntegerFieldUpdater<GoEditorFrame> =
             AtomicIntegerFieldUpdater.newUpdater(GoEditorFrame::class.java, "suppressComputeScores")
 
         private val LABEL = PointMarkup.label("A")

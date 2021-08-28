@@ -29,7 +29,7 @@ class GoGameManager {
     val gameInfo: GameInfo
 
     private companion object {
-        private val updateHypothetical = atomicUpdater<GoGameManager, GoSGFSetupNode?>("_hypothetical")
+        private val HYPOTHETICAL = atomicUpdater<GoGameManager, GoSGFSetupNode?>("_hypothetical")
     }
 
     @Volatile private var _hypothetical: GoSGFSetupNode? = null
@@ -178,7 +178,7 @@ class GoGameManager {
                     val hypotheticalNode = node.createNextSetupNode(node.goban)
                     hypotheticalNode.turnPlayer = requestResume.opponent
                     setNode(hypotheticalNode, InternalMarker)
-                    updateHypothetical.compareAndSet(this, null, hypotheticalNode)
+                    HYPOTHETICAL.compareAndSet(this, null, hypotheticalNode)
                     // TODO start hypothetical play
                 } else {
                     setNode(lastNonPass, InternalMarker)

@@ -18,7 +18,7 @@ open class GoPointMap<out V> internal constructor(entries: Array<out Any>?, mark
     companion object {
 
         init {
-            InternalGoPointMap.size = atomicIntUpdater("_size")
+            InternalGoPointMap.SIZE = atomicIntUpdater("_size")
         }
 
         @JvmField
@@ -219,8 +219,8 @@ open class MutableGoPointMap<V> private constructor(entries: Array<out Any>?):
             entry = MutableGoPointEntry(this, key, value)
             row[x] = entry
             oldValue = null
-            InternalGoPointMap.size.getAndIncrement(this)
-            InternalGoPointMap.rowSize.getAndIncrement(weak.rows[y])
+            InternalGoPointMap.SIZE.getAndIncrement(this)
+            InternalGoPointMap.ROW_SIZE.getAndIncrement(weak.rows[y])
         } else {
             oldValue = entry.setValue(value)
         }
@@ -261,9 +261,9 @@ open class MutableGoPointMap<V> private constructor(entries: Array<out Any>?):
                 entry.map = null
                 row[x] = null
                 val weakRow = weak.rows[y]
-                if (weakRow == null || InternalGoPointMap.rowSize.decrementAndGet(weakRow) <= 0)
+                if (weakRow == null || InternalGoPointMap.ROW_SIZE.decrementAndGet(weakRow) <= 0)
                     rows[y] = null
-                InternalGoPointMap.size.decrementAndGet(this)
+                InternalGoPointMap.SIZE.decrementAndGet(this)
             }
         }
         return value
@@ -283,8 +283,8 @@ open class MutableGoPointMap<V> private constructor(entries: Array<out Any>?):
                     if (entry1 == null) {
                         entry1 = MutableGoPointEntry(this, entry2.key, value)
                         row1[x] = entry1
-                        InternalGoPointMap.size.getAndIncrement(this)
-                        InternalGoPointMap.rowSize.getAndIncrement(weakRow)
+                        InternalGoPointMap.SIZE.getAndIncrement(this)
+                        InternalGoPointMap.ROW_SIZE.getAndIncrement(weakRow)
                     }
                 }
             }
@@ -297,7 +297,7 @@ open class MutableGoPointMap<V> private constructor(entries: Array<out Any>?):
 
     final override fun clear() {
         try {
-            InternalGoPointMap.size[this] = 0
+            InternalGoPointMap.SIZE[this] = 0
             val rows = secrets.rows
             for(y in 0..51) {
                 val row = rows[y]

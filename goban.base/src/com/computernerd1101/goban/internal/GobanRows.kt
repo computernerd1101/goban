@@ -46,7 +46,7 @@ internal object GobanRows {
         GobanRows98(), GobanRows100(),
         GobanRows102(), GobanRows104()
     )
-    @JvmField val updaters: Array<AtomicLongFieldUpdater<GobanRows1>> = CharArray(6).let { buf ->
+    @JvmField val ROWS: Array<AtomicLongFieldUpdater<GobanRows1>> = CharArray(6).let { buf ->
         buf[0] = 'r'
         buf[1] = 'o'
         buf[2] = 'w'
@@ -80,9 +80,9 @@ internal open class GobanRows1 {
     open fun newInstance() = GobanRows1()
     open val size: Int get() = 1
     @Volatile @JvmField var row0: Long = 0L
-    operator fun get(index: Int) = GobanRows.updaters[index][this]
+    operator fun get(index: Int) = GobanRows.ROWS[index][this]
     operator fun set(index: Int, value: Long) {
-        GobanRows.updaters[index][this] = value
+        GobanRows.ROWS[index][this] = value
     }
 }
 internal open class GobanRows2: GobanRows1() {

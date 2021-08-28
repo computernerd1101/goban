@@ -21,7 +21,7 @@ class GoScoreManager internal constructor(val game: GoGameManager, marker: Inter
     val livingStones: SendChannel<GoPointSet> = SendOnlyChannel(_livingStones)
 
     companion object {
-        private val updateSubmitPlayerFlags = atomicIntUpdater<GoScoreManager>("submitPlayerFlags")
+        private val SUBMIT_PLAYER_FLAGS = atomicIntUpdater<GoScoreManager>("submitPlayerFlags")
     }
 
     @Volatile private var submitPlayerFlags: Int = 0
@@ -32,7 +32,7 @@ class GoScoreManager internal constructor(val game: GoGameManager, marker: Inter
     }
     internal fun submitPlayerScore(color: GoColor, marker: InternalMarker) {
         marker.ignore()
-        val flags = updateSubmitPlayerFlags.accumulateAndGet(this,
+        val flags = SUBMIT_PLAYER_FLAGS.accumulateAndGet(this,
             if (color == GoColor.BLACK) 1 else 2, BinOp.OR)
         if ((flags and 3) == 3) {
             val continuation = submitted.continuation

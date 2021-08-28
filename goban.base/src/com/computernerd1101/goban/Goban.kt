@@ -11,14 +11,14 @@ sealed class AbstractGoban(
     @JvmField val width: Int,
     @JvmField val height: Int,
     internal val rows: GobanRows1,
-    /** Updated by [InternalGoban.count] */
+    /** Updated by [InternalGoban.COUNT] */
     @Volatile private var count: Long
 ) {
 
     companion object {
 
         init {
-            InternalGoban.count = atomicLongUpdater("count")
+            InternalGoban.COUNT = atomicLongUpdater("count")
         }
 
         @JvmStatic
@@ -55,12 +55,12 @@ sealed class AbstractGoban(
         @JvmName("emptyCount")
         get() {
             // count might not be atomic on 32-bit architecture
-            val count = InternalGoban.count[this]
+            val count = InternalGoban.COUNT[this]
             return width*height - (count + (count shr 32)).toInt()
         }
 
     fun count(color: GoColor?): Int {
-        val count = InternalGoban.count[this]
+        val count = InternalGoban.COUNT[this]
         return when (color) {
             null -> width*height - (count + (count shr 32)).toInt()
             GoColor.BLACK -> count.toInt()
@@ -172,14 +172,14 @@ sealed class AbstractGoban(
         initPointSet(points, color)
         val words = InternalGoPointSet.sizeAndHash(points)
         if (words == 0L) return GoPointSet.EMPTY
-        InternalGoPointSet.sizeAndHash[points] = words
+        InternalGoPointSet.SIZE_AND_HASH[points] = words
         return points
     }
 
     fun toMutablePointSet(color: GoColor?): MutableGoPointSet {
         val points = MutableGoPointSet()
         initPointSet(points, color)
-        InternalGoPointSet.sizeAndHash[points] = InternalGoPointSet.sizeAndHash(points)
+        InternalGoPointSet.SIZE_AND_HASH[points] = InternalGoPointSet.sizeAndHash(points)
         return points
     }
 
@@ -200,7 +200,7 @@ sealed class AbstractGoban(
                     else -> (row or (row shl 32)).inv() and (-1L shl 32)
                 }
             }
-            InternalGoPointSet.rowUpdaters[y][points] = setRow
+            InternalGoPointSet.ROWS[y][points] = setRow
         }
     }
 
@@ -411,7 +411,7 @@ sealed class AbstractMutableGoban: AbstractGoban {
             val group: LongArray = copyRows.get()[GobanThreadLocals.GROUP]
             when(val set: Set<*> = mask) {
                 is GoPointSet -> for(y in 0 until height)
-                    group[y] = InternalGoPointSet.rowUpdaters[y][set]
+                    group[y] = InternalGoPointSet.ROWS[y][set]
                 is GoRectangle -> {
                     val rowBits = InternalGoRectangle.rowBits(set)
                     val y1 = set.start.y
@@ -434,12 +434,12 @@ sealed class AbstractMutableGoban: AbstractGoban {
                 //              ((pos / 2) shl 32)     or ((pos % 2) * 32)
                 pos = if (wide) ((pos and -2L) shl 31) or ((pos and 1L) shl 5)
                 else pos shl 32
-                val oldRow = GobanRows.updaters[y].getAndAccumulate(rows, pos, copyRows)
+                val oldRow = GobanRows.ROWS[y].getAndAccumulate(rows, pos, copyRows)
                 val newRow = copyRows.applyAsLong(oldRow, pos)
                 diff += InternalGoban.countStonesInRow(newRow) - InternalGoban.countStonesInRow(oldRow)
             }
         }
-        InternalGoban.count.addAndGet(this, diff)
+        InternalGoban.COUNT.addAndGet(this, diff)
         return true
     }
 
@@ -453,12 +453,12 @@ sealed class AbstractMutableGoban: AbstractGoban {
             else -> -1L shl 32
         }
         for (i in 0 until rows.size) {
-            val updater = GobanRows.updaters[i]
+            val updater = GobanRows.ROWS[i]
             val row: Long = if (color == null) updater.getAndSet(rows, 0L)
             else updater.getAndAccumulate(rows, mask.inv(), BinOp.AND)
             count -= InternalGoban.countStonesInRow(row) and mask
         }
-        InternalGoban.count.addAndGet(this, count)
+        InternalGoban.COUNT.addAndGet(this, count)
     }
 
     /**

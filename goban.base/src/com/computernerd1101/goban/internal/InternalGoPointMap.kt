@@ -8,12 +8,12 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater
 internal object InternalGoPointMap {
 
     /** Updates [GoPointMap._size] */
-    lateinit var size: AtomicIntegerFieldUpdater<GoPointMap<*>>
+    lateinit var SIZE: AtomicIntegerFieldUpdater<GoPointMap<*>>
     /** Updates [WeakGoPointMap.Row.size] */
-    val rowSize = atomicIntUpdater<WeakGoPointMap.Row<*>>("size")
+    val ROW_SIZE = atomicIntUpdater<WeakGoPointMap.Row<*>>("size")
 
     fun fastEquals(m1: GoPointMap<*>, m2: GoPointMap<*>): Boolean {
-        if (size[m1] != size[m2])
+        if (SIZE[m1] != SIZE[m2])
             return false
         val rows1 = m1.secrets.rows
         val rows2 = m2.secrets.rows
@@ -108,7 +108,7 @@ internal abstract class GoPointMapCollection<out V, out E>(open val map: GoPoint
     open fun expungeStaleRows() = Unit
 
     override val size: Int
-        get() = InternalGoPointMap.size[map]
+        get() = InternalGoPointMap.SIZE[map]
 
     override fun iterator(): Iterator<E> {
         return GoPointMapItr(this)
@@ -200,9 +200,9 @@ internal open class MutableGoPointMapItr<V, E>(collection: GoPointMapCollection<
         val entry = row[x] as MutableGoPointEntry<V>? ?: throw IllegalStateException()
         entry.map = null
         row[x] = null
-        InternalGoPointMap.size.getAndDecrement(map)
+        InternalGoPointMap.SIZE.getAndDecrement(map)
         map.weak.rows[y]?.let { weak ->
-            if (InternalGoPointMap.rowSize.getAndDecrement(weak) <= 0) rows[y] = null
+            if (InternalGoPointMap.ROW_SIZE.getAndDecrement(weak) <= 0) rows[y] = null
         }
         lastReturnedX = 0
         lastReturnedY = -1
@@ -303,7 +303,7 @@ internal open class GoPointEntries<out V, out E>(
         expungeStaleRows()
         if (this === other)
             return true
-        if (other is GoPointSet) return InternalGoPointMap.size[map] == 0 && other.isEmpty()
+        if (other is GoPointSet) return InternalGoPointMap.SIZE[map] == 0 && other.isEmpty()
         if (other is GoRectangle || other !is Set<*>) return false
         var set: Collection<*> = other
         if (other is GoPointMapCollection<*, *>) {
@@ -316,10 +316,10 @@ internal open class GoPointEntries<out V, out E>(
             if (map !== other.map)
                 other.expungeStaleRows()
             if (other is GoPointKeys<*>)
-                return InternalGoPointMap.size[map] == 0 && InternalGoPointMap.size[other.map] == 0
+                return InternalGoPointMap.SIZE[map] == 0 && InternalGoPointMap.SIZE[other.map] == 0
             set = other.immutable
         }
-        return InternalGoPointMap.size[map] == other.size && immutable.containsAll(set)
+        return InternalGoPointMap.SIZE[map] == other.size && immutable.containsAll(set)
     }
 
     override fun hashCode(): Int {
@@ -425,9 +425,9 @@ internal class MutableGoPointEntries<V>(
                 if (element.value == entry.value) {
                     entry.map = null
                     row[x] = null
-                    InternalGoPointMap.size.decrementAndGet(map)
+                    InternalGoPointMap.SIZE.decrementAndGet(map)
                     map.weak.rows[y]?.let { weak ->
-                        if (InternalGoPointMap.rowSize.decrementAndGet(weak) <= 0)
+                        if (InternalGoPointMap.ROW_SIZE.decrementAndGet(weak) <= 0)
                             rows[y] = null
                     }
                     return true
@@ -449,7 +449,7 @@ internal class MutableGoPointEntries<V>(
 
     override fun removeAll(elements: Collection<MutableMap.MutableEntry<GoPoint, V>>): Boolean {
         if (this === elements) {
-            if (InternalGoPointMap.size[map] == 0) {
+            if (InternalGoPointMap.SIZE[map] == 0) {
                 expungeStaleRows()
                 return false
             }
@@ -479,8 +479,8 @@ internal class MutableGoPointEntries<V>(
                             modified = true
                             e1.map = null
                             row1[x] = null
-                            InternalGoPointMap.size.decrementAndGet(map)
-                            if (InternalGoPointMap.rowSize.decrementAndGet(weakRows[y]) <= 0) {
+                            InternalGoPointMap.SIZE.decrementAndGet(map)
+                            if (InternalGoPointMap.ROW_SIZE.decrementAndGet(weakRows[y]) <= 0) {
                                 rows1[y] = null
                                 break
                             }
@@ -489,7 +489,7 @@ internal class MutableGoPointEntries<V>(
                 }
             } else {
                 val c = toImmutable(elements)
-                if (InternalGoPointMap.size[map] > c.size) {
+                if (InternalGoPointMap.SIZE[map] > c.size) {
                     for(e in c)
                         if (fastRemove(e)) modified = true
                 } else modified = MutableGoPointMapItr(this).removeAll(c)
@@ -507,7 +507,7 @@ internal class MutableGoPointEntries<V>(
         }
         if (elements is GoPointKeys<*>) {
             if (map !== elements.map) elements.expungeStaleRows()
-            if (InternalGoPointMap.size[map] == 0) {
+            if (InternalGoPointMap.SIZE[map] == 0) {
                 expungeStaleRows()
                 return false
             }
@@ -527,7 +527,7 @@ internal class MutableGoPointEntries<V>(
                     if (row1 == null || weak == null) continue
                     val row2 = rows2[y]
                     if (row2 == null) {
-                        InternalGoPointMap.size.getAndAdd(map, -weak.size)
+                        InternalGoPointMap.SIZE.getAndAdd(map, -weak.size)
                         weak.size = 0
                         rows1[y] = null
                         modified = true
@@ -540,8 +540,8 @@ internal class MutableGoPointEntries<V>(
                                     modified = true
                                     e1.map = null
                                     row1[x] = null
-                                    InternalGoPointMap.size.decrementAndGet(map)
-                                    if (InternalGoPointMap.rowSize.decrementAndGet(weak) <= 0) {
+                                    InternalGoPointMap.SIZE.decrementAndGet(map)
+                                    if (InternalGoPointMap.ROW_SIZE.decrementAndGet(weak) <= 0) {
                                         rows1[y] = null
                                         break
                                     }
@@ -602,7 +602,7 @@ internal open class GoPointKeys<out V>(map: GoPointMap<V>):
             }
             is GoPointSet -> {
                 for(y in 0..51)
-                    if (rowBits(y).inv() and InternalGoPointSet.rowUpdaters[y][elements] != 0L)
+                    if (rowBits(y).inv() and InternalGoPointSet.ROWS[y][elements] != 0L)
                         return false
                 true
             }
@@ -654,7 +654,7 @@ internal open class GoPointKeys<out V>(map: GoPointMap<V>):
             }
             is GoPointSet -> {
                 for(y in 0..51)
-                    if (rowBits(y) != InternalGoPointSet.rowUpdaters[y][other]) return false
+                    if (rowBits(y) != InternalGoPointSet.ROWS[y][other]) return false
                 true
             }
             is GoPointKeys<*> -> {
@@ -679,11 +679,11 @@ internal open class GoPointKeys<out V>(map: GoPointMap<V>):
                     if (map !== other.map)
                         other.expungeStaleRows()
                     if (other is GoPointEntries<*, *>)
-                        return InternalGoPointMap.size[map] == 0 &&
-                                InternalGoPointMap.size[other.map] == 0
+                        return InternalGoPointMap.SIZE[map] == 0 &&
+                                InternalGoPointMap.SIZE[other.map] == 0
                     c = other.immutable
                 }
-                InternalGoPointMap.size[map] == c.size && immutable.containsAll(c)
+                InternalGoPointMap.SIZE[map] == c.size && immutable.containsAll(c)
             }
             else -> false
         }
@@ -742,9 +742,9 @@ internal class MutableGoPointKeys<V>(
             if (entry != null) {
                 entry.map = null
                 row[x] = null
-                InternalGoPointMap.size.decrementAndGet(map)
+                InternalGoPointMap.SIZE.decrementAndGet(map)
                 map.weak.rows[y]?.let { weak ->
-                    if (InternalGoPointMap.rowSize.decrementAndGet(weak) <= 0)
+                    if (InternalGoPointMap.ROW_SIZE.decrementAndGet(weak) <= 0)
                         rows[y] = null
                 }
                 return true
@@ -764,7 +764,7 @@ internal class MutableGoPointKeys<V>(
 
     override fun removeAll(elements: Collection<GoPoint>): Boolean {
         if (this === elements) {
-            if (InternalGoPointMap.size[map] == 0) {
+            if (InternalGoPointMap.SIZE[map] == 0) {
                 expungeStaleRows()
                 return false
             }
@@ -794,8 +794,8 @@ internal class MutableGoPointKeys<V>(
                                 modified = true
                                 entry.map = null
                                 row1[x] = null
-                                InternalGoPointMap.size.decrementAndGet(map)
-                                if (InternalGoPointMap.rowSize.decrementAndGet(weakRows[y]) <= 0) {
+                                InternalGoPointMap.SIZE.decrementAndGet(map)
+                                if (InternalGoPointMap.ROW_SIZE.decrementAndGet(weakRows[y]) <= 0) {
                                     rows1[y] = null
                                     break
                                 }
@@ -806,7 +806,7 @@ internal class MutableGoPointKeys<V>(
                 is GoPointSet -> for(y in 0..51) {
                     val row = rows1[y]
                     if (row != null && removeBitsFromRow(y, rows1, weakRows, row,
-                            InternalGoPointSet.rowUpdaters[y][elements]))
+                            InternalGoPointSet.ROWS[y][elements]))
                         modified = true
                 }
                 is GoRectangle -> for(y in elements.start.y..elements.end.y) {
@@ -817,7 +817,7 @@ internal class MutableGoPointKeys<V>(
                 }
                 else -> {
                     val c = toImmutable(elements)
-                    if (InternalGoPointMap.size[map] > c.size) {
+                    if (InternalGoPointMap.SIZE[map] > c.size) {
                         for(e in c)
                             if (fastRemove(e)) modified = true
                     } else {
@@ -838,7 +838,7 @@ internal class MutableGoPointKeys<V>(
         }
         if (elements is GoPointEntries<*, *>) {
             if (map !== elements.map) elements.expungeStaleRows()
-            if (InternalGoPointMap.size[map] == 0) {
+            if (InternalGoPointMap.SIZE[map] == 0) {
                 expungeStaleRows()
                 return false
             }
@@ -859,7 +859,7 @@ internal class MutableGoPointKeys<V>(
                         if (row1 == null || weak == null) continue
                         val row2 = rows2[y]
                         if (row2 == null) {
-                            InternalGoPointMap.size.getAndAdd(map, -weak.size)
+                            InternalGoPointMap.SIZE.getAndAdd(map, -weak.size)
                             weak.size = 0
                             rows1[y] = null
                             modified = true
@@ -870,8 +870,8 @@ internal class MutableGoPointKeys<V>(
                                     modified = true
                                     entry.map = null
                                     row1[x] = null
-                                    InternalGoPointMap.size.decrementAndGet(map)
-                                    if (InternalGoPointMap.rowSize.decrementAndGet(weak) <= 0) {
+                                    InternalGoPointMap.SIZE.decrementAndGet(map)
+                                    if (InternalGoPointMap.ROW_SIZE.decrementAndGet(weak) <= 0) {
                                         rows1[y] = null
                                         break
                                     }
@@ -883,7 +883,7 @@ internal class MutableGoPointKeys<V>(
                 is GoPointSet -> for(y in 0..51) {
                     val row = rows1[y]
                     if (row != null && removeBitsFromRow(y, rows1, weakRows, row,
-                            InternalGoPointSet.rowUpdaters[y][elements].inv()))
+                            InternalGoPointSet.ROWS[y][elements].inv()))
                         modified = true
                 }
                 is GoRectangle -> {
@@ -924,8 +924,8 @@ internal class MutableGoPointKeys<V>(
                 modified = true
                 entry.map = null
                 row[x] = null
-                InternalGoPointMap.size.decrementAndGet(map)
-                if (InternalGoPointMap.rowSize.decrementAndGet(weakRows[y]) <= 0) {
+                InternalGoPointMap.SIZE.decrementAndGet(map)
+                if (InternalGoPointMap.ROW_SIZE.decrementAndGet(weakRows[y]) <= 0) {
                     rows[y] = null
                     return true
                 }
@@ -972,8 +972,8 @@ internal class MutableGoPointKeys<V>(
                     modified = true
                     entry.map = null
                     row[x] = null
-                    InternalGoPointMap.size.decrementAndGet(map)
-                    if (InternalGoPointMap.rowSize.decrementAndGet(weakRows[y]) <= 0) {
+                    InternalGoPointMap.SIZE.decrementAndGet(map)
+                    if (InternalGoPointMap.ROW_SIZE.decrementAndGet(weakRows[y]) <= 0) {
                         rows[y] = null
                         return true
                     }
@@ -1002,10 +1002,10 @@ internal class MutableGoPointKeys<V>(
             rows[y] = null
             val weak = weakRows[y]
             if (weak != null) {
-                val size = InternalGoPointMap.rowSize.getAndSet(weak, 0)
+                val size = InternalGoPointMap.ROW_SIZE.getAndSet(weak, 0)
                 if (size != 0) {
                     modified = true
-                    InternalGoPointMap.size.addAndGet(map, -size)
+                    InternalGoPointMap.SIZE.addAndGet(map, -size)
                 }
             }
         }
@@ -1090,9 +1090,9 @@ internal class MutableGoPointValues<V>(
                 if (entry != null && element == entry.value) {
                     entry.map = null
                     row[x] = null
-                    InternalGoPointMap.size.decrementAndGet(map)
+                    InternalGoPointMap.SIZE.decrementAndGet(map)
                     weakRows[y]?.let { weak ->
-                        if (InternalGoPointMap.rowSize.decrementAndGet(weak) <= 0)
+                        if (InternalGoPointMap.ROW_SIZE.decrementAndGet(weak) <= 0)
                             rows[y] = null
                     }
                     return true
@@ -1113,7 +1113,7 @@ internal class MutableGoPointValues<V>(
 
     override fun removeAll(elements: Collection<V>): Boolean {
         if (this === elements) {
-            if (InternalGoPointMap.size[map] == 0) {
+            if (InternalGoPointMap.SIZE[map] == 0) {
                 expungeStaleRows()
                 return false
             }

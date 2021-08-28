@@ -6,9 +6,9 @@ import java.util.concurrent.atomic.*
 internal object InternalGoPointSet {
 
     /** Updates [GoPointSet.sizeAndHash] */
-    lateinit var sizeAndHash: AtomicLongFieldUpdater<GoPointSet>
+    lateinit var SIZE_AND_HASH: AtomicLongFieldUpdater<GoPointSet>
 
-    @JvmField val rowUpdaters = arrayOfLateInit<AtomicLongFieldUpdater<GoPointSet>>(52)
+    @JvmField val ROWS = arrayOfLateInit<AtomicLongFieldUpdater<GoPointSet>>(52)
 
     fun checkType(klass: Class<out GoPointSet>) {
         if (klass != GoPointSet::class.java && klass != MutableGoPointSet::class.java)
@@ -20,37 +20,37 @@ internal object InternalGoPointSet {
     fun init(set: GoPointSet, elements: Array<out Iterable<GoPoint>>) {
         for(element in elements) when(element) {
             is GoPoint -> {
-                val updater = rowUpdaters[element.y]
+                val updater = ROWS[element.y]
                 // set has just been created and is not yet visible to any other threads
                 updater[set] = updater[set] or (1L shl element.x)
             }
             is GoRectangle -> {
                 val mask = InternalGoRectangle.rowBits(element)
                 for (y in element.start.y..element.end.y) {
-                    val updater = rowUpdaters[y]
+                    val updater = ROWS[y]
                     updater[set] = updater[set] or mask
                 }
             }
             is GoPointSet -> {
-                for(updater in rowUpdaters)
+                for(updater in ROWS)
                     updater[set] = updater[set] or updater[element]
             }
             is GoPointKeys<*> -> for (y in 0..51) {
-                val updater = rowUpdaters[y]
+                val updater = ROWS[y]
                 updater[set] = updater[set] or element.rowBits(y)
             }
             else -> for((x, y) in element) {
-                val updater = rowUpdaters[y]
+                val updater = ROWS[y]
                 updater[set] = updater[set] or (1L shl x)
             }
         }
-        sizeAndHash[set] = sizeAndHash(set)
+        SIZE_AND_HASH[set] = sizeAndHash(set)
     }
 
     fun sizeAndHash(set: GoPointSet): Long {
         var words = 0L
         for(y in 0..51)
-            words += sizeAndHash(y, rowUpdaters[y][set])
+            words += sizeAndHash(y, ROWS[y][set])
         return words
     }
 
@@ -69,9 +69,9 @@ internal object InternalGoPointSet {
     }
 
     fun copyRowFrom(set: GoPointSet, y: Int, newBits: Long): Boolean {
-        val oldBits = rowUpdaters[y].getAndSet(set, newBits)
+        val oldBits = ROWS[y].getAndSet(set, newBits)
         return if (newBits != oldBits) {
-            sizeAndHash.addAndGet(
+            SIZE_AND_HASH.addAndGet(
                 set,
                 sizeAndHash(y, newBits) -
                         sizeAndHash(y, oldBits)
@@ -84,14 +84,14 @@ internal object InternalGoPointSet {
 
 internal open class GoPointItr(val set: GoPointSet) : Iterator<GoPoint> {
 
-    private var unseenX = InternalGoPointSet.rowUpdaters[0][set]
+    private var unseenX = InternalGoPointSet.ROWS[0][set]
     private var unseenY = 0
 
     override fun hasNext(): Boolean {
         var unseen = unseenX
         var y = unseenY
         while(unseen == 0L && y < 51)
-            unseen = InternalGoPointSet.rowUpdaters[++y][set]
+            unseen = InternalGoPointSet.ROWS[++y][set]
         unseenX = unseen
         unseenY = y
         return unseen != 0L
@@ -101,7 +101,7 @@ internal open class GoPointItr(val set: GoPointSet) : Iterator<GoPoint> {
         var unseen = unseenX
         var y = unseenY
         while(unseen == 0L && y < 51)
-            unseen = InternalGoPointSet.rowUpdaters[++y][set]
+            unseen = InternalGoPointSet.ROWS[++y][set]
         val xBit = unseen and -unseen
         unseenX = unseen - xBit
         unseenY = y
