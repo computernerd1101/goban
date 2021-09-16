@@ -10,6 +10,6 @@ module computernerd1101.goban.desktop {
     requires kotlin.reflect;
     requires kotlinx.coroutines.core.jvm;
     requires kotlinx.coroutines.swing;
-    requires org.jetbrains.annotations;
+    requires annotations;
 
 }

@@ -142,7 +142,7 @@ public class GobanView extends JComponent {
     }
 
     private int defaultPointMarkupThickness = 2;
-    public final @Range(from=1, to=Integer.MAX_VALUE) int getDefaultPointMarkupThickness() {
+    public final int getDefaultPointMarkupThickness() {
         return defaultPointMarkupThickness;
     }
     public void setDefaultPointMarkupThickness(int value) {
@@ -156,7 +156,7 @@ public class GobanView extends JComponent {
     }
 
     private int defaultLineMarkupThickness = 2;
-    public final @Range(from=1, to=Integer.MAX_VALUE) int getDefaultLineMarkupThickness() {
+    public final int getDefaultLineMarkupThickness() {
         return defaultLineMarkupThickness;
     }
     public void setDefaultLineMarkupThickness(int value) {

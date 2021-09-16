@@ -2,7 +2,7 @@ package com.computernerd1101.goban.desktop
 
 import com.computernerd1101.goban.*
 import com.computernerd1101.goban.players.GoGameSetup
-import com.computernerd1101.goban.annotations.PropertyFactory
+import com.computernerd1101.goban.annotations.PropertyList
 import com.computernerd1101.goban.desktop.internal.*
 import com.computernerd1101.goban.desktop.resources.*
 import com.computernerd1101.goban.sgf.GameInfo
@@ -52,7 +52,7 @@ class GoGameSetupView private constructor(
 
     private val spinTimeLimit = CN13Spinner()
     private val comboOvertime = JComboBox<Any>()
-    private val overtimeView = OvertimeComponent(minRows = OvertimeModel(comboOvertime.renderer).maxEntries)
+    private val overtimeView = PropertiesComponent<Overtime>(minRows = OvertimeModel(comboOvertime.renderer).maxEntries)
 
     init {
         val sizeModel = SizeModel(comboSize.renderer)
@@ -474,15 +474,15 @@ class GoGameSetupView private constructor(
         var maxEntries: Int = 0; private set
 
         override fun initType(item: Overtime) {
-            val properties = PropertyFactory(item::class)
-            val count = properties.entryCount
+            val properties = PropertyList(item::class)
+            val count = properties.size
             if (count > maxEntries) maxEntries = count
         }
 
         override val gameInfo: GameInfo
             get() = gameSetup.gameInfo
 
-        override val overtimeView: OvertimeComponent
+        override val overtimeView: PropertiesComponent<Overtime>
             get() = this@GoGameSetupView.overtimeView
 
     }

@@ -2,22 +2,18 @@ package com.computernerd1101.goban.internal
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
-import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.*
 import kotlin.coroutines.*
-import kotlin.random.Random
-import kotlin.random.asJavaRandom
-import kotlin.random.asKotlinRandom
 
 /*
- * class Cacheable(val index: Int) {
+ * class Cacheable private constructor(val index: Int) {
  *
  *     // Avoids generating convoluted access$getValues$cp()
  *     private object Cache {
  *
  *         const val SIZE: Int = ...
  *
- *         // impossible to access outside of Cacheable, assuming that JVM access limits are strictly enforced
+ *         // impossible to access outside Cacheable, assuming that JVM access limits are strictly enforced
  *         @JvmField val values = arrayOfLateInit<Cacheable>(SIZE)
  *
  *     }
@@ -115,14 +111,11 @@ private val lenTab = ByteArray(256).also { table ->
 }
 
 fun highestBitLength(bits: Long): Int {
-    val x = (bits ushr 32).toInt()
-    return if (x == 0) highestBitLength(bits.toInt())
-    else 32 + highestBitLength(x)
-}
-
-fun highestBitLength(bits: Int): Int {
-    var x = bits
-    var n = 0
+    var x = (bits ushr 32).toInt()
+    var n = if (x == 0) {
+        x = bits.toInt()
+        0
+    } else 32
     if (x >= 1 shl 16) {
         x = x ushr 16
         n += 16

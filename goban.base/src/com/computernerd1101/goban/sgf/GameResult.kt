@@ -174,16 +174,17 @@ class GameResult private constructor(
         private fun makeTable(vararg results: GameResult): Array<GameResult?> {
             val table = arrayOfNulls<GameResult>(0x100)
             for (result in results) {
-                val ch = if (result === DRAW) {
-                    table[0] = result
-                    table['0'.code] = result
-                    'D'.code
-                } else (result.code shr 16) and 0xFF
+                val ch = (result.code shr 16) and 0xFF
                 table[ch] = result
-                if (ch.toChar() in 'A'..'Z')
-                    table[ch + ('a' - 'A')] = result
-                else if (ch.toChar() in 'a'..'z')
-                    table[ch - ('a' - 'A')] = result
+                when {
+                    ch == 0 -> { // draw
+                        table['0'.code] = result
+                        table['D'.code] = result
+                        table['d'.code] = result
+                    }
+                    ch.toChar() in 'A'..'Z' -> table[ch + ('a' - 'A')] = result
+                    ch.toChar() in 'a'..'z' -> table[ch - ('a' - 'A')] = result
+                }
             }
             return table
         }

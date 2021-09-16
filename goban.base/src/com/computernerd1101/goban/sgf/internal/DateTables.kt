@@ -9,18 +9,18 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater
 internal class WeakDateTable<T>(referent: T, val table: DateTable12<T>, val index: Int):
     WeakReference<T>(referent, table.queue as ReferenceQueue<in T>) {
     fun expunge() {
-        DateTable12.weakUpdater<T>(index).compareAndSet(table, this, null)
+        DateTable12.weak<T>(index).compareAndSet(table, this, null)
     }
 }
 internal open class DateTable12<T>(@JvmField val queue: ReferenceQueue<*>) {
     @Suppress("UNCHECKED_CAST")
     companion object {
-        fun <T> strongUpdater(index: Int) =
-            strongUpdaters[index] as AtomicReferenceFieldUpdater<DateTable12<T>, T?>
-        fun <T> weakUpdater(index: Int) =
-            weakUpdaters[index] as AtomicReferenceFieldUpdater<DateTable12<T>, WeakDateTable<T>?>
-        @JvmField val strongUpdaters: Array<AtomicReferenceFieldUpdater<DateTable12<*>, *>>
-        @JvmField val weakUpdaters: Array<AtomicReferenceFieldUpdater<DateTable12<*>, WeakDateTable<*>?>>
+        fun <T> strong(index: Int) =
+            STRONG[index] as AtomicReferenceFieldUpdater<DateTable12<T>, T?>
+        fun <T> weak(index: Int) =
+            WEAK[index] as AtomicReferenceFieldUpdater<DateTable12<T>, WeakDateTable<T>?>
+        @JvmField val STRONG: Array<AtomicReferenceFieldUpdater<DateTable12<*>, *>>
+        @JvmField val WEAK: Array<AtomicReferenceFieldUpdater<DateTable12<*>, WeakDateTable<*>?>>
         init {
             val buffer = CharArray(8)
             buffer[0] = 's'
@@ -29,7 +29,7 @@ internal open class DateTable12<T>(@JvmField val queue: ReferenceQueue<*>) {
             buffer[3] = 'o'
             buffer[4] = 'n'
             buffer[5] = 'g'
-            strongUpdaters = Array(256) { index ->
+            STRONG = Array(256) { index ->
                 val type = when {
                     index < 12 -> DateTable12::class.java
                     index < 128 -> DateTable128::class.java
@@ -45,7 +45,7 @@ internal open class DateTable12<T>(@JvmField val queue: ReferenceQueue<*>) {
             buffer[1] = 'e'
             buffer[2] = 'a'
             buffer[3] = 'k'
-            weakUpdaters = Array(256) { index ->
+            WEAK = Array(256) { index ->
                 val type = when {
                     index < 12 -> DateTable12::class.java
                     index < 128 -> DateTable128::class.java

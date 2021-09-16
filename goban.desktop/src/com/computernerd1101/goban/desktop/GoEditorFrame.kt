@@ -914,7 +914,7 @@ class GoEditorFrame private constructor(
     private val spinKomi = CN13Spinner()
     private val spinTimeLimit = CN13Spinner()
     private val comboOvertime = JComboBox<Any>()
-    private val overtimeView = OvertimeComponent()
+    private val overtimeView = PropertiesComponent<Overtime>()
     private val comboGameResult = JComboBox<GameResult>()
     private val comboGameWinner = JComboBox<GameResult>()
     private val spinGameScore = CN13Spinner()
@@ -1585,7 +1585,7 @@ class GoEditorFrame private constructor(
             spinKomi.updateUI()
             spinTimeLimit.updateUI()
             comboOvertime.updateUI()
-            overtimeView.overtime = info.overtime
+            overtimeView.data = info.overtime
             val enableWinner: Boolean
             val enableScore: Boolean
             val result = info.result
@@ -2550,7 +2550,7 @@ class GoEditorFrame private constructor(
         override val gameInfo: GameInfo?
             get() = node.gameInfo
 
-        override val overtimeView: OvertimeComponent
+        override val overtimeView: PropertiesComponent<Overtime>
             get() = this@GoEditorFrame.overtimeView
 
     }

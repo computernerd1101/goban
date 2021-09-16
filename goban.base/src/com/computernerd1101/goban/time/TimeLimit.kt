@@ -18,6 +18,7 @@ class TimeLimit private constructor(
     owner: Any?
 ) {
 
+    @JvmOverloads
     constructor(mainTime: Long, overtime: Overtime?, owner: Any? = null): this(
         Events, mainTime, overtime?.initialOvertimeCode ?: 0,
         0, overtime, owner

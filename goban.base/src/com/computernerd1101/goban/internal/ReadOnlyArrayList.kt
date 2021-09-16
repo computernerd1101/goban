@@ -9,7 +9,7 @@ internal class ReadOnlyArrayList<out E> private constructor(
     @Transient private var _size: Int
 ): List<E>, RandomAccess, Serializable {
 
-    constructor(vararg elements: E): this(elements, 0, elements.size)
+    constructor(elements: Array<out E>): this(elements, 0, elements.size)
 
     override val size: Int get() = _size
     override fun isEmpty() = _size == 0
@@ -88,10 +88,17 @@ internal class ReadOnlyArrayList<out E> private constructor(
         return true
     }
 
+    @Transient private var hashCodeInitialized: Boolean = false
+    @Transient private var hashCode: Int = 0
+
     override fun hashCode(): Int {
+        if (hashCodeInitialized)
+            return hashCode
         var h = 1
         for(i in offset until offset + _size)
             h = 31*h + array[i].hashCode()
+        hashCode = h
+        hashCodeInitialized = true
         return h
     }
 
@@ -151,8 +158,11 @@ internal class ReadOnlyArrayList<out E> private constructor(
     private fun writeReplace(): Any {
         val offset = this.offset
         val size = _size
-        return if (offset == 0 && size == array.size) this
-        else ReadOnlyArrayList(array.copyOfRange(offset, offset + size), 0, size)
+        return when {
+            size == 0 -> emptyList()
+            offset == 0 && size == array.size -> this
+            else -> ReadOnlyArrayList(array.copyOfRange(offset, offset + size), 0, size)
+        }
     }
 
 }

@@ -168,9 +168,9 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
         rootNode.parseSGFNodes(InternalMarker, reader.fileFormat, tree, hadGameInfo=false, wasRoot=true)
     }
 
-    private class GoSGFReader(val tree: SGFTree, val warnings: SGFWarningList = SGFWarningList()) {
+    private class GoSGFReader(val tree: SGFTree, val warnings: SGFWarningList) {
 
-        constructor(input: InputStream, warnings: SGFWarningList = SGFWarningList()):
+        constructor(input: InputStream, warnings: SGFWarningList):
                 this(SGFTree(input, warnings), warnings)
 
         val fileFormat: Int
@@ -1436,7 +1436,7 @@ sealed class GoSGFNode {
 
         @JvmField val LABELS: Array<String> = CharArray(1).let { buffer ->
             Array(52) {
-                buffer[0] = ((if (it < 26) 'A' else ('a' - 26)) + it)
+                buffer[0] = (if (it < 26) 'A' else ('a' - 26)) + it
                 buffer.concatToString()
             }
         }
@@ -1684,7 +1684,9 @@ class GoSGFMoveNode internal constructor(
                     current = parent
                 }
                 val player: GoColor = current.turnPlayer
+                val pass = current.playStoneAt == null
                 current = current.parent!!
+                if (pass) continue
                 val prev = current.goban
                 var prisoners = prev.whiteCount - goban.whiteCount
                 if (player == GoColor.WHITE) prisoners++

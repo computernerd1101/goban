@@ -24,8 +24,8 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="goban.base" exported="" />
     <orderEntry type="library" name="KotlinJavaRuntime" level="project" />
-    <orderEntry type="library" name="junit:junit:4.13" level="project" />
-    <orderEntry type="library" exported="" name="org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.0-RC" level="project" />
-    <orderEntry type="library" exported="" name="org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.5.0-RC" level="project" />
+    <orderEntry type="library" name="jetbrains.kotlinx.coroutines.swing" level="project" />
+    <orderEntry type="library" name="jetbrains.annotations" level="project" />
+    <orderEntry type="library" name="jetbrains.kotlinx.coroutines.core.jvm" level="project" />
   </component>
 </module>

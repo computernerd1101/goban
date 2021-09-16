@@ -195,7 +195,7 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
             }
             val array = list.toTypedArray()
             array.sort()
-            compressed = ReadOnlyArrayList(*array)
+            compressed = ReadOnlyArrayList(array)
             readOnly.compressed = compressed
         }
         return compressed
@@ -308,7 +308,7 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
     internal fun copyRect(rect: GoRectangle, marker: InternalMarker) {
         marker.ignore()
         if (compressed == null) {
-            compressed = ReadOnlyArrayList(rect)
+            compressed = ReadOnlyArrayList(arrayOf(rect))
             string = rect.toString()
         }
     }
@@ -350,7 +350,7 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
     override fun equals(other: Any?): Boolean {
         return this === other || when(other) {
             is GoPointSet -> {
-                if ( sizeAndHash != other.sizeAndHash) return false
+                if (sizeAndHash != other.sizeAndHash) return false
                 for(updater in InternalGoPointSet.ROWS)
                     if (updater[this] != updater[other]) return false
                 true
@@ -395,13 +395,13 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
                 1 -> compressed[0].toString()
                 else -> {
                     val buffer = StringBuilder()
-                    compressed.joinTo(buffer, prefix = "[", postfix = "]") {
-                        val start = it.start.toString()
-                        val size = it.size
+                    compressed.joinTo(buffer, prefix = "[", postfix = "]") { rect ->
+                        val start = rect.start.toString()
+                        val size = rect.size
                         if (size == 1) start
                         else {
                             buffer.append(start).append(if (size == 2) ", " else ", ..., ")
-                            it.end.toString()
+                            rect.end.toString()
                         }
                     }.toString()
                 }

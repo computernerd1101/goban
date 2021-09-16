@@ -23,7 +23,7 @@ class LineMarkup private constructor(
     @JvmField val start: GoPoint,
     @JvmField val end: GoPoint,
     // private parameter type ensures that even the public synthetic constructor is useless
-    // outside of LineMarkup and nested classes
+    // outside LineMarkup and nested classes
     type: Type
 ): Serializable {
 

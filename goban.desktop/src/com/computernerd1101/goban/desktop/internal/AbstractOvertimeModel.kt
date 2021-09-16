@@ -1,6 +1,6 @@
 package com.computernerd1101.goban.desktop.internal
 
-import com.computernerd1101.goban.desktop.OvertimeComponent
+import com.computernerd1101.goban.desktop.PropertiesComponent
 import com.computernerd1101.goban.desktop.resources.gobanDesktopResources
 import com.computernerd1101.goban.sgf.GameInfo
 import com.computernerd1101.goban.time.Overtime
@@ -41,7 +41,7 @@ abstract class AbstractOvertimeModel(
     protected open fun initType(item: Overtime) = Unit
 
     abstract val gameInfo: GameInfo?
-    abstract val overtimeView: OvertimeComponent
+    abstract val overtimeView: PropertiesComponent<Overtime>
 
     override fun getListCellRendererComponent(
         list: JList<out Any>?,
@@ -74,7 +74,7 @@ abstract class AbstractOvertimeModel(
         if (info.overtime?.javaClass == overtime?.javaClass) return
         overtime = overtime?.clone()
         info.overtime = overtime
-        overtimeView.overtime = overtime
+        overtimeView.data = overtime
         overtimeView.updateUI()
     }
 

@@ -2,23 +2,22 @@ package com.computernerd1101.goban.desktop
 
 import com.computernerd1101.goban.annotations.*
 import com.computernerd1101.goban.desktop.resources.gobanDesktopResources
-import com.computernerd1101.goban.time.Overtime
 import java.awt.*
 import java.text.ParseException
 import java.util.*
 import javax.swing.*
 
-class OvertimeComponent(
-    overtime: Overtime? = null,
+class PropertiesComponent<T: Any>(
+    data: T? = null,
     minRows: Int = 0
 ): JComponent() {
 
-    var overtime: Overtime? = overtime
-        set(overtime) {
-            field = overtime
-            val count = overtimeProperties?.entryCount ?: 0
-            if (overtime != null)
-                setNonNullOvertime(overtime, count)
+    var data: T? = data
+        set(data) {
+            field = data
+            val count = overtimeProperties?.size ?: 0
+            if (data != null)
+                setNonNullOvertime(data, count)
             else {
                 if (count > 0)
                     hideExtraRows(0, count)
@@ -30,7 +29,7 @@ class OvertimeComponent(
         set(value) {
             val min = value.coerceAtLeast(0)
             field = min
-            val count = overtimeProperties?.entryCount ?: 0
+            val count = overtimeProperties?.size ?: 0
             var rows = this.rows
             if (min > rows.size) {
                 rows = rows.copyOf(min)
@@ -49,7 +48,7 @@ class OvertimeComponent(
             }
         }
 
-    private var overtimeProperties: PropertyFactory<Overtime>? = null
+    private var overtimeProperties: PropertyList<T>? = null
 
     private val constraints = GridBagConstraints()
 
@@ -57,8 +56,9 @@ class OvertimeComponent(
         layout = GridBagLayout()
     }
 
+    @Suppress("UNCHECKED_CAST")
     private var rows: Array<Row?> =
-        if (minRows <= 0) Rows.empty
+        if (minRows <= 0) Rows.EMPTY as Array<Row?>
         else Array(minRows) { y ->
             val row = Row()
             addRow(y, row)
@@ -67,13 +67,13 @@ class OvertimeComponent(
         }
 
     init {
-        if (overtime != null)
-            setNonNullOvertime(overtime, 0)
+        if (data != null)
+            setNonNullOvertime(data, 0)
     }
 
-    private fun setNonNullOvertime(overtime: Overtime, oldCount: Int) {
-        val properties = PropertyFactory(overtime::class)
-        val count = properties.entryCount
+    private fun setNonNullOvertime(overtime: T, oldCount: Int) {
+        val properties = PropertyList(overtime::class)
+        val count = properties.size
         overtimeProperties = properties
         var rows = this.rows
         if (count > rows.size) {
@@ -130,13 +130,13 @@ class OvertimeComponent(
 
     private object Rows {
 
-        val empty = emptyArray<Row?>()
+        @JvmField val EMPTY = emptyArray<PropertiesComponent<*>.Row?>()
 
     }
 
     private inner class Row: CN13Spinner.Formatter() {
 
-        var entry: PropertyFactory.Entry<Overtime>? = null
+        var entry: PropertyList.Entry<T>? = null
 
         val label = JLabel(" ")
         val spin = CN13Spinner()
@@ -148,53 +148,53 @@ class OvertimeComponent(
         }
 
         override fun valueToString(value: Any?): String {
-            val o = overtime
+            val d = data
             val e = entry
-            if (o == null || e == null)
+            if (d == null || e == null)
                 return super.valueToString(value)
-            return e.getString(o)
+            return e.getString(d)
         }
 
         override fun stringToValue(text: String): Any? {
-            val o = overtime
+            val d = data
             val e = entry
-            if (o == null || e == null)
+            if (d == null || e == null)
                 return super.stringToValue(text)
             try {
-                e.setString(o, text)
+                e.setString(d, text)
             } catch(ex: Exception) {
                 throw ParseException(text, 0)
             }
-            return e[o]
+            return e[d]
         }
 
         override fun getValue(): Any? {
-            val o = overtime ?: return null
+            val d = data ?: return null
             val e = entry ?: return null
-            return e[o]
+            return e[d]
         }
 
         override fun setValue(value: Any?) {
             if (value == null) return
-            val o = overtime ?: return
+            val d = data ?: return
             val e = entry ?: return
             when(value) {
-                Direction.INCREMENT -> e.increment(o)
-                Direction.DECREMENT -> e.decrement(o)
-                else -> e[o] = value
+                Direction.INCREMENT -> e.increment(d)
+                Direction.DECREMENT -> e.decrement(d)
+                else -> e[d] = value
             }
             fireChangeEvent()
         }
 
         override fun getPreviousValue(): Any? {
-            val o = overtime ?: return null
-            return if (entry?.canDecrement(o) == true) Direction.DECREMENT
+            val d = data ?: return null
+            return if (entry?.canDecrement(d) == true) Direction.DECREMENT
             else null
         }
 
         override fun getNextValue(): Any? {
-            val o = overtime ?: return null
-            return  if (entry?.canIncrement(o) == true) Direction.INCREMENT
+            val d = data ?: return null
+            return  if (entry?.canIncrement(d) == true) Direction.INCREMENT
             else null
         }
 

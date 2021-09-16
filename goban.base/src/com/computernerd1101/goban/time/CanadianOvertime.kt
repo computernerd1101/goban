@@ -59,7 +59,7 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime(), PropertyTranslator
 
     override fun toString() = "${millis.millisToStringSeconds()}/$moves Canadian"
 
-    override fun getTypeString(): String? = "Canadian"
+    override fun getTypeString(): String = "Canadian"
 
     override fun getDisplayName(locale: Locale): String? {
         val resources = gobanResources(locale)

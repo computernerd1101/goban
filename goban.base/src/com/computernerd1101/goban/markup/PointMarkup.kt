@@ -36,7 +36,7 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
         @JvmStatic
         fun label(label: String): PointMarkup {
             var trim = label.trim()
-            val lineEnd = label.indexOf('\n')
+            val lineEnd = trim.indexOf('\n')
             if (lineEnd > 0)
                 trim = trim.substring(0, lineEnd).trim()
             return if (trim.isEmpty()) EMPTY_LABEL else PointMarkup(trim, Cache)
@@ -132,7 +132,7 @@ class PointMarkup: Comparable<PointMarkup>, Serializable {
         enumType = when(val type = input.readUTF()) {
             "LB" -> {
                 val trim = input.readUTF().trim()
-                val lineEnd = label.indexOf('\n')
+                val lineEnd = trim.indexOf('\n')
                 label = if (lineEnd <= 0) trim
                 else trim.substring(0, lineEnd).trim()
                 null

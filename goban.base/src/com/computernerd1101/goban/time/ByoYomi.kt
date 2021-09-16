@@ -66,7 +66,7 @@ class ByoYomi(periods: Int, millis: Long): Overtime(), PropertyTranslator {
 
     override fun toString() = "$periods*${millis.millisToStringSeconds()} Byo-Yomi"
 
-    override fun getTypeString(): String? = "Byo-Yomi"
+    override fun getTypeString(): String = "Byo-Yomi"
 
     override fun getDisplayName(locale: Locale): String? {
         val resources = gobanResources(locale)

@@ -3,7 +3,6 @@
 
 package com.computernerd1101.sgf
 
-import com.computernerd1101.goban.internal.highestBitLength
 import com.computernerd1101.sgf.internal.*
 import java.io.*
 import kotlin.ConcurrentModificationException
@@ -232,29 +231,41 @@ class SGFNode: SGFTreeElement, Serializable {
         SGFWriter.IOWriter(os).writeNode(this)
     }
 
-    companion object {
+    private object Private {
 
-        @JvmStatic
-        fun isPropertyName(name: String) = name.isNotEmpty() && name.all { it in 'A'..'Z' }
-
-        private fun checkKey(name: String) {
+        @JvmStatic fun checkKey(name: String) {
             if (!isPropertyName(name)) throw IllegalArgumentException("Invalid property name: $name")
         }
 
-        private fun nextKeyIndex(i: Int, size: Int): Int {
+        @JvmStatic fun nextKeyIndex(i: Int, size: Int): Int {
             val next = i + 1
             return if (next >= size) 0 else next
         }
 
-        private const val DEFAULT_CAPACITY = 32
-        private const val MINIMUM_CAPACITY = 4
-        private const val MAXIMUM_CAPACITY = 1 shl 30
+        const val DEFAULT_CAPACITY = 32
+        const val MINIMUM_CAPACITY = 4
+        const val MAXIMUM_CAPACITY = 1 shl 30
 
-        private fun capacity(size: Int): Int = when {
+        @JvmStatic fun capacity(size: Int): Int = when {
             size > MAXIMUM_CAPACITY/3 -> MAXIMUM_CAPACITY
             size <= 2*MINIMUM_CAPACITY/3 -> MINIMUM_CAPACITY
-            else -> 1 shl highestBitLength(size + (size shr 1))
+            else -> {
+                var x = size + (size shr 1)
+                x = x or (x ushr 16)
+                x = x or (x ushr 8)
+                x = x or (x ushr 4)
+                x = x or (x ushr 2)
+                x = x or (x ushr 1)
+                x + 1
+            }
         }
+
+    }
+
+    companion object {
+
+        @JvmStatic
+        fun isPropertyName(name: String) = name.isNotEmpty() && name.all { it in 'A'..'Z' }
 
         private const val serialVersionUID = 1L
 
@@ -302,7 +313,7 @@ class SGFNode: SGFTreeElement, Serializable {
         }
 
         constructor(ois: ObjectInputStream, size: Int) {
-            val cap = capacity(size)
+            val cap = Private.capacity(size)
             table = arrayOfNulls(cap)
             for(n in 0 until size) {
                 val key = ois.readUTF()
@@ -328,19 +339,19 @@ class SGFNode: SGFTreeElement, Serializable {
 
         constructor() {
             size = 0
-            table = arrayOfNulls(DEFAULT_CAPACITY)
+            table = arrayOfNulls(Private.DEFAULT_CAPACITY)
         }
 
         constructor(expectedMaxSize: Int) {
             size = 0
-            table = arrayOfNulls(capacity(expectedMaxSize))
+            table = arrayOfNulls(Private.capacity(expectedMaxSize))
         }
 
         constructor(other: Map<out String, SGFProperty>, level: SGFCopyLevel) {
             val copy = level != SGFCopyLevel.NODE && level != SGFCopyLevel.VALUE
             var n = 0
             val cap = if (other is PropertyMap) other.table.size
-            else capacity(((1 + other.size)*1.1).toInt())
+            else Private.capacity(((1 + other.size)*1.1).toInt())
             val tab = arrayOfNulls<PropertyEntry>(cap)
             for(entry in other) {
                 val key = entry.key
@@ -369,12 +380,12 @@ class SGFNode: SGFTreeElement, Serializable {
             while(true) {
                 val entry = tab[i] ?: return null
                 if (key == entry.key) return entry
-                i = nextKeyIndex(i, len)
+                i = Private.nextKeyIndex(i, len)
             }
         }
 
         override fun put(key: String, value: SGFProperty): SGFProperty? {
-            checkKey(key)
+            Private.checkKey(key)
             val oldSize = size
             val newSize = size + 1
             val hash = key.hashCode()
@@ -387,7 +398,7 @@ class SGFNode: SGFTreeElement, Serializable {
                 e = tab[i]
                 while(e != null) {
                     if (key == e.key) return e.setValue(value)
-                    i = nextKeyIndex(i, len)
+                    i = Private.nextKeyIndex(i, len)
                     e = tab[i]
                 }
                 if (newSize + (newSize shl 1) <= len) break
@@ -405,8 +416,8 @@ class SGFNode: SGFTreeElement, Serializable {
 
         private fun resize(oldTable: Array<PropertyEntry?>, oldSize: Int, newCapacity: Int): Array<PropertyEntry?> {
             val oldCapacity = oldTable.size
-            if (oldCapacity == MAXIMUM_CAPACITY) {
-                if (oldSize == MAXIMUM_CAPACITY - 1)
+            if (oldCapacity == Private.MAXIMUM_CAPACITY) {
+                if (oldSize == Private.MAXIMUM_CAPACITY - 1)
                     throw IllegalStateException("Capacity exhausted")
                 return oldTable
             }
@@ -420,7 +431,7 @@ class SGFNode: SGFTreeElement, Serializable {
                 oldTable[i] = null
                 i = entry.hash and (newCapacity - 1)
                 while(newTable[i] != null)
-                    i = nextKeyIndex(i, newCapacity)
+                    i = Private.nextKeyIndex(i, newCapacity)
                 entry.index = i
                 newTable[i] = entry
                 entry = entry.next
@@ -445,7 +456,7 @@ class SGFNode: SGFTreeElement, Serializable {
             val n = from.size
             if (n == 0) return
             val s = size
-            if (n > s) resize(table, s, capacity(n))
+            if (n > s) resize(table, s, Private.capacity(n))
             for(e in from)
                 put(e.key, e.value)
         }
@@ -463,7 +474,7 @@ class SGFNode: SGFTreeElement, Serializable {
                     e.remove()
                     return value
                 }
-                i = nextKeyIndex(i, len)
+                i = Private.nextKeyIndex(i, len)
             }
         }
 
@@ -480,7 +491,7 @@ class SGFNode: SGFTreeElement, Serializable {
                     e.remove()
                     return true
                 }
-                i = nextKeyIndex(i, len)
+                i = Private.nextKeyIndex(i, len)
             }
         }
 
@@ -626,7 +637,7 @@ class SGFNode: SGFTreeElement, Serializable {
             val tab: Array<PropertyEntry?> = m.table
             val len = tab.size
             tab[d] = null
-            var i = nextKeyIndex(d, len)
+            var i = Private.nextKeyIndex(d, len)
             var e = tab[i]
             while (e != null) {
                 val r: Int = e.hash and (len - 1)
@@ -635,7 +646,7 @@ class SGFNode: SGFTreeElement, Serializable {
                     tab[i] = null
                     d = i
                 }
-                i = nextKeyIndex(i, len)
+                i = Private.nextKeyIndex(i, len)
                 e = tab[i]
             }
             m.size = s - 1

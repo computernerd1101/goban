@@ -130,8 +130,8 @@ internal abstract class GoPointMapCollection<out V, out E>(open val map: GoPoint
 
 internal open class GoPointMapItr<out V, out E>(val collection: GoPointMapCollection<V, E>): Iterator<E> {
 
-    protected var nextX = 0
-    protected var nextY = 0
+    private var nextX = 0
+    private var nextY = 0
 
     protected var lastReturnedX = 0
     protected var lastReturnedY = -1

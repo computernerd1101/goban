@@ -970,7 +970,7 @@ class GoGameFrame private constructor(
     @Volatile private var resignTimer: Timer? = null
 
     private fun resign(marker: InternalMarker) {
-        val updateResign = GoGameFrame.RESIGN_TIMER
+        val updater = RESIGN_TIMER
         val labelResign = this.labelResign
         var timer: Timer? = null
         val blackPlayer = this.blackPlayer
@@ -978,10 +978,10 @@ class GoGameFrame private constructor(
         timer = Timer(1000) {
             // One second has passed. Forget that the button was clicked.
             labelResign.isVisible = false
-            updateResign.compareAndSet(this, timer, null)
+            updater.compareAndSet(this, timer, null)
         }
         timer.isRepeats = false
-        if (updateResign.compareAndSet(this, null, timer)) {
+        if (updater.compareAndSet(this, null, timer)) {
             // Button clicked for the first time. Wait one second.
             labelResign.isVisible = true
             timer.start()

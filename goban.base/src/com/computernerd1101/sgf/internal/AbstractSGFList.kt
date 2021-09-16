@@ -67,7 +67,7 @@ abstract class AbstractSGFList<E: Any>:
     constructor(first: E, values: Array<out E>) {
         val n = 1 + values.size
         val es = newArray(n)
-        es[0] = first
+        es[0] = addNew(first)
         elements = es
         size = n
         addNew(es, 1, values)
@@ -81,23 +81,20 @@ abstract class AbstractSGFList<E: Any>:
     }
 
     constructor(c: Collection<E?>) {
-        var n: Int
+        var n: Int = c.size
         val off: Int
         val src: Array<E?>
         var dst: Array<E?>
         when(c) {
             is AbstractSGFList -> {
-                n = c.size
                 off = 0
                 src = c.elements
             }
             is SGFSubList -> {
-                n = c.size
                 off = c.offset
                 src = c.root.elements
             }
             else -> {
-                n = c.size
                 val allowEmpty = allowEmpty()
                 if (!allowEmpty && n == 0)
                     throw IllegalArgumentException(emptyListMessage())
@@ -109,7 +106,7 @@ abstract class AbstractSGFList<E: Any>:
                     if (e != null) {
                         if (n == dst.size) // more elements than expected, if iterator is faulty
                             dst = grow(dst, n + 1)
-                        dst[n++] = e
+                        dst[n++] = addNew(e)
                     }
                 }
                 if (!allowEmpty && n == 0)

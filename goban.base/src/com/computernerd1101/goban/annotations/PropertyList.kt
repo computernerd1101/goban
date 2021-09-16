@@ -1,8 +1,11 @@
 package com.computernerd1101.goban.annotations
 
 import com.computernerd1101.goban.internal.InternalMarker
+import java.util.WeakHashMap
+import java.util.Arrays
+import kotlin.collections.AbstractList
+import kotlin.collections.RandomAccess
 import kotlin.jvm.internal.Reflection
-import java.util.*
 import kotlin.reflect.*
 import kotlin.reflect.full.*
 
@@ -10,103 +13,34 @@ import kotlin.reflect.full.*
 @Retention(AnnotationRetention.RUNTIME)
 annotation class PropertyAnnotation
 
-interface PropertyManagerCompanion<in A: Annotation, T : Comparable<T>> {
-
-    fun makePropertyManager(annotation: A): PropertyManager<T>
-
-}
-
-interface PropertyManager<T : Comparable<T>> {
-
-    fun toString(value: T): String
-
-    fun parse(s: String): T?
-
-    fun increment(value: T): T?
-
-    fun decrement(value: T): T?
-
-}
-
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class PropertyOrder(vararg val value: String)
 
-interface PropertyTranslator {
-
-    fun translateProperty(name: String, locale: Locale): String?
-
-}
-
-fun Any?.translateProperty(name: String, locale: Locale): String =
-    (this as? PropertyTranslator)?.translateProperty(name, locale) ?: name
-
-@Target(AnnotationTarget.PROPERTY)
-@Retention(AnnotationRetention.RUNTIME)
-@PropertyAnnotation
-annotation class IntProperty(
-    val name: String,
-    val min: Int = Int.MIN_VALUE,
-    val max: Int = Int.MAX_VALUE
-) {
-
-    companion object: PropertyManagerCompanion<IntProperty, Int> {
-
-        override fun makePropertyManager(annotation: IntProperty) =
-            Manager(annotation.min, annotation.max)
-
-    }
-
-    class Manager(val min: Int, val max: Int): PropertyManager<Int> {
-
-        override fun toString(value: Int) = value.toString()
-
-        override fun parse(s: String): Int? {
-            return try {
-                s.toInt()
-            } catch(e: NumberFormatException) {
-                null
-            }
-        }
-
-        override fun increment(value: Int): Int? {
-            return if (value >= max) null
-            else value + 1
-        }
-
-        override fun decrement(value: Int): Int? {
-            return if (value <= min) null
-            else value - 1
-        }
-
-    }
-
-}
-
-fun <T: Any> PropertyFactory(type: KClass<out T>) = PropertyFactory.propertyFactory(type)
+fun <T: Any> PropertyList(type: KClass<out T>) = PropertyList.propertyList(type)
 
 @Suppress("unused")
-inline fun <reified T: Any> PropertyFactory() = PropertyFactory(T::class)
+inline fun <reified T: Any> PropertyList() = PropertyList(T::class)
 
-class PropertyFactory<T: Any> private constructor(
+class PropertyList<T: Any> private constructor(
     @Suppress("CanBeParameter") val type: KClass<out T>,
     cache: Cache
-): Iterable<PropertyFactory.Entry<T>> {
+): AbstractList<PropertyList.Entry<T>>(), RandomAccess {
 
     companion object {
 
         @JvmStatic
         @Suppress("unused")
-        fun <T: Any> propertyFactory(type: Class<out T>): PropertyFactory<T> {
-            return propertyFactory(type.kotlin)
+        fun <T: Any> propertyList(type: Class<out T>): PropertyList<T> {
+            return propertyList(type.kotlin)
         }
 
         @Suppress("UNCHECKED_CAST")
-        fun <T: Any> propertyFactory(type: KClass<out T>): PropertyFactory<T> {
-            var factory = Cache.FACTORY_MAP[type] as PropertyFactory<T>?
+        fun <T: Any> propertyList(type: KClass<out T>): PropertyList<T> {
+            var factory = Cache.CACHE[type] as PropertyList<T>?
             if (factory == null) {
-                factory = PropertyFactory(type, Cache)
-                Cache.FACTORY_MAP[type] = factory
+                factory = PropertyList(type, Cache)
+                Cache.CACHE[type] = factory
             }
             return factory
         }
@@ -132,6 +66,8 @@ class PropertyFactory<T: Any> private constructor(
         abstract fun canDecrement(t: T): Boolean
 
         abstract fun decrement(t: T)
+
+        override fun toString(): String = name
 
         private class Generic<T, P>(
             name: String,
@@ -184,7 +120,7 @@ class PropertyFactory<T: Any> private constructor(
 
         }
 
-        companion object {
+        internal companion object {
 
             internal fun <T: Any, P: Comparable<P>> newEntry(
                 name: String,
@@ -220,24 +156,48 @@ class PropertyFactory<T: Any> private constructor(
         entryArray = list.toTypedArray()
     }
 
-    @Suppress("unused")
-    val entries: Array<Entry<T>>
-        @JvmName("entries")
-        get() = entryArray.clone()
+    override val size: Int get() = entryArray.size
 
-    val entryCount: Int
-        @JvmName("entryCount")
-        get() = entryArray.size
+    override operator fun get(index: Int) = entryArray[index]
 
-    @JvmName("getEntry")
-    operator fun get(index: Int) = entryArray[index]
+    public override fun toArray(): Array<Any?> {
+        return Arrays.copyOf(entryArray, entryArray.size, Array<Any?>::class.java)
+    }
 
-    override fun iterator() = entryArray.iterator()
+    @Suppress("UNCHECKED_CAST")
+    public override fun <T> toArray(array: Array<T>): Array<T> {
+        val size = this.size
+        if (array.size < size) return Arrays.copyOf(entryArray, size, array.javaClass)
+        (entryArray as Array<T>).copyInto(array)
+        if (array.size > size) array[size] = null as T
+        return array
+    }
+
+    override fun equals(other: Any?): Boolean = this === other ||
+            if (other is PropertyList<*>) isEmpty() && other.isEmpty() else super.equals(other)
+
+    private var hasHashCode: Boolean = false
+    private var hashCode: Int = 0
+
+    override fun hashCode(): Int {
+        val hash: Int
+        if (hasHashCode) hash = hashCode
+        else {
+            hash = super.hashCode()
+            hashCode = hash
+            hasHashCode = true
+        }
+        return hash
+    }
+
+    private var string: String? = null
+
+    override fun toString(): String = string ?: super.toString().also { string = it }
 
     private object Cache {
 
-        @JvmField val FACTORY_MAP = WeakHashMap<KClass<*>, PropertyFactory<*>>()
-        @JvmField val PROP_MAP = WeakHashMap<KClass<out Annotation>, PropertyManagerMaker<*>?>()
+        @JvmField val CACHE = WeakHashMap<KClass<*>, PropertyList<*>>()
+        private val PROP_MAP = WeakHashMap<KClass<out Annotation>, PropertyManagerMaker<*>?>()
 
         @Suppress("UNCHECKED_CAST")
         fun <T: Any, P: Comparable<P>> getEntryAnnotation(
@@ -252,11 +212,9 @@ class PropertyFactory<T: Any> private constructor(
             for(annotation in prop.annotations) {
                 val manager = propertyManagerMaker<P>(annotation)
                 if (manager != null) {
-                    pmm = if (found) null
-                    else {
-                        found = true
-                        manager
-                    }
+                    if (found) return null
+                    found = true
+                    pmm = manager
                 }
             }
             if (pmm != null) {
