@@ -15,13 +15,13 @@ class PropertiesComponent<T: Any>(
     var data: T? = data
         set(data) {
             field = data
-            val count = overtimeProperties?.size ?: 0
+            val count = propertyList?.size ?: 0
             if (data != null)
-                setNonNullOvertime(data, count)
+                setNonNullData(data, count)
             else {
                 if (count > 0)
                     hideExtraRows(0, count)
-                overtimeProperties = null
+                propertyList = null
             }
         }
 
@@ -29,7 +29,7 @@ class PropertiesComponent<T: Any>(
         set(value) {
             val min = value.coerceAtLeast(0)
             field = min
-            val count = overtimeProperties?.size ?: 0
+            val count = propertyList?.size ?: 0
             var rows = this.rows
             if (min > rows.size) {
                 rows = rows.copyOf(min)
@@ -48,7 +48,7 @@ class PropertiesComponent<T: Any>(
             }
         }
 
-    private var overtimeProperties: PropertyList<T>? = null
+    private var propertyList: PropertyList<T>? = null
 
     private val constraints = GridBagConstraints()
 
@@ -68,13 +68,13 @@ class PropertiesComponent<T: Any>(
 
     init {
         if (data != null)
-            setNonNullOvertime(data, 0)
+            setNonNullData(data, 0)
     }
 
-    private fun setNonNullOvertime(overtime: T, oldCount: Int) {
-        val properties = PropertyList(overtime::class)
+    private fun setNonNullData(data: T, oldCount: Int) {
+        val properties = PropertyList(data::class)
         val count = properties.size
-        overtimeProperties = properties
+        propertyList = properties
         var rows = this.rows
         if (count > rows.size) {
             rows = rows.copyOf(count)
@@ -94,7 +94,7 @@ class PropertiesComponent<T: Any>(
             }
             val entry = properties[y]
             row.label.text = resources.getString("PropertyTranslator.Prefix") +
-                    overtime.translateProperty(entry.name, locale) +
+                    data.translateProperty(entry.name, locale) +
                     resources.getString("PropertyTranslator.Suffix")
             row.entry = entry
             row.spin.updateUI()
