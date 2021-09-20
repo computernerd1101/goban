@@ -2,6 +2,8 @@ package com.computernerd1101.goban.test.sandbox;
 
 
 import com.computernerd1101.goban.*;
+
+import java.lang.reflect.Constructor;
 import java.util.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -9,9 +11,26 @@ import org.jetbrains.annotations.Nullable;
 
 public class MyJava {
 
-    public static void main(String[] args) {
-        int[][][] array = new int[2][3][];
-        Goban goban = new Goban();
+    public static void main(String[] args) throws Exception {
+        Constructor<MyInnerClass> innerClassConstructor = MyInnerClass.class.getConstructor(MyJava.class, int.class);
+        System.out.println(Arrays.toString(innerClassConstructor.getGenericParameterTypes()));
+        MyInnerClass instance = innerClassConstructor.newInstance(new MyJava(), 42);
+        instance.print();
+    }
+
+    public class MyInnerClass {
+
+        public MyInnerClass(int i) {
+            value = i;
+        }
+
+        public final int value;
+
+        public void print() {
+            System.out.println(MyJava.this);
+            System.out.println("value = " + value);
+        }
+
     }
 
     @NotNull

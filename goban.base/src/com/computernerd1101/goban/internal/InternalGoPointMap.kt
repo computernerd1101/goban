@@ -118,11 +118,10 @@ internal abstract class GoPointMapCollection<out V, out E>(open val map: GoPoint
 
     public override fun <T> toArray(array: Array<T>) = super.toArray(array)
 
-    fun <T> toImmutable(c: Collection<T>): Collection<T> {
+    fun toImmutable(c: Collection<*>): Collection<*> {
         return if (c is GoPointMapCollection<*, *>) {
             if (c.map !== map) c.expungeStaleRows()
-            @Suppress("UNCHECKED_CAST")
-            c.immutable as Collection<T>
+            c.immutable
         } else c
     }
 
@@ -208,7 +207,7 @@ internal open class MutableGoPointMapItr<V, E>(collection: GoPointMapCollection<
         lastReturnedY = -1
     }
 
-    fun removeAll(c: Collection<E>, retain: Boolean = false): Boolean {
+    fun removeAll(c: Collection<*>, retain: Boolean = false): Boolean {
         var modified = false
         while(hasNext()) {
             if (c.contains(next()) xor retain) {
@@ -255,7 +254,7 @@ internal open class GoPointEntries<out V, out E>(
 
     override fun contains(element: @UnsafeVariance E): Boolean {
         val map = this.map
-        val (x, y) = element.key
+        val (x, y) = (element as Map.Entry<*, *>).key as? GoPoint ?: return false
         val foundValue: Boolean
         val value: Any?
         if (map is MutableGoPointMap<*>) {
@@ -414,8 +413,8 @@ internal class MutableGoPointEntries<V>(
         expungeStaleRows()
     }
 
-    private fun fastRemove(element: Map.Entry<GoPoint, V>): Boolean {
-        val (x, y) = element.key
+    private fun fastRemove(element: Map.Entry<*, *>): Boolean {
+        val (x, y) = element.key as? GoPoint ?: return false
         val value = element.value
         val map = this.map
         if (!map.isValidValue(value, InternalMarker)) return false
@@ -491,7 +490,7 @@ internal class MutableGoPointEntries<V>(
                 val c = toImmutable(elements)
                 if (InternalGoPointMap.SIZE[map] > c.size) {
                     for(e in c)
-                        if (fastRemove(e)) modified = true
+                        if (e is Map.Entry<*, *> && fastRemove(e)) modified = true
                 } else modified = MutableGoPointMapItr(this).removeAll(c)
             }
         } finally {
@@ -819,7 +818,7 @@ internal class MutableGoPointKeys<V>(
                     val c = toImmutable(elements)
                     if (InternalGoPointMap.SIZE[map] > c.size) {
                         for(e in c)
-                            if (fastRemove(e)) modified = true
+                            if (e is GoPoint && fastRemove(e)) modified = true
                     } else {
                         modified = MutableGoPointMapItr(this).removeAll(c)
                     }

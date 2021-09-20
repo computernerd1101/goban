@@ -26,15 +26,18 @@ internal abstract class TextListener<T>(
 
     }
 
-    override fun keyTyped(e: KeyEvent?) = run()
-    override fun keyPressed(e: KeyEvent?) = run()
-    override fun keyReleased(e: KeyEvent?) = run()
+    override fun keyTyped(e: KeyEvent?) = invokeLater()
+    override fun keyPressed(e: KeyEvent?) = invokeLater()
+    override fun keyReleased(e: KeyEvent?) = invokeLater()
+
+    fun invokeLater() {
+        if (MODIFIED.compareAndSet(this, 0, 1))
+            SwingUtilities.invokeLater(this)
+    }
 
     @Suppress("UNCHECKED_CAST")
     final override fun run() {
-        if (MODIFIED.compareAndSet(this, 0, 1)) {
-            SwingUtilities.invokeLater(this)
-        } else if (MODIFIED.compareAndSet(this, 1, 0)) {
+        if (MODIFIED.compareAndSet(this, 1, 0)) {
             val value: Any? = when (component) {
                 is JFormattedTextField -> {
                     try {

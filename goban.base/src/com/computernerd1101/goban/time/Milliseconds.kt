@@ -20,7 +20,7 @@ class Milliseconds private constructor(
         }
     }
 
-    @Suppress("SpellCheckingInspection", "UNCHECKED_CAST")
+    @Suppress("SpellCheckingInspection")
     private object Private {
 
         const val GROUP_IPART = 1
@@ -169,14 +169,12 @@ class Milliseconds private constructor(
     operator fun compareTo(other:  Float) = value.compareTo(other)
     operator fun compareTo(other: Double) = value.compareTo(other)
 
-    operator fun compareTo(other:  UByte) = value.compareTo(other.toLong())
-    operator fun compareTo(other: UShort) = value.compareTo(other.toLong())
-    operator fun compareTo(other:   UInt) = value.compareTo(other.toLong())
+    @JvmName("compareToUnsigned") operator fun compareTo(other:  UByte) = value.compareTo(other.toLong())
+    @JvmName("compareToUnsigned") operator fun compareTo(other: UShort) = value.compareTo(other.toLong())
+    @JvmName("compareToUnsigned") operator fun compareTo(other:   UInt) = value.compareTo(other.toLong())
 
-    inline operator fun compareTo(other: ULong) = compareToUnsigned(other.toLong())
-
-    fun compareToUnsigned(other: Long) = if (value < 0L) -1 else
-        (value xor Long.MIN_VALUE).compareTo(other xor Long.MIN_VALUE)
+    @JvmName("compareToUnsigned") operator fun compareTo(other: ULong) =
+        if (value < 0L) -1 else toULong().compareTo(other)
 
     override fun   toChar() = value.toInt().toChar()
     override fun   toByte() = value.toByte()
@@ -186,10 +184,10 @@ class Milliseconds private constructor(
     override fun  toFloat() = value.toFloat()
     override fun toDouble() = value.toDouble()
 
-    fun  toUByte() = toByte().toUByte()
-    fun toUShort() = toShort().toUShort()
-    fun   toUInt() = toInt().toUInt()
-    fun  toULong() = toLong().toULong()
+    @JvmName("toUByte")  fun  toUByte() = toByte().toUByte()
+    @JvmName("toUShort") fun toUShort() = toShort().toUShort()
+    @JvmName("toUInt")   fun   toUInt() = toInt().toUInt()
+    @JvmName("toULong")  fun  toULong() = toLong().toULong()
 
     override fun equals(other: Any?) = this === other ||
             (other is Milliseconds && value == other.value && extra == other.extra)
@@ -202,7 +200,7 @@ class Milliseconds private constructor(
             ex = -ex
         }
         hash += ex
-        return (hash + (hash shr 32)).toInt()
+        return (hash xor (hash ushr 32)).toInt()
     }
 
     private var string: String? = null
@@ -246,8 +244,7 @@ class Milliseconds private constructor(
                 if (millis < 0) millis = -millis
                 val limit = when {
                     millis == 0L -> 3
-                    millis % 100 == 0L -> 2
-                    millis % 10 == 0L -> 1
+                    millis % 100 == 0L -> 1
                     else -> 0
                 }
                 when {
@@ -278,7 +275,8 @@ fun Byte.toMilliseconds() = Milliseconds.valueOf(toLong())
 fun Short.toMilliseconds() = Milliseconds.valueOf(toLong())
 fun Int.toMilliseconds() = Milliseconds.valueOf(toLong())
 fun Long.toMilliseconds() = Milliseconds.valueOf(this)
-fun UByte.toMilliseconds() = Milliseconds.valueOf(toLong())
-fun UShort.toMilliseconds() = Milliseconds.valueOf(toLong())
-fun UInt.toMilliseconds() = Milliseconds.valueOf(toLong())
-fun ULong.toMilliseconds() = Milliseconds.valueOf(toLong())
+
+@JvmName("unsignedToMilliseconds") fun UByte.toMilliseconds() = Milliseconds.valueOf(toLong())
+@JvmName("unsignedToMilliseconds") fun UShort.toMilliseconds() = Milliseconds.valueOf(toLong())
+@JvmName("unsignedToMilliseconds") fun UInt.toMilliseconds() = Milliseconds.valueOf(toLong())
+@JvmName("unsignedToMilliseconds") fun ULong.toMilliseconds() = Milliseconds.valueOf(toLong())

@@ -29,20 +29,23 @@ class PropertyList<T: Any> private constructor(
 
     companion object {
 
-        @JvmStatic
-        @Suppress("unused")
-        fun <T: Any> propertyList(type: Class<out T>): PropertyList<T> {
-            return propertyList(type.kotlin)
+        fun <T: Any> propertyList(type: KClass<out T>): PropertyList<T> {
+            // KClass is an interface, so there's no guarantee that all instances
+            // are provided by the kotlin.reflect module. Call me paranoid, but
+            // the type keys are cached in a static map, so uniqueness is extra-important.
+            return propertyList(type.java)
         }
 
+        @JvmStatic
         @Suppress("UNCHECKED_CAST")
-        fun <T: Any> propertyList(type: KClass<out T>): PropertyList<T> {
-            var factory = Cache.CACHE[type] as PropertyList<T>?
-            if (factory == null) {
-                factory = PropertyList(type, Cache)
-                Cache.CACHE[type] = factory
+        fun <T: Any> propertyList(type: Class<out T>): PropertyList<T> {
+            var list = Cache.CACHE[type] as PropertyList<T>?
+            if (list == null) {
+                // This instance of the KClass interface is guaranteed to be unique.
+                list = PropertyList(type.kotlin, Cache)
+                Cache.CACHE[type] = list
             }
-            return factory
+            return list
         }
 
     }
@@ -156,48 +159,10 @@ class PropertyList<T: Any> private constructor(
         entryArray = list.toTypedArray()
     }
 
-    override val size: Int get() = entryArray.size
-
-    override operator fun get(index: Int) = entryArray[index]
-
-    public override fun toArray(): Array<Any?> {
-        return Arrays.copyOf(entryArray, entryArray.size, Array<Any?>::class.java)
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    public override fun <T> toArray(array: Array<T>): Array<T> {
-        val size = this.size
-        if (array.size < size) return Arrays.copyOf(entryArray, size, array.javaClass)
-        (entryArray as Array<T>).copyInto(array)
-        if (array.size > size) array[size] = null as T
-        return array
-    }
-
-    override fun equals(other: Any?): Boolean = this === other ||
-            if (other is PropertyList<*>) isEmpty() && other.isEmpty() else super.equals(other)
-
-    private var hasHashCode: Boolean = false
-    private var hashCode: Int = 0
-
-    override fun hashCode(): Int {
-        val hash: Int
-        if (hasHashCode) hash = hashCode
-        else {
-            hash = super.hashCode()
-            hashCode = hash
-            hasHashCode = true
-        }
-        return hash
-    }
-
-    private var string: String? = null
-
-    override fun toString(): String = string ?: super.toString().also { string = it }
-
     private object Cache {
 
-        @JvmField val CACHE = WeakHashMap<KClass<*>, PropertyList<*>>()
-        private val PROP_MAP = WeakHashMap<KClass<out Annotation>, PropertyManagerMaker<*>?>()
+        @JvmField val CACHE = WeakHashMap<Class<*>, PropertyList<*>>()
+        private val PROP_MAP = WeakHashMap<Class<out Annotation>, PropertyManagerMaker<*>?>()
 
         @Suppress("UNCHECKED_CAST")
         fun <T: Any, P: Comparable<P>> getEntryAnnotation(
@@ -230,14 +195,15 @@ class PropertyList<T: Any> private constructor(
             return null
         }
 
-        @Suppress("UNCHECKED_CAST")
+        @Suppress("UNCHECKED_CAST", "PLATFORM_CLASS_MAPPED_TO_KOTLIN")
         private fun <P> propertyManagerMaker(annotation: Annotation): PropertyManagerMaker<P>?
                 where P: Comparable<P> {
-            val type = annotation.annotationClass
+            val javaType = (annotation as java.lang.annotation.Annotation).annotationType() as Class<Annotation>
             val pmm: PropertyManagerMaker<P>?
-            if (type in PROP_MAP) {
-                pmm = PROP_MAP[type] as PropertyManagerMaker<P>?
+            if (javaType in PROP_MAP) {
+                pmm = PROP_MAP[javaType] as PropertyManagerMaker<P>?
             } else {
+                val type = javaType.kotlin
                 pmm = (type.companionObjectInstance as?
                         PropertyManagerCompanion<Annotation, P>)?.let setPmm@{ companion ->
                     if (type.findAnnotation<PropertyAnnotation>() == null)
@@ -254,9 +220,16 @@ class PropertyList<T: Any> private constructor(
                         } ?: return@setPmm null
                     PropertyManagerMaker(annotation, pName.getter, companion)
                 }
-                PROP_MAP[type] = pmm
+                PROP_MAP[javaType] = pmm
             }
             return pmm
+        }
+
+        @JvmStatic fun checkRange(fromIndex: Int, toIndex: Int, size: Int) {
+            if (fromIndex < 0 || toIndex > size)
+                throw IndexOutOfBoundsException("fromIndex: $fromIndex, toIndex: $toIndex, size: $size")
+            if (fromIndex > toIndex)
+                throw IllegalArgumentException("fromIndex: $fromIndex > toIndex: $toIndex")
         }
 
     }
@@ -280,5 +253,117 @@ class PropertyList<T: Any> private constructor(
         val name: (Annotation) -> String,
         val propertyManager: PropertyManagerCompanion<Annotation, P>
     )
+
+    override val size: Int get() = entryArray.size
+
+    override fun get(index: Int) = entryArray[index]
+
+    public override fun toArray(): Array<Any?> {
+        return Arrays.copyOf(entryArray, entryArray.size, Array<Any?>::class.java)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    public override fun <T> toArray(array: Array<T>): Array<T> {
+        val size = this.size
+        if (array.size < size) return Arrays.copyOf(entryArray, size, array.javaClass)
+        (entryArray as Array<T>).copyInto(array)
+        if (array.size > size) array[size] = null as T
+        return array
+    }
+
+    override fun subList(fromIndex: Int, toIndex: Int): List<Entry<T>> {
+        val size = this.size
+        Cache.checkRange(fromIndex, toIndex, size)
+        if (fromIndex == 0 && toIndex == size) return this
+        if (fromIndex == toIndex) return emptyList()
+        return SubList(entryArray, fromIndex, toIndex - fromIndex)
+    }
+
+    override fun equals(other: Any?): Boolean = this === other ||
+            if (other is PropertyList<*>)
+                isEmpty() && other.isEmpty()
+            else other !is SubList<*> && super.equals(other)
+
+    private var hasHashCode: Boolean = false
+    private var hashCode: Int = 0
+
+    override fun hashCode(): Int {
+        val hash: Int
+        if (hasHashCode) hash = hashCode
+        else {
+            hash = super.hashCode()
+            hashCode = hash
+            hasHashCode = true
+        }
+        return hash
+    }
+
+    private var string: String? = null
+
+    override fun toString(): String = string ?: super.toString().also { string = it }
+
+    private class SubList<T: Any>(
+        val entryArray: Array<Entry<T>>,
+        val offset: Int,
+        override val size: Int
+    ): AbstractList<Entry<T>>(), RandomAccess {
+
+        override fun get(index: Int): Entry<T> {
+            if (index !in 0 until size)
+                throw IndexOutOfBoundsException("index: $index, size: $size")
+            return entryArray[index + offset]
+        }
+
+        @Suppress("ReplaceJavaStaticMethodWithKotlinAnalog")
+        override fun toArray(): Array<Any?> {
+            val offset = this.offset
+            return Arrays.copyOfRange(entryArray, offset, offset + size, Array<Any?>::class.java)
+        }
+
+        @Suppress("UNCHECKED_CAST", "ReplaceJavaStaticMethodWithKotlinAnalog")
+        override fun <T> toArray(array: Array<T>): Array<T> {
+            val size = this.size
+            val from = offset
+            val to = offset + size
+            if (array.size < size) return Arrays.copyOfRange(entryArray, from, to, array.javaClass)
+            (entryArray as Array<T>).copyInto(array, startIndex = from, endIndex = to)
+            if (array.size > size) array[size] = null as T
+            return array
+        }
+
+        override fun subList(fromIndex: Int, toIndex: Int): List<Entry<T>> {
+            val offset = this.offset
+            val size = this.size
+            Cache.checkRange(fromIndex, toIndex, size)
+            if (fromIndex == 0 && toIndex == size) return this
+            if (fromIndex == toIndex) return emptyList()
+            return SubList(entryArray, fromIndex + offset, toIndex - fromIndex)
+        }
+
+        override fun equals(other: Any?): Boolean = this === other || when(other) {
+            is PropertyList.SubList<*> ->
+                entryArray === other.entryArray && offset == other.offset && size == other.size
+            else -> other !is PropertyList<*> && super.equals(other)
+        }
+
+        private var hasHashCode: Boolean = false
+        private var hashCode: Int = 0
+
+        override fun hashCode(): Int {
+            val hash: Int
+            if (hasHashCode) hash = hashCode
+            else {
+                hash = super.hashCode()
+                hashCode = hash
+                hasHashCode = true
+            }
+            return hash
+        }
+
+        private var string: String? = null
+
+        override fun toString(): String = string ?: super.toString().also { string = it }
+
+    }
 
 }

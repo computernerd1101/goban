@@ -56,9 +56,8 @@ class PropertiesComponent<T: Any>(
         layout = GridBagLayout()
     }
 
-    @Suppress("UNCHECKED_CAST")
     private var rows: Array<Row?> =
-        if (minRows <= 0) Rows.EMPTY as Array<Row?>
+        if (minRows <= 0) Rows.empty()
         else Array(minRows) { y ->
             val row = Row()
             addRow(y, row)
@@ -67,8 +66,7 @@ class PropertiesComponent<T: Any>(
         }
 
     init {
-        if (data != null)
-            setNonNullData(data, 0)
+        if (data != null) setNonNullData(data, 0)
     }
 
     private fun setNonNullData(data: T, oldCount: Int) {
@@ -128,18 +126,21 @@ class PropertiesComponent<T: Any>(
             }
     }
 
+    @Suppress("UNCHECKED_CAST")
     private object Rows {
 
-        @JvmField val EMPTY = emptyArray<PropertiesComponent<*>.Row?>()
+        private val EMPTY = emptyArray<PropertiesComponent<*>.Row?>()
+
+        @JvmStatic fun <T: Any> empty() = EMPTY as Array<PropertiesComponent<T>.Row?>
 
     }
 
     private inner class Row: CN13Spinner.Formatter() {
 
-        var entry: PropertyList.Entry<T>? = null
+        @JvmField var entry: PropertyList.Entry<T>? = null
 
-        val label = JLabel(" ")
-        val spin = CN13Spinner()
+        @JvmField val label = JLabel(" ")
+        @JvmField val spin = CN13Spinner()
 
         init {
             spin.model = this

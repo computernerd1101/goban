@@ -2104,7 +2104,7 @@ class GoEditorFrame private constructor(
             ComboBoxModel<GameResult>, ListCellRenderer<GameResult> {
 
         @Suppress("UNCHECKED_CAST")
-        private val renderer = renderer as ListCellRenderer<in Any>
+        private val renderer = renderer as ListCellRenderer<Any>
 
         init {
             (renderer as? JLabel)?.horizontalAlignment = SwingConstants.RIGHT
@@ -2182,7 +2182,7 @@ class GoEditorFrame private constructor(
             ComboBoxModel<GameResult>, ListCellRenderer<GameResult> {
 
         @Suppress("UNCHECKED_CAST")
-        private val renderer = renderer as ListCellRenderer<in Any>
+        private val renderer = renderer as ListCellRenderer<Any>
 
         init {
             (renderer as? JLabel)?.horizontalAlignment = SwingConstants.CENTER
@@ -2246,7 +2246,7 @@ class GoEditorFrame private constructor(
             allowsInvalid = false
         }
 
-        override fun stringToValue(text: String?): Any? {
+        override fun stringToValue(text: String?): Any {
             val winner = gameResult?.winner ?: GoColor.BLACK
             if (text.isNullOrEmpty()) return GameResult(winner, 0f)
             var s: String = text
@@ -2316,7 +2316,7 @@ class GoEditorFrame private constructor(
         }
 
         @Suppress("IMPLICIT_CAST_TO_ANY")
-        override fun stringToValue(text: String?): Any? {
+        override fun stringToValue(text: String?): Any {
             return when(text) {
                 null, "" ->
                     if (node.gameInfo?.handicap != 0 || justMinusSign) Zero.plus
@@ -2408,6 +2408,7 @@ class GoEditorFrame private constructor(
 
     }
 
+    @Suppress("RedundantNullableReturnType")
     private object YearLimit {
 
         val min: Int? = Date.MIN_YEAR
@@ -2684,7 +2685,7 @@ class GoEditorFrame private constructor(
     ): ComboBoxModel<Charset?>, ListCellRenderer<Charset?> {
 
         @Suppress("UNCHECKED_CAST")
-        private val renderer = renderer as ListCellRenderer<in Any>
+        private val renderer = renderer as ListCellRenderer<Any>
 
         override fun getListCellRendererComponent(
             list: JList<out Charset?>,
