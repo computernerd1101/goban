@@ -31,8 +31,6 @@ class Milliseconds private constructor(
         @JvmField val MINUS_ZERO = arrayOfLateInit<Milliseconds>(4)
         @JvmField val  PLUS_ZERO = arrayOfLateInit<Milliseconds>(4)
 
-        fun ignore() = Unit
-
     }
 
     companion object {
@@ -276,7 +274,7 @@ fun Short.toMilliseconds() = Milliseconds.valueOf(toLong())
 fun Int.toMilliseconds() = Milliseconds.valueOf(toLong())
 fun Long.toMilliseconds() = Milliseconds.valueOf(this)
 
-@JvmName("unsignedToMilliseconds") fun UByte.toMilliseconds() = Milliseconds.valueOf(toLong())
-@JvmName("unsignedToMilliseconds") fun UShort.toMilliseconds() = Milliseconds.valueOf(toLong())
-@JvmName("unsignedToMilliseconds") fun UInt.toMilliseconds() = Milliseconds.valueOf(toLong())
-@JvmName("unsignedToMilliseconds") fun ULong.toMilliseconds() = Milliseconds.valueOf(toLong())
+@JvmName("toMillisecondsUnsigned") fun UByte.toMilliseconds() = Milliseconds.valueOf(toLong())
+@JvmName("toMillisecondsUnsigned") fun UShort.toMilliseconds() = Milliseconds.valueOf(toLong())
+@JvmName("toMillisecondsUnsigned") fun UInt.toMilliseconds() = Milliseconds.valueOf(toLong())
+@JvmName("toMillisecondsUnsigned") fun ULong.toMilliseconds() = Milliseconds.valueOf(toLong())

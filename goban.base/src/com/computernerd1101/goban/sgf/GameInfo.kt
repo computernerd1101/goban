@@ -232,6 +232,10 @@ class GameInfo: Serializable {
     }
 
     var overtime: Overtime? = null
+        set(o) {
+            field = o
+            malformedOvertime = null
+        }
     private var malformedOvertime: String? = null
 
     var overtimeString: String?
@@ -242,8 +246,7 @@ class GameInfo: Serializable {
                 malformedOvertime = null
             } else try {
                 overtime = Overtime.parse(str)
-                malformedOvertime = null
-            } catch(e: RuntimeException) {
+            } catch(e: Exception) {
                 overtime = null
                 malformedOvertime = str
             }

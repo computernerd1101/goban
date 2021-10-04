@@ -7,16 +7,33 @@ import kotlin.reflect.*
 @MyAnnotation(1)
 @MyAnnotation(2)
 fun main() {
-    testUIntVarArg(0u, 1u, 2u, 3u)
+    val regex = """@[0-9A-Fa-f]+""".toRegex()
+    println("foo@42{@3}".replaceFirst(regex, "@54"))
+    //println(MyInterfaceDelegate(MyInterfaceImpl("foobar")))
 }
 
-fun testUIntVarArg(vararg values: UInt) {
-    println(values.javaClass)
+interface MyInterface {
+
+    val name: String
+
+}
+
+class MyInterfaceImpl(override val name: String): MyInterface {
+
+    override fun toString(): String = "MyInterface[$name]"
+
+}
+
+class MyInterfaceDelegate(val delegate: MyInterface): MyInterface by delegate {
+
+    override fun toString(): String = delegate.toString()
+
 }
 
 @Repeatable
 @Retention(AnnotationRetention.SOURCE)
 annotation class MyAnnotation(val value: Int)
+
 
 @Suppress("unused")
 internal class MyList<E>(private val delegate: MutableList<E>): MutableList<E> by delegate {

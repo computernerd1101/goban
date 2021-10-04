@@ -70,7 +70,15 @@ internal class ContinuationProxy<T> {
 
 }
 
-internal class SendOnlyChannel<E>(channel: Channel<E>): SendChannel<E> by channel
+internal class SendOnlyChannel<E>(private val channel: Channel<E>): SendChannel<E> by channel {
+
+    private val hexAddress = "@" + Integer.toHexString(System.identityHashCode(channel))
+    private val replaceHexAddress = "@" + Integer.toHexString(System.identityHashCode(this))
+
+    override fun toString(): String =
+        channel.toString().replaceFirst(hexAddress, replaceHexAddress, true)
+
+}
 
 private const val deBruijn64: Long = 0x03f79d71b4ca8b09
 
@@ -110,7 +118,7 @@ private val lenTab = ByteArray(256).also { table ->
             table[i] = value.toByte()
 }
 
-fun highestBitLength(bits: Long): Int {
+internal fun highestBitLength(bits: Long): Int {
     var x = (bits ushr 32).toInt()
     var n = if (x == 0) {
         x = bits.toInt()
@@ -139,11 +147,11 @@ inline fun <reified T: Any, reified V> atomicUpdater(name: String): AtomicRefere
     return AtomicReferenceFieldUpdater.newUpdater(T::class.java, V::class.java, name)
 }
 
-fun <T: Any, V: Any> AtomicReferenceFieldUpdater<T, V?>.getOrDefault(target: T, default: V): V {
+internal fun <T: Any, V: Any> AtomicReferenceFieldUpdater<T, V?>.getOrDefault(target: T, default: V): V {
     return compareAndExchange(target, null, default) ?: default
 }
 
-fun <T: Any, V> AtomicReferenceFieldUpdater<T, V>.compareAndExchange(target: T, expect: V, update: V): V {
+internal fun <T: Any, V> AtomicReferenceFieldUpdater<T, V>.compareAndExchange(target: T, expect: V, update: V): V {
     while(!compareAndSet(target, expect, update)) {
         val value: V = get(target)
         if (value !== expect) return value

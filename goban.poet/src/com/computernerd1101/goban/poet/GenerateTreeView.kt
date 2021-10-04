@@ -10,18 +10,8 @@ import javax.swing.tree.*
 fun main(args: Array<String>) {
     val dir = File("goban.desktop/src/com/computernerd1101/goban/desktop/icons/treeview")
         .absoluteFile
-    val playBlack = makeIcon(16, 18) { g ->
-        g.color = Color.BLACK
-        g.fillOval(0, 1, 15, 15)
-        g.color = Color.WHITE
-        g.drawOval(0, 1, 15, 15)
-    }
-    val playWhite = makeIcon(16, 18) { g ->
-        g.color = Color.WHITE
-        g.fillOval(0, 1, 15, 15)
-        g.color = Color.BLACK
-        g.drawOval(0, 1, 15, 15)
-    }
+    val playBlack = treeViewPlayStone(Color.BLACK, Color.WHITE)
+    val playWhite = treeViewPlayStone(Color.WHITE, Color.BLACK)
     val setupBlack = makeIcon(16, 18) { g ->
         g.color = Color.WHITE
         g.fillOval(3, 5, 12, 12)
@@ -64,6 +54,13 @@ fun main(args: Array<String>) {
     ImageIO.write(setupWhite, "PNG", File(dir, "SetupWhite.png"))
 }
 
+fun treeViewPlayStone(fill: Color, draw: Color) = makeIcon(16, 18) { g ->
+    g.color = fill
+    g.fillOval(0, 1, 15, 15)
+    g.color = draw
+    g.drawOval(0, 1, 15, 15)
+}
+
 private class PreviewTreeModel(
     private vararg val icons: Icon
 ): TreeModel, TreeCellRenderer {
@@ -94,8 +91,7 @@ private class PreviewTreeModel(
     override fun getChildCount(parent: Any?): Int = if (parent === icons[0]) icons.size - 1 else 0
 
     override fun isLeaf(node: Any?): Boolean {
-        if (node === icons[0]) return false
-        for(i in 1 until icons.size) if (node === icons[i]) return true
+        for(i in icons.indices) if (node === icons[i]) return i != 0
         return false
     }
 

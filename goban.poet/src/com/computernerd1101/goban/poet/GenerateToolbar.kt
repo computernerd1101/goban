@@ -10,38 +10,15 @@ import kotlin.math.sqrt
 fun main(args: Array<String>) {
     val dir = File("goban.desktop/src/com/computernerd1101/goban/desktop/icons/toolbar")
         .absoluteFile
-    val playBlack = makeIcon(32, 32) { g ->
-        g.color = Color.BLACK
-        g.fillOval(0, 0, 31, 31)
-        g.color = Color.WHITE
-        g.drawOval(0, 0, 31, 31)
-    }
-    val playWhite = makeIcon(32, 32) { g ->
-        g.color = Color.WHITE
-        g.fillOval(0, 0, 31, 31)
-        g.color = Color.BLACK
-        g.drawOval(0, 0, 31, 31)
-    }
-    val labelMarkup = makeIcon(32, 32) { g ->
-        g.color = Color.RED
-        g.translate(16, 0)
-        val fontMetrics = g.fontMetrics
-        val fontWidth = fontMetrics.stringWidth("A")
-        val fontScale = 32f / fontMetrics.height
-        g.scale(fontScale.toDouble(), fontScale.toDouble())
-        g.drawString("A", -0.5f * fontWidth, fontMetrics.ascent.toFloat())
-    }
+    val playBlack = playStone(Color.BLACK, Color.WHITE)
+    val playWhite = playStone(Color.WHITE, Color.BLACK)
+    val labelMarkup = toolbarText("A", Color.RED)
     val selectMarkup = makeIcon(32, 32) { g ->
         g.color = Color.RED
         g.stroke = BasicStroke(2f)
         g.drawOval(8, 8, 16, 16)
     }
-    val xMarkup = makeIcon(32, 32) { g ->
-        g.color = Color.RED
-        g.stroke = BasicStroke(2f)
-        g.drawLine(8, 8, 24, 24)
-        g.drawLine(8, 24, 24, 8)
-    }
+    val xMarkup = toolbarX(Color.RED)
     val triangleMarkup = makeIcon(32, 32) { g ->
         g.color = Color.RED
         val path = Path2D.Double()
@@ -60,104 +37,19 @@ fun main(args: Array<String>) {
         g.color = Color.RED
         g.fillRect(8, 8, 16, 16)
     }
-    val deletePointMarkup = makeIcon(32, 32) { g ->
-        g.color = Color.GRAY
-        g.stroke = BasicStroke(2f)
-        g.drawLine(8, 8, 24, 24)
-        g.drawLine(8, 24, 24, 8)
-    }
-    val lineMarkup = makeIcon(32, 32) { g ->
-        g.color = Color.RED
-        g.stroke = BasicStroke(2f)
-        g.drawLine(4, 28, 28, 4)
-    }
-    val arrowMarkup = makeIcon(32, 32) { g ->
-        g.color = Color.RED
-        g.stroke = BasicStroke(2f)
-        g.drawLine(4, 28, 28, 4)
-        g.drawLine(16, 4, 28, 4)
-        g.drawLine(28, 4, 28, 16)
-    }
-    val deleteLineMarkup = makeIcon(32, 32) { g ->
-        g.color = Color.GRAY
-        g.stroke = BasicStroke(2f)
-        g.drawLine(4, 28, 28, 4)
-    }
-    val dim = makeIcon(32, 32) { g ->
-        g.color = Color.GRAY
-        g.translate(16, 0)
-        val fontMetrics = g.fontMetrics
-        val fontWidth = fontMetrics.stringWidth("D")
-        val fontScale = 32f / fontMetrics.height
-        g.scale(fontScale.toDouble(), fontScale.toDouble())
-        g.drawString("D", -0.5f * fontWidth, fontMetrics.ascent.toFloat())
-    }
-    val resetDim = makeIcon(32, 32) { g ->
-        g.color = Color.RED
-        g.translate(16, 0)
-        val fontMetrics = g.fontMetrics
-        val fontWidth = fontMetrics.stringWidth("D")
-        val fontScale = 32f / fontMetrics.height
-        g.scale(fontScale.toDouble(), fontScale.toDouble())
-        g.drawString("D", -0.5f * fontWidth, fontMetrics.ascent.toFloat())
-    }
-    val inheritDim = makeIcon(32, 32) { g ->
-        g.color = Color.BLACK
-        g.translate(16, 0)
-        val fontMetrics = g.fontMetrics
-        val fontWidth = fontMetrics.stringWidth("D")
-        val fontScale = 32f / fontMetrics.height
-        g.scale(fontScale.toDouble(), fontScale.toDouble())
-        g.drawString("D", -0.5f * fontWidth, fontMetrics.ascent.toFloat())
-    }
-    val visible = makeIcon(32, 32) { g ->
-        g.color = Color.BLACK
-        g.translate(16, 0)
-        val fontMetrics = g.fontMetrics
-        val fontWidth = fontMetrics.stringWidth("V")
-        val fontScale = 32f / fontMetrics.height
-        g.scale(fontScale.toDouble(), fontScale.toDouble())
-        g.drawString("V", -0.5f * fontWidth, fontMetrics.ascent.toFloat())
-    }
-    val resetVisible = makeIcon(32, 32) { g ->
-        g.color = Color.RED
-        g.translate(16, 0)
-        val fontMetrics = g.fontMetrics
-        val fontWidth = fontMetrics.stringWidth("V")
-        val fontScale = 32f / fontMetrics.height
-        g.scale(fontScale.toDouble(), fontScale.toDouble())
-        g.drawString("V", -0.5f * fontWidth, fontMetrics.ascent.toFloat())
-    }
-    val inheritVisible = makeIcon(32, 32) { g ->
-        g.color = Color.GRAY
-        g.translate(16, 0)
-        val fontMetrics = g.fontMetrics
-        val fontWidth = fontMetrics.stringWidth("V")
-        val fontScale = 32f / fontMetrics.height
-        g.scale(fontScale.toDouble(), fontScale.toDouble())
-        g.drawString("V", -0.5f * fontWidth, fontMetrics.ascent.toFloat())
-    }
+    val deletePointMarkup = toolbarX(Color.GRAY)
+    val lineMarkup = toolbarLine(Color.RED, isArrow = false)
+    val arrowMarkup = toolbarLine(Color.RED, isArrow = true)
+    val deleteLineMarkup = toolbarLine(Color.GRAY, isArrow = false)
+    val dim = toolbarText("D", Color.GRAY)
+    val resetDim = toolbarText("D", Color.RED)
+    val inheritDim = toolbarText("D", Color.BLACK)
+    val visible = toolbarText("V", Color.BLACK)
+    val resetVisible = toolbarText("V", Color.RED)
+    val inheritVisible = toolbarText("V", Color.GRAY)
     if (GenerateAll.NO_PREVIEW !in args) {
-        val addBlack = makeIcon(32, 32) { g ->
-            g.color = Color.BLACK
-            g.fillOval(7, 7, 24, 24)
-            g.color = Color.WHITE
-            g.drawOval(7, 7, 24, 24)
-            g.color = Color.BLACK
-            g.fillOval(0, 0, 24, 24)
-            g.color = Color.WHITE
-            g.drawOval(0, 0, 24, 24)
-        }
-        val addWhite = makeIcon(32, 32) { g ->
-            g.color = Color.WHITE
-            g.fillOval(7, 7, 24, 24)
-            g.color = Color.BLACK
-            g.drawOval(7, 7, 24, 24)
-            g.color = Color.WHITE
-            g.fillOval(0, 0, 24, 24)
-            g.color = Color.BLACK
-            g.drawOval(0, 0, 24, 24)
-        }
+        val addBlack = toolbarAddStone(Color.BLACK, Color.WHITE)
+        val addWhite = toolbarAddStone(Color.WHITE, Color.BLACK)
         val addEmpty = makeIcon(32, 32) { g ->
             g.color = Color.GRAY
             g.stroke = BasicStroke(
@@ -265,4 +157,49 @@ fun main(args: Array<String>) {
     ImageIO.write(visible, "PNG", File(dir, "Visible.png"))
     ImageIO.write(resetVisible, "PNG", File(dir, "ResetVisible.png"))
     ImageIO.write(inheritVisible, "PNG", File(dir, "InheritVisible.png"))
+}
+
+fun playStone(fill: Color, draw: Color) =  makeIcon(32, 32) { g ->
+    g.color = fill
+    g.fillOval(0, 0, 31, 31)
+    g.color = draw
+    g.drawOval(0, 0, 31, 31)
+}
+
+fun toolbarText(text: String, color: Color) = makeIcon(32, 32) { g ->
+    g.color = color
+    g.translate(16, 0)
+    val fontMetrics = g.fontMetrics
+    val fontWidth = fontMetrics.stringWidth(text)
+    val fontScale = 32f / fontMetrics.height
+    g.scale(fontScale.toDouble(), fontScale.toDouble())
+    g.drawString(text, -0.5f * fontWidth, fontMetrics.ascent.toFloat())
+}
+
+fun toolbarX(color: Color) = makeIcon(32, 32) { g ->
+    g.color = color
+    g.stroke = BasicStroke(2f)
+    g.drawLine(8, 8, 24, 24)
+    g.drawLine(8, 24, 24, 8)
+}
+
+fun toolbarLine(color: Color, isArrow: Boolean) = makeIcon(32, 32) { g ->
+    g.color = color
+    g.stroke = BasicStroke(2f)
+    g.drawLine(4, 28, 28, 4)
+    if (isArrow) {
+        g.drawLine(16, 4, 28, 4)
+        g.drawLine(28, 4, 28, 16)
+    }
+}
+
+fun toolbarAddStone(fill: Color, draw: Color) = makeIcon(32, 32) { g ->
+    g.color = fill
+    g.fillOval(7, 7, 24, 24)
+    g.color = draw
+    g.drawOval(7, 7, 24, 24)
+    g.color = fill
+    g.fillOval(0, 0, 24, 24)
+    g.color = draw
+    g.drawOval(0, 0, 24, 24)
 }

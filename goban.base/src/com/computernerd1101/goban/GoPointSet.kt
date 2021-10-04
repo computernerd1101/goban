@@ -336,7 +336,7 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
                 for(y in 0..51)
                     if (InternalGoPointSet.ROWS[y][this].inv() and elements.rowBits(y) != 0L) return false
             }
-            is GoPointEntries<*, *> -> {
+            is GoPointEntries<*> -> {
                 elements.expungeStaleRows()
                 return elements.isEmpty()
             }
@@ -599,7 +599,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                     }
                 }
             }
-            elements is GoPointEntries<*, *> -> {
+            elements is GoPointEntries<*> -> {
                 elements.expungeStaleRows()
                 return false
             }
@@ -668,7 +668,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                     }
                 }
             }
-            is GoPointEntries<*, *> -> {
+            is GoPointEntries<*> -> {
                 elements.expungeStaleRows()
                 if (isEmpty()) return false
                 clear()
@@ -781,7 +781,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                 for(y in 0..51) if (invertRow(y, elements.rowBits(y)))
                     modified = true
             }
-            is GoPointEntries<*, *> -> {
+            is GoPointEntries<*> -> {
                 elements.expungeStaleRows()
                 return false
             }

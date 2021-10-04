@@ -324,7 +324,7 @@ class PropertyList<T: Any> private constructor(
         override fun <T> toArray(array: Array<T>): Array<T> {
             val size = this.size
             val from = offset
-            val to = offset + size
+            val to = from + size
             if (array.size < size) return Arrays.copyOfRange(entryArray, from, to, array.javaClass)
             (entryArray as Array<T>).copyInto(array, startIndex = from, endIndex = to)
             if (array.size > size) array[size] = null as T
@@ -340,11 +340,10 @@ class PropertyList<T: Any> private constructor(
             return SubList(entryArray, fromIndex + offset, toIndex - fromIndex)
         }
 
-        override fun equals(other: Any?): Boolean = this === other || when(other) {
-            is PropertyList.SubList<*> ->
-                entryArray === other.entryArray && offset == other.offset && size == other.size
-            else -> other !is PropertyList<*> && super.equals(other)
-        }
+        override fun equals(other: Any?): Boolean = this === other ||
+                if (other is PropertyList.SubList<*>)
+                    entryArray === other.entryArray && offset == other.offset && size == other.size
+                else other !is PropertyList<*> && super.equals(other)
 
         private var hasHashCode: Boolean = false
         private var hashCode: Int = 0

@@ -5,18 +5,22 @@ import kotlin.collections.ArraysKt;
 public class GenerateAll {
 
     public static void main(String[] args) {
-        String[] reversePreview;
-        if (args != null && ArraysKt.contains(args, "--preview"))
-            reversePreview = preview;
-        else reversePreview = noPreview;
         GenerateGobanRowsKt.main();
         GenerateDateTablesKt.main();
-        GenerateTreeViewKt.main(reversePreview);
+        String[] reversePreview;
+        if (args != null && ArraysKt.contains(args, "--preview"))
+            reversePreview = NO_ARGS;
+        else reversePreview = new String[] { NO_PREVIEW };
         GenerateToolbarKt.main(reversePreview);
+        reversePreview(reversePreview);
+        GenerateTreeViewKt.main(reversePreview);
+    }
+
+    private static void reversePreview(String[] args) {
+        if (args.length > 0) args[0] = NO_PREVIEW;
     }
 
     public static final String NO_PREVIEW = "--no-preview";
-    private static final String[] noPreview = { NO_PREVIEW };
-    private static final String[] preview = new String[0];
+    public static final String[] NO_ARGS = new String[0];
 
 }

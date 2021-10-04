@@ -8,16 +8,16 @@ internal object InternalGoban: LongBinaryOperator {
 
     lateinit var COUNT: AtomicLongFieldUpdater<AbstractGoban>
 
-    fun emptyRows(wide: Boolean, height: Int): GobanRows1 {
+    fun emptyRows(width: Int, height: Int): GobanRows1 {
         val index = when {
-            !wide -> height - 1
+            width <= 32 -> height - 1
             height <= 26 -> height*2 - 1
             else -> height + 25 // height + 26 - 1
         }
         return GobanRows.empty[index]
     }
 
-    fun newRows(wide: Boolean, height: Int): GobanRows1 = emptyRows(wide, height).newInstance()
+    fun newRows(width: Int, height: Int): GobanRows1 = emptyRows(width, height).newInstance()
 
     fun copyRows(src: GobanRows1, dst: GobanRows1): Long {
         var count = 0L
@@ -253,7 +253,7 @@ internal object GobanBulk: LongBinaryOperator {
         // I tried making this a recursive function, but sometimes got a StackOverflowError.
         // Fortunately, an array of 52 Longs occupies 52*8 = 416 bytes, plus the obligatory
         // heap allocation data, which still consumes way less memory than every local variable
-        // in this function times a large number of recursive steps in the worse-case scenario.
+        // in this function times a large number of recursive steps in the worst-case scenario.
         val pending = arrays[GobanThreadLocals.PENDING]
         clear(pending)
         val maxBit = 1L shl (width - 1)
@@ -368,11 +368,11 @@ internal object GobanBulk: LongBinaryOperator {
         for(y in 0 until height) {
             var row = rows[i++]
             var blackRow = row and (-1L ushr 32) // blackRow.lo = row.lo
-            var whiteRow = row ushr 32          // whiteRow.lo = row.hi
+            var whiteRow = row ushr 32           // whiteRow.lo = row.hi
             if (width > 32) {
                 row = rows[i++]
-                blackRow = blackRow or (row shl 32)             // blackRow.hi = row.lo
-                whiteRow = whiteRow or row.and(-1L shl 32) // whiteRow.hi = row.hi
+                blackRow = blackRow or (row shl 32)           // blackRow.hi = row.lo
+                whiteRow = whiteRow or (row and (-1L shl 32)) // whiteRow.hi = row.hi
             }
             blackRows[y] = blackRow
             whiteRows[y] = whiteRow

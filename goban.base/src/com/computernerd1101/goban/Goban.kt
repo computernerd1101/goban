@@ -30,10 +30,10 @@ sealed class AbstractGoban(
 
     }
 
-    constructor() : this(19, 19, InternalGoban.newRows(false, 19), 0L)
+    constructor() : this(19, 19, InternalGoban.newRows(19, 19), 0L)
 
     constructor(width: Int, height: Int): this(
-        width, height, InternalGoban.newRows(width > 32, height), 0L
+        width, height, InternalGoban.newRows(width, height), 0L
     )
 
     constructor(other: AbstractGoban, rows: GobanRows1): this(
@@ -189,13 +189,13 @@ sealed class AbstractGoban(
             var row = this.rows[i++]
             var setRow: Long = when(color) {
                 GoColor.BLACK -> row and (-1L ushr 32) // setRow.lo = row.lo
-                GoColor.WHITE -> row ushr 32 // setRow.lo = row.hi
+                GoColor.WHITE -> row ushr 32           // setRow.lo = row.hi
                 else -> (row or (row ushr 32)).inv() and (-1L ushr 32)
             }
             if (width > 32) {
                 row = this.rows[i++]
                 setRow = setRow or when(color) {
-                    GoColor.BLACK -> row shl 32 // setRow.hi = row.lo
+                    GoColor.BLACK -> row shl 32           // setRow.hi = row.lo
                     GoColor.WHITE -> row and (-1L shl 32) // setRow.hi = row.hi
                     else -> (row or (row shl 32)).inv() and (-1L shl 32)
                 }
@@ -283,7 +283,7 @@ class FixedGoban: AbstractGoban {
     }
 
     private constructor(width: Int, height: Int, cache: Cache):
-            super(width, height, InternalGoban.emptyRows(width > 32, height), 0L) {
+            super(width, height, InternalGoban.emptyRows(width, height), 0L) {
         hash = 0
         isPlayable = true
         cache.empty[width + 52*height - 53] = this // (width - 1) + 52*(height - 1)
@@ -472,7 +472,7 @@ sealed class AbstractMutableGoban: AbstractGoban {
         val height = this.height
         if (isEmpty()) return FixedGoban(width, height)
         val oldRows = this.rows
-        val rows = InternalGoban.newRows(width > 32, height)
+        val rows = InternalGoban.newRows(width, height)
         val count = InternalGoban.copyRows(oldRows, rows)
         if (count == 0L) return FixedGoban(width, height)
         return FixedGoban(width, height, rows, count)

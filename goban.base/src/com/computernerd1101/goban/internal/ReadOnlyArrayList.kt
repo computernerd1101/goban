@@ -14,7 +14,7 @@ internal class ReadOnlyArrayList<out E> private constructor(
     override val size: Int get() = _size
     override fun isEmpty() = _size == 0
     override fun contains(element: @UnsafeVariance E): Boolean = indexOf(element) >= 0
-    override fun iterator(): Iterator<E> = Itr(array, offset, _size, 0)
+    override fun iterator(): Iterator<E> = listIterator()
     override fun containsAll(elements: Collection<@UnsafeVariance E>): Boolean = elements.all { contains(it) }
     override fun get(index: Int): E {
         val size = _size
@@ -104,14 +104,14 @@ internal class ReadOnlyArrayList<out E> private constructor(
 
     override fun toString(): String = joinToString(prefix = "[", postfix = "]")
 
-    private open class Itr<out E>(
-        @JvmField protected val array: Array<out E>,
-        offset: Int,
+    private class ListItr<out E>(
+        private val array: Array<out E>,
+        private val offset: Int,
         size: Int,
         index: Int
-    ): Iterator<E> {
+    ): ListIterator<E> {
 
-        @JvmField protected var cursor = index + offset
+        private var cursor = index + offset
         private val limit = offset + size
 
         override fun hasNext(): Boolean = cursor < limit
@@ -121,15 +121,6 @@ internal class ReadOnlyArrayList<out E> private constructor(
             cursor = i + 1
             return array[i]
         }
-
-    }
-
-    private class ListItr<out E>(
-        array: Array<out E>,
-        private val offset: Int,
-        size: Int,
-        index: Int
-    ): Itr<E>(array, offset, size, index), ListIterator<E> {
 
         override fun hasPrevious(): Boolean = cursor > offset
         override fun previous(): E {

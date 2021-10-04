@@ -67,16 +67,16 @@ class GoRectangle internal constructor(
             }
             is GoPointKeys<*> -> {
                 elements.expungeStaleRows()
-                val rows = elements.map.secrets.rows
+                val secrets = elements.map.secrets
                 for (y in 0..51) {
-                    val row = rows[y] ?: continue
+                    val row = secrets[y] ?: continue
                     if (y !in start.y..end.y)
                         return false
                     for(x in 0 until start.x) if (row[x] != null) return false
                     for(x in (end.x + 1)..51) if (row[x] != null) return false
                 }
             }
-            is GoPointEntries<*, *> -> return elements.isEmpty()
+            is GoPointEntries<*> -> return elements.isEmpty()
             else -> return defaultContainsAll(elements)
         }
         return true
@@ -129,7 +129,7 @@ class GoRectangle internal constructor(
         return this === other || when (other) {
             is GoRectangle -> start == other.start && end == other.end
             is GoPointSet, is GoPointKeys<*> -> other == this
-            is GoPointEntries<*, *> -> {
+            is GoPointEntries<*> -> {
                 other.expungeStaleRows()
                 false
             }

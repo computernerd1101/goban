@@ -8,8 +8,7 @@ import kotlin.random.Random
 
 internal class GobanTest {
 
-    @Test
-    fun count() {
+    @Test fun count() {
         val goban = MutableGoban()
         val rnd = Random(System.currentTimeMillis())
         var blackCount = 0
@@ -31,8 +30,7 @@ internal class GobanTest {
         assertEquals(whiteCount, goban.whiteCount)
     }
 
-    @Test
-    fun setAll() {
+    @Test fun setAll() {
         val expected = MutableGoban()
         val actual = MutableGoban()
         val black = MutableGoPointSet()
@@ -56,8 +54,7 @@ internal class GobanTest {
         assertTrue(expected contentEquals actual)
     }
 
-    @Test
-    fun play() {
+    @Test fun play() {
         val goban = Goban()
         goban[4, 4] = GoColor.WHITE
         goban[4, 3] = GoColor.BLACK
@@ -67,8 +64,7 @@ internal class GobanTest {
         assertNull(goban[4, 4])
     }
 
-    @Test
-    fun getGroup() {
+    @Test fun getGroup() {
         val goban = Goban(5)
         goban[0, 0] = GoColor.BLACK
         goban[1, 0] = GoColor.BLACK
@@ -100,8 +96,7 @@ internal class GobanTest {
         assert(group.contains(p))
     }
 
-    @Test
-    fun copyFrom() {
+    @Test fun copyFrom() {
         val p = GoPoint(0, 0)
         val goban = Goban(19)
         goban[p] = GoColor.WHITE
@@ -110,8 +105,7 @@ internal class GobanTest {
         assertEquals(GoColor.WHITE, goban2[p])
     }
 
-    @Test
-    fun getScoreGoban() {
+    @Test fun getScoreGoban() {
         val goban = Goban(9)
         goban[1, 0] = GoColor.WHITE
         goban[3, 0] = GoColor.BLACK
