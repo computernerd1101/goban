@@ -511,26 +511,28 @@ sealed class GoSGFNode {
     val pointMarkup = PointMarkupMap()
     val lineMarkup = LineMarkupSet()
 
-    private var thisGameInfo: GameInfo? = null
-    var gameInfoNode: GoSGFNode? = null; private set
+    private var _gameInfoNode: GoSGFNode? = null
+    private var _gameInfo: GameInfo? = null
+
+    val gameInfoNode: GoSGFNode? get() = _gameInfoNode
     var gameInfo: GameInfo?
         get() = syncTreeOrDefault(null as GameInfo?) {
-            if (isAlive) gameInfoNode?.thisGameInfo
+            if (isAlive) _gameInfoNode?._gameInfo
             else null
         }
         set(info) = syncTreeOrReturn {
-            var gn = gameInfoNode
+            var gn = _gameInfoNode
             if (info == null) {
                 if (gn == null)
                     gn = this
-                gn.thisGameInfo = null
+                gn._gameInfo = null
                 gn.setGameInfoNode(null, true)
             } else {
-                thisGameInfo = info
+                _gameInfo = info
                 if (gn !== this) {
                     setGameInfoNode(this, true)
                     if (gn != null) {
-                        gn.thisGameInfo = null
+                        gn._gameInfo = null
                         gn.setGameInfoNode(null, false)
                     }
                 }
@@ -538,21 +540,21 @@ sealed class GoSGFNode {
         }
 
     private fun setGameInfoNode(node: GoSGFNode?, overwrite: Boolean) {
-        gameInfoNode = node
+        _gameInfoNode = node
         var current = this
         while (current.childCount == 1) {
             current = current.fastChild(0)
-            if (!overwrite && current.gameInfoNode?.thisGameInfo != null) return
-            current.thisGameInfo = null
-            current.gameInfoNode = node
+            if (!overwrite && current._gameInfoNode?._gameInfo != null) return
+            current._gameInfo = null
+            current._gameInfoNode = node
         }
         // minimize risk of StackOverflowError
         val n = current.childCount
         val next = current.childArray ?: return
         for (i in 0 until n) {
             current = next[i] ?: break
-            if (overwrite || current.gameInfoNode?.thisGameInfo == null) {
-                current.thisGameInfo = null
+            if (overwrite || current._gameInfoNode?._gameInfo == null) {
+                current._gameInfo = null
                 current.setGameInfoNode(node, overwrite)
             }
         }
@@ -569,7 +571,7 @@ sealed class GoSGFNode {
     private fun hasGameInfoChildrenRecursive(exclude: GameInfo?): Boolean {
         var current = this
         while(true) {
-            val node = current.gameInfoNode
+            val node = current._gameInfoNode
             // TODO test
             if (node != null) return node.gameInfo != exclude
             if (current.childCount != 1) break
@@ -581,18 +583,18 @@ sealed class GoSGFNode {
     }
 
     val previousGameInfoNode: GoSGFNode get() = syncTreeOrDefault(this) {
-        if (isAlive) (gameInfoNode ?: this).findGameInfoNode(forward=false)
+        if (isAlive) (_gameInfoNode ?: this).findGameInfoNode(forward=false)
         else this
     }
 
     val nextGameInfoNode: GoSGFNode get() = syncTreeOrDefault(this) {
-        if (isAlive) (gameInfoNode ?: this).findGameInfoNode(forward=true)
+        if (isAlive) (_gameInfoNode ?: this).findGameInfoNode(forward=true)
         else this
     }
 
     private fun findGameInfoNode(forward: Boolean): GoSGFNode {
         val direction = if (forward) 1 else -1
-        var start = if (forward && gameInfoNode == null) this
+        var start = if (forward && _gameInfoNode == null) this
         else findGameInfoStart(direction)
         while(true) {
             val child = start.findGameInfoChild(this, false, forward)
@@ -616,11 +618,11 @@ sealed class GoSGFNode {
         var current = this
         var nextStop = firstStop
         while(current.childCount == 1) {
-            if ((nextStop && current == stop) || current.gameInfoNode != null) return current
+            if ((nextStop && current == stop) || current._gameInfoNode != null) return current
             current = current.fastChild(0)
             nextStop = true
         }
-        if ((nextStop && current == stop) || current.gameInfoNode != null) return current
+        if ((nextStop && current == stop) || current._gameInfoNode != null) return current
         current.forEachChild(forward) {
             val child = it.findGameInfoChild(stop, true, forward)
             if (child != null) return child
@@ -668,7 +670,7 @@ sealed class GoSGFNode {
     private fun initNextNode(node: GoSGFNode) {
         val index = childCount++
         node.childIndex = index
-        node.gameInfoNode = gameInfoNode
+        node._gameInfoNode = _gameInfoNode
         var children = this.childArray
         if (children == null) {
             children = arrayOfNulls(1)
@@ -755,7 +757,7 @@ sealed class GoSGFNode {
             current.childCount = 0
             current.index = 0
             current.childIndex = 0
-            current.gameInfoNode = null
+            current._gameInfoNode = null
             current.gameInfo = null
             current = child
         }
@@ -767,7 +769,7 @@ sealed class GoSGFNode {
         current.childCount = 0
         current.index = 0
         current.childIndex = 0
-        current.gameInfoNode = null
+        current._gameInfoNode = null
         current.gameInfo = null
         if (children != null) {
             for(i in 0 until n) {
@@ -831,7 +833,7 @@ sealed class GoSGFNode {
             territory.toPointSet(GoColor.WHITE).toSGFProperty(false)?.let { prop ->
                 propMap["TW"] = prop
             }
-            if (current.gameInfoNode == current)
+            if (current._gameInfoNode == current)
                 current.gameInfo?.writeSGFNode(node, charset)
             var prop: SGFProperty? = null
             for((point, markup) in current.pointMarkup) {
@@ -1117,9 +1119,9 @@ sealed class GoSGFNode {
                             gameInfo = GameInfo()
                             if (setup != null && move != null) {
                                 gameInfoNode = setup
-                                gameInfoNode.gameInfoNode = gameInfoNode
+                                gameInfoNode._gameInfoNode = gameInfoNode
                             } else gameInfoNode = currentNode
-                            currentNode.gameInfoNode = gameInfoNode
+                            currentNode._gameInfoNode = gameInfoNode
                             gameInfoNode.gameInfo = gameInfo
                         }
                         gameInfo.parseSGFProperty(name, prop, this.tree.charset, warnings)

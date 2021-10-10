@@ -50,24 +50,30 @@ sealed class SGFWriter {
 
     }
 
-    fun writeTree(tree: SGFTree, tab: Int) {
-        write('('.code)
-        var hasPrev = false
-        for (node in tree.nodes) {
-            if (hasPrev) write(' '.code)
-            else hasPrev = true
-            writeNode(node)
-            write('\n'.code)
-            writeTab(tab)
-        }
-        for (subTree in tree.subTrees) {
-            write(' '.code)
-            write(' '.code)
-            writeTree(subTree, tab + 1)
-            write('\n'.code)
-            writeTab(tab)
-        }
-        write(')'.code)
+    @OptIn(ExperimentalStdlibApi::class)
+    fun writeTree(root: SGFTree) {
+        var tab = 0
+        DeepRecursiveFunction<SGFTree, Unit> { tree ->
+            write('('.code)
+            var hasPrev = false
+            for (node in tree.nodes) {
+                if (hasPrev) write(' '.code)
+                else hasPrev = true
+                writeNode(node)
+                write('\n'.code)
+                writeTab(tab)
+            }
+            tab++
+            for (subTree in tree.subTrees) {
+                write(' '.code)
+                write(' '.code)
+                callRecursive(subTree)
+                write('\n'.code)
+                writeTab(tab - 1)
+            }
+            tab--
+            write(')'.code)
+        }(root)
     }
 
     private fun writeTab(tab: Int) {

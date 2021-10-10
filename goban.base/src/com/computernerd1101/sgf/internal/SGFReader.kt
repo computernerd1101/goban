@@ -3,7 +3,7 @@ package com.computernerd1101.sgf.internal
 import com.computernerd1101.sgf.*
 import java.io.InputStream
 
-sealed class SGFReader(val warnings: SGFWarningList) {
+internal sealed class SGFReader(val warnings: SGFWarningList) {
 
     var row = 1
     var column = 1
@@ -217,6 +217,34 @@ sealed class SGFReader(val warnings: SGFWarningList) {
             return codePoint
         }
 
+    }
+
+    @OptIn(ExperimentalStdlibApi::class)
+    val readRecursive = DeepRecursiveFunction<SGFSubTreeList, SGFNodeList> { subTrees ->
+        var ch = skipSpaces()
+        if (ch != ';'.code) throw newException("';'")
+        val nodes = SGFNodeList(readNode())
+        while(true) {
+            ch = lastRead
+            if (ch == '('.code) break
+            if (ch == ')'.code) return@DeepRecursiveFunction nodes
+            if (ch != ';'.code) throw newException("';', '(' or ')'")
+            nodes.add(readNode())
+        }
+        // last read character was '('
+        while(ch == '('.code) {
+            val startRow = row
+            val startColumn = column - 1
+            val subTreeList = SGFSubTreeList()
+            val subTreeNodes = callRecursive(subTreeList)
+            val subTree = SGFTree(subTreeNodes, subTreeList)
+            subTree.row = startRow
+            subTree.column = startColumn
+            subTrees.addPrivileged(subTree)
+            ch = skipSpaces()
+        }
+        if (ch != ')'.code) throw newException("')'")
+        nodes
     }
 
     fun startReading(): SGFReader {

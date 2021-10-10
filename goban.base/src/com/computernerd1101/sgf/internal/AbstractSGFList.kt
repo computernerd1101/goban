@@ -1,6 +1,8 @@
 package com.computernerd1101.sgf.internal
 
 import com.computernerd1101.sgf.SGFCopyLevel
+import com.computernerd1101.sgf.SGFNode
+import com.computernerd1101.sgf.SGFTree
 import java.io.*
 import java.util.*
 import kotlin.ConcurrentModificationException
@@ -8,7 +10,7 @@ import kotlin.NoSuchElementException
 import kotlin.collections.RandomAccess
 
 @Suppress("LeakingThis")
-abstract class AbstractSGFList<E: Any>:
+internal abstract class AbstractSGFList<E: Any>:
     AbstractMutableList<E>, RandomAccess {
 
     final override var size: Int
@@ -731,5 +733,55 @@ abstract class AbstractSGFList<E: Any>:
         }
 
     }
+
+}
+
+
+internal class SGFNodeList: AbstractSGFList<SGFNode> {
+
+    constructor(first: SGFNode): super(1, first)
+
+    constructor(elements: Collection<SGFNode>): super(elements)
+
+    constructor(other: SGFNodeList, level: SGFCopyLevel): super(other, level)
+
+    constructor(ois: ObjectInputStream, size: Int): super(ois, size)
+
+    override fun newArray(size: Int) = arrayOfNulls<SGFNode>(size)
+
+    override fun emptyListMessage() = "SGF tree must directly contain at least one node."
+
+    override fun optimizedCopy(n: Int, a: Array<SGFNode?>, level: SGFCopyLevel) {
+        if (level != SGFCopyLevel.NODE)
+            for(i in 0 until n) a[i] = a[i]?.copy(level)
+    }
+
+}
+
+internal class SGFSubTreeList: AbstractSGFList<SGFTree> {
+
+    constructor()
+
+    constructor(first: SGFTree): super(1, first)
+
+    constructor(elements: Collection<SGFTree>): super(elements)
+
+    constructor(other: SGFSubTreeList, level: SGFCopyLevel): super(other, level)
+
+    constructor(ois: ObjectInputStream, size: Int): super(ois, size)
+
+    override fun newArray(size: Int) = arrayOfNulls<SGFTree>(size)
+
+    override fun allowEmpty() = true
+
+    override fun checkAddPrivilege() {
+        throw UnsupportedOperationException()
+    }
+
+    override fun addNew(e: SGFTree) = e.copy()
+
+//    override fun optimizedCopy(n: Int, a: Array<SGFTree?>, level: SGFCopyLevel) {
+//        for(i in 0 until n) a[i] = a[i]?.copy(level)
+//    }
 
 }

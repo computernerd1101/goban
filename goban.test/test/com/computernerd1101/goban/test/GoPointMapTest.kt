@@ -4,33 +4,44 @@ import com.computernerd1101.goban.*
 import org.junit.*
 
 import org.junit.Assert.*
-import kotlin.random.Random
+import kotlin.random.*
 
 internal class GoPointMapTest {
 
-    private lateinit var random: Random
-    private lateinit var pairs: Array<Pair<GoPoint, String>>
-    private lateinit var goMap: GoPointMap<String>
-    private lateinit var hashMap: HashMap<GoPoint, String>
+    companion object {
 
-    @Before fun setUp() {
-        random = Random
-        pairs = randomIntArray().map { y ->
-            randomIntArray().map { x ->
-                val p = GoPoint(x, y)
-                p to p.toString()
-            }
-        }.flatten().toTypedArray()
-        goMap = GoPointMap(*pairs)
-        hashMap = hashMapOf(*pairs)
-    }
+        private lateinit var random: Random
+        private lateinit var pairs: Array<Pair<GoPoint, String>>
+        private lateinit var goMap: GoPointMap<String>
+        private lateinit var hashMap: HashMap<GoPoint, String>
 
-    private fun randomIntArray(): IntArray {
-        var array = IntArray(52) { it }
-        array.shuffle(random)
-        array = array.copyOf(random.nextInt(5, 11))
-        array.sort()
-        return array
+        @BeforeClass
+        @JvmStatic
+        fun setUp() {
+            val seed = System.nanoTime()
+            println("Setting up GoPointMapTest...")
+            println("Using seed $seed")
+            random = java.util.Random(seed).asKotlinRandom()
+            pairs = randomIntArray().map { y ->
+                val row = randomIntArray().map { x ->
+                    val p = GoPoint(x, y)
+                    p to p.toString()
+                }
+                println(row.joinToString(separator = " ", transform = Pair<GoPoint, String>::second))
+                row
+            }.flatten().toTypedArray()
+            goMap = GoPointMap(*pairs)
+            hashMap = hashMapOf(*pairs)
+        }
+
+        private fun randomIntArray(): IntArray {
+            var array = IntArray(52) { it }
+            array.shuffle(random)
+            array = array.copyOf(random.nextInt(5, 11))
+            array.sort()
+            return array
+        }
+
     }
 
     @Test fun get() {
@@ -56,10 +67,10 @@ internal class GoPointMapTest {
         val actualItr = goMap.iterator()
         while(expectedItr.hasNext()) {
             assertTrue(actualItr.hasNext())
-            val (ek, ev) = expectedItr.next()
-            val (ak, av) = actualItr.next()
-            assertEquals(ek, ak)
-            assertEquals(ev, av)
+            val (expectedKey, expectedValue) = expectedItr.next()
+            val (actualKey, actualValue) = actualItr.next()
+            assertEquals(expectedKey, actualKey)
+            assertEquals(expectedValue, actualValue)
         }
         assertFalse(actualItr.hasNext())
     }

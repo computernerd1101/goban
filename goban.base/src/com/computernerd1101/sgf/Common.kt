@@ -14,12 +14,14 @@ private val sgfCharsets: MutableMap<Charset, Boolean> = WeakHashMap()
 
 val Charset.isValidSGF: Boolean
     @JvmName("isValidSGFCharset")
-    get() = sgfCharsets.getOrPut(this) {
-        try {
-            sgfChars.toByteArray(this) contentEquals sgfBytes &&
-                    sgfChars == String(sgfBytes, this)
-        } catch(e: Exception) {
-            false
+    get() = sgfCharsets[this] ?: synchronized(sgfCharsets) {
+        sgfCharsets.getOrPut(this) {
+            try {
+                sgfChars.toByteArray(this) contentEquals sgfBytes &&
+                        sgfChars == String(sgfBytes, this)
+            } catch (e: Exception) {
+                false
+            }
         }
     }
 

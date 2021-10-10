@@ -3,6 +3,7 @@
 
 package com.computernerd1101.sgf
 
+import com.computernerd1101.goban.internal.InternalMarker
 import com.computernerd1101.sgf.internal.*
 import java.io.*
 import kotlin.ConcurrentModificationException
@@ -13,8 +14,8 @@ sealed class SGFTreeElement: RowColumn()
 
 class SGFTree: SGFTreeElement, Serializable {
 
-    private var nodeList: Nodes
-    private var subTreeList: SubTrees
+    private var nodeList: SGFNodeList
+    private var subTreeList: SGFSubTreeList
 
     val nodes: MutableList<SGFNode>
         @JvmName("nodes") get() = nodeList
@@ -27,23 +28,24 @@ class SGFTree: SGFTreeElement, Serializable {
         return subTree
     }
 
-    fun copy(level: SGFCopyLevel? = null) = SGFTree(this, level ?: SGFCopyLevel.NODE)
+    fun copy(level: SGFCopyLevel? = null): SGFTree = (level ?: SGFCopyLevel.NODE).copy(this)
 
-    private constructor(other: SGFTree, level: SGFCopyLevel) {
+    internal constructor(other: SGFTree, level: SGFCopyLevel, marker: InternalMarker) {
+        marker.ignore()
         row = other.row
         column = other.column
-        nodeList = Nodes(other.nodeList, level)
-        subTreeList = SubTrees(other.subTreeList, level)
+        nodeList = SGFNodeList(other.nodeList, level)
+        subTreeList = SGFSubTreeList(other.subTreeList, level)
     }
 
     constructor(firstNode: SGFNode) {
-        nodeList = Nodes(firstNode)
-        subTreeList = SubTrees()
+        nodeList = SGFNodeList(firstNode)
+        subTreeList = SGFSubTreeList()
     }
 
     constructor(node1: SGFNode, vararg elements: SGFTreeElement) {
-        nodeList = Nodes(node1)
-        subTreeList = SubTrees()
+        nodeList = SGFNodeList(node1)
+        subTreeList = SGFSubTreeList()
         for(element in elements) when(element) {
             is SGFNode -> nodeList.add(element)
             is SGFTree -> subTreeList.addPrivileged(element.copy())
@@ -51,13 +53,13 @@ class SGFTree: SGFTreeElement, Serializable {
     }
 
     constructor(nodes: Collection<SGFNode>) {
-        nodeList = Nodes(nodes)
-        subTreeList = SubTrees()
+        nodeList = SGFNodeList(nodes)
+        subTreeList = SGFSubTreeList()
     }
 
     constructor(nodes: Collection<SGFNode>, subTrees: Collection<SGFTree>) {
-        nodeList = Nodes(nodes)
-        subTreeList = SubTrees(subTrees)
+        nodeList = SGFNodeList(nodes)
+        subTreeList = SGFSubTreeList(subTrees)
     }
 
     @Throws(SGFException::class)
@@ -70,41 +72,27 @@ class SGFTree: SGFTreeElement, Serializable {
     constructor(input: InputStream, warnings: SGFWarningList = SGFWarningList()):
             this(SGFReader.IOReader(input, warnings).startReading())
 
+    @OptIn(ExperimentalStdlibApi::class)
     private constructor(reader: SGFReader) {
         row = reader.row
         column = reader.column - 1
-        var ch = reader.skipSpaces()
-        if (ch != ';'.code) throw reader.newException("';'")
-        val nodes = Nodes(reader.readNode())
-        nodeList = nodes
-        while (true) {
-            ch = reader.lastRead
-            if (ch == '('.code) break
-            if (ch == ')'.code) {
-                subTreeList = SubTrees()
-                return
-            }
-            if (ch != ';'.code) throw reader.newException("';', '(' or ')'")
-            nodes.add(reader.readNode())
-        }
-        // last read character was '('
-        val subTrees = SubTrees(SGFTree(reader))
+        val subTrees = SGFSubTreeList()
+        nodeList = reader.readRecursive(subTrees)
         subTreeList = subTrees
-        ch = reader.skipSpaces()
-        while(ch == '('.code) {
-            subTrees.addPrivileged(SGFTree(reader))
-            ch = reader.skipSpaces()
-        }
-        if (ch != ')'.code) throw reader.newException("')'")
+    }
+
+    internal constructor(nodes: SGFNodeList, subTrees: SGFSubTreeList) {
+        nodeList = nodes
+        subTreeList = subTrees
     }
 
     override fun toString() = buildString {
-        SGFWriter.StringWriter(this).writeTree(this@SGFTree, 0)
+        SGFWriter.StringWriter(this).writeTree(this@SGFTree)
     }
 
     @Throws(IOException::class)
     fun write(os: OutputStream) {
-        SGFWriter.IOWriter(os).writeTree(this, 0)
+        SGFWriter.IOWriter(os).writeTree(this)
     }
 
     private fun writeObject(oos: ObjectOutputStream) {
@@ -128,8 +116,8 @@ class SGFTree: SGFTreeElement, Serializable {
         if (nodes < 0) throw InvalidObjectException("nodes require non-negative size")
         val subTrees = fields["subTrees", -1]
         if (subTrees < 0) throw InvalidObjectException("subTrees require non-negative size")
-        nodeList = Nodes(ois, nodes)
-        subTreeList = SubTrees(ois, nodes)
+        nodeList = SGFNodeList(ois, nodes)
+        subTreeList = SGFSubTreeList(ois, nodes)
     }
 
     companion object {
@@ -144,54 +132,6 @@ class SGFTree: SGFTreeElement, Serializable {
 
     }
 
-    private class Nodes: AbstractSGFList<SGFNode> {
-
-        constructor(first: SGFNode): super(1, first)
-
-        constructor(elements: Collection<SGFNode>): super(elements)
-
-        constructor(other: Nodes, level: SGFCopyLevel): super(other, level)
-
-        constructor(ois: ObjectInputStream, size: Int): super(ois, size)
-
-        override fun newArray(size: Int) = arrayOfNulls<SGFNode>(size)
-
-        override fun emptyListMessage() = "SGF tree must directly contain at least one node."
-
-        override fun optimizedCopy(n: Int, a: Array<SGFNode?>, level: SGFCopyLevel) {
-            if (level != SGFCopyLevel.NODE)
-                for(i in 0 until n) a[i] = a[i]?.copy(level)
-        }
-
-    }
-
-    private class SubTrees: AbstractSGFList<SGFTree> {
-
-        constructor()
-
-        constructor(first: SGFTree): super(1, first)
-
-        constructor(elements: Collection<SGFTree>): super(elements)
-
-        constructor(other: SubTrees, level: SGFCopyLevel): super(other, level)
-
-        constructor(ois: ObjectInputStream, size: Int): super(ois, size)
-
-        override fun newArray(size: Int) = arrayOfNulls<SGFTree>(size)
-
-        override fun allowEmpty() = true
-
-        override fun checkAddPrivilege() {
-            throw UnsupportedOperationException()
-        }
-
-        override fun addNew(e: SGFTree) = e.copy()
-
-        override fun optimizedCopy(n: Int, a: Array<SGFTree?>, level: SGFCopyLevel) {
-            for(i in 0 until n) a[i] = a[i]?.copy(level)
-        }
-
-    }
 
 }
 
@@ -250,13 +190,14 @@ class SGFNode: SGFTreeElement, Serializable {
             size > MAXIMUM_CAPACITY/3 -> MAXIMUM_CAPACITY
             size <= 2*MINIMUM_CAPACITY/3 -> MINIMUM_CAPACITY
             else -> {
-                var x = size + (size shr 1)
+                // 2^floor(log2(size * 3))
+                var x = size + (size shr 1) // x = size * 3/2
                 x = x or (x ushr 16)
                 x = x or (x ushr 8)
                 x = x or (x ushr 4)
                 x = x or (x ushr 2)
                 x = x or (x ushr 1)
-                x + 1
+                x + 1 // cap = 2^(1 + floor(log2(x))
             }
         }
 
