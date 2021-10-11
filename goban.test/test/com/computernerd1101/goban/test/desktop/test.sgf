@@ -1,0 +1,25 @@
+(;GM[1]FF[4]SZ[19]AP[CN13 Goban]
+  (;AB[dd][pd][dp][pp]GN[Variation 1]
+   ;W[nc]
+   ;B[qf]
+  )
+  (;B[pd]
+   ;W[dp]
+   ;B[pp]
+   ;W[dd]
+    (;B[pj]GN[Variation 2.1]
+     ;W[dj]
+     ;B[cn]
+     ;W[fq]
+    )
+    (;B[dj]
+     ;W[pj]
+      (;B[jp]
+       ;W[jd]GN[Variation 2.2.1]
+      )
+      (;B[fc]GN[Variation 2.2.2]
+       ;W[cf]
+      )
+    )
+  )
+)
