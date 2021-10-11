@@ -3,7 +3,9 @@ package com.computernerd1101.goban.test.desktop
 import com.computernerd1101.goban.desktop.GoEditorFrame
 import com.computernerd1101.goban.sgf.GoSGF
 import com.computernerd1101.sgf.SGFException
-import java.io.*
+import java.io.FileInputStream
+import java.io.IOException
+import java.io.InputStream
 import javax.swing.SwingUtilities
 import kotlin.reflect.jvm.javaMethod
 

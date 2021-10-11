@@ -326,11 +326,14 @@ sealed class GoSGFNode {
         if (i < 0) throw childIndexOutOfBoundsException(i)
         return syncTreeOrThrow {
             if (i >= childCount) throw childIndexOutOfBoundsException(i)
-            fastChild(i)
+            fastChild(i, InternalMarker)
         }
     }
 
-    private fun fastChild(i: Int): GoSGFNode = childArray!![i]!!
+    private fun fastChild(i: Int, marker: InternalMarker): GoSGFNode {
+        marker.ignore()
+        return childArray!![i]!!
+    }
 
     private fun childIndexOutOfBoundsException(i: Int) = IndexOutOfBoundsException(
         "$i is not in the range [0,$childCount)"
@@ -539,25 +542,43 @@ sealed class GoSGFNode {
             }
         }
 
-    private fun setGameInfoNode(node: GoSGFNode?, overwrite: Boolean) {
+    private fun clearGameInfo(marker: InternalMarker) {
+        marker.ignore()
+        _gameInfo = null
+    }
+
+    private fun getGameInfoDirect(marker: InternalMarker): GameInfo? {
+        marker.ignore()
+        return _gameInfo
+    }
+
+    private fun setGameInfoNodeDirect(node: GoSGFNode?, marker: InternalMarker) {
+        marker.ignore()
         _gameInfoNode = node
-        var current = this
-        while (current.childCount == 1) {
-            current = current.fastChild(0)
-            if (!overwrite && current._gameInfoNode?._gameInfo != null) return
-            current._gameInfo = null
-            current._gameInfoNode = node
-        }
-        // minimize risk of StackOverflowError
-        val n = current.childCount
-        val next = current.childArray ?: return
-        for (i in 0 until n) {
-            current = next[i] ?: break
-            if (overwrite || current._gameInfoNode?._gameInfo == null) {
-                current._gameInfo = null
-                current.setGameInfoNode(node, overwrite)
+    }
+
+    @OptIn(ExperimentalStdlibApi::class)
+    private fun setGameInfoNode(node: GoSGFNode?, overwrite: Boolean) {
+        DeepRecursiveFunction<GoSGFNode, Unit> { writeNode ->
+            writeNode.setGameInfoNodeDirect(node, InternalMarker)
+            var current = writeNode
+            while (current.childCount == 1) {
+                current = current.fastChild(0, InternalMarker)
+                if (!overwrite && current.gameInfoNode?.getGameInfoDirect(InternalMarker) != null)
+                    return@DeepRecursiveFunction
+                current.clearGameInfo(InternalMarker)
+                current.setGameInfoNodeDirect(node, InternalMarker)
             }
-        }
+            // minimize risk of StackOverflowError
+            val n = current.children
+            for (i in 0 until n) {
+                val next = current.fastChild(i, InternalMarker)
+                if (overwrite || next.gameInfoNode?.getGameInfoDirect(InternalMarker) == null) {
+                    next.clearGameInfo(InternalMarker)
+                    callRecursive(next)
+                }
+            }
+        }(this)
     }
 
     val hasGameInfoChildren: Boolean @JvmName("hasGameInfoChildren") get() = syncTreeOrDefault(false) {
@@ -568,18 +589,22 @@ sealed class GoSGFNode {
         isAlive && hasGameInfoChildrenRecursive(exclude)
     }
 
+    @OptIn(ExperimentalStdlibApi::class)
     private fun hasGameInfoChildrenRecursive(exclude: GameInfo?): Boolean {
-        var current = this
-        while(true) {
-            val node = current._gameInfoNode
-            // TODO test
-            if (node != null) return node.gameInfo != exclude
-            if (current.childCount != 1) break
-            current = current.fastChild(0)
-        }
-        for(i in 0 until current.childCount)
-            if (current.fastChild(i).hasGameInfoChildrenRecursive(exclude)) return true
-        return false
+        return DeepRecursiveFunction<GoSGFNode, Boolean> { node ->
+            var current = node
+            while (true) {
+                val gameInfoNode = current.gameInfoNode
+                // TODO test
+                if (gameInfoNode != null) return@DeepRecursiveFunction gameInfoNode.gameInfo != exclude
+                if (current.children != 1) break
+                current = current.fastChild(0, InternalMarker)
+            }
+            for (i in 0 until current.children)
+                if (callRecursive(current.fastChild(i, InternalMarker)))
+                    return@DeepRecursiveFunction true
+            false
+        }(this)
     }
 
     val previousGameInfoNode: GoSGFNode get() = syncTreeOrDefault(this) {
@@ -592,12 +617,37 @@ sealed class GoSGFNode {
         else this
     }
 
+    @OptIn(ExperimentalStdlibApi::class)
     private fun findGameInfoNode(forward: Boolean): GoSGFNode {
         val direction = if (forward) 1 else -1
         var start = if (forward && _gameInfoNode == null) this
         else findGameInfoStart(direction)
+        val stop = this
+        var nextStop = false
+        val findChild = DeepRecursiveFunction<GoSGFNode, GoSGFNode?> { node ->
+            var current = node
+            while (current.children == 1) {
+                if ((nextStop && current === stop) || current.gameInfoNode != null)
+                    return@DeepRecursiveFunction current
+                current = current.fastChild(0, InternalMarker)
+                nextStop = true
+            }
+            if ((nextStop && current === stop) || current.gameInfoNode != null)
+                return@DeepRecursiveFunction current
+            nextStop = true
+            val n = current.children
+            if (forward) for(i in 0 until n) {
+                val child = callRecursive(current.fastChild(i, InternalMarker))
+                if (child != null) return@DeepRecursiveFunction child
+            } else for(i in (n - 1) downTo 0) {
+                val child = callRecursive(current.fastChild(i, InternalMarker))
+                if (child != null) return@DeepRecursiveFunction child
+            }
+            null
+        }
         while(true) {
-            val child = start.findGameInfoChild(this, false, forward)
+            nextStop = false
+            val child = findChild(start)
             if (child != null) return child
             start = start.findGameInfoStart(direction)
             if (start == this) return this
@@ -611,28 +661,28 @@ sealed class GoSGFNode {
             node = parent
             parent = node.parent ?: return node
         }
-        return parent.fastChild(node.childIndex + direction)
+        return parent.fastChild(node.childIndex + direction, InternalMarker)
     }
 
-    private fun findGameInfoChild(stop: GoSGFNode, firstStop: Boolean, forward: Boolean): GoSGFNode? {
+    private fun findGameInfoChild(stop: GoSGFNode, forward: Boolean): GoSGFNode? {
         var current = this
-        var nextStop = firstStop
+        var nextStop = true
         while(current.childCount == 1) {
             if ((nextStop && current == stop) || current._gameInfoNode != null) return current
-            current = current.fastChild(0)
+            current = current.fastChild(0, InternalMarker)
             nextStop = true
         }
         if ((nextStop && current == stop) || current._gameInfoNode != null) return current
         current.forEachChild(forward) {
-            val child = it.findGameInfoChild(stop, true, forward)
+            val child = it.findGameInfoChild(stop, forward)
             if (child != null) return child
         }
         return null
     }
 
     private inline fun forEachChild(forward: Boolean, block: (GoSGFNode) -> Unit) {
-        if (forward) for(i in 0 until childCount) block(fastChild(i))
-        else for(i in (childCount - 1) downTo 0) block(fastChild(i))
+        if (forward) for(i in 0 until childCount) block(fastChild(i, InternalMarker))
+        else for(i in (childCount - 1) downTo 0) block(fastChild(i, InternalMarker))
     }
 
     val unknownProperties = SGFNode()
@@ -643,7 +693,7 @@ sealed class GoSGFNode {
 
     private fun createNextMoveNodeAsync(playStoneAt: GoPoint?, turnPlayer: GoColor): GoSGFMoveNode {
         for(i in 0 until childCount) {
-            val node = fastChild(i)
+            val node = fastChild(i, InternalMarker)
             if (node is GoSGFMoveNode && node.playStoneAt == playStoneAt && node.turnPlayer == turnPlayer)
                 return node
         }
@@ -658,7 +708,7 @@ sealed class GoSGFNode {
 
     private fun createNextSetupNodeAsync(goban: FixedGoban): GoSGFSetupNode {
         for(i in 0 until childCount) {
-            val node = fastChild(i)
+            val node = fastChild(i, InternalMarker)
             if (node is GoSGFSetupNode && node.goban == goban)
                 return node
         }
@@ -728,6 +778,7 @@ sealed class GoSGFNode {
         }
     }
 
+    @OptIn(ExperimentalStdlibApi::class)
     fun delete() {
         val parent = this.parent ?: return
         syncTreeOrReturn {
@@ -740,44 +791,40 @@ sealed class GoSGFNode {
             }
             parent.childCount = count
             next[count] = null
-            deleteRecursive()
+            DeepRecursiveFunction<GoSGFNode, Unit> { node ->
+                var current = node
+                var n = current.children
+                while(n == 1) {
+                    val children = current.fastDelete(InternalMarker)!!
+                    val child = children[0]!!
+                    children[0] = null
+                    current = child
+                    n = current.children
+                }
+                val children = current.fastDelete(InternalMarker)
+                if (children != null) {
+                    for(i in 0 until n) {
+                        val child = children[i]!!
+                        children[i] = null
+                        callRecursive(child)
+                    }
+                }
+            }(this)
         }
     }
 
-    private fun deleteRecursive() {
-        var current = this
-        // minimize risk of StackOverflowError
-        while(current.childCount == 1) {
-            current.nullableTree = null
-            current.parent = null
-            val children = current.childArray!!
-            val child = children[0]!!
-            current.childArray = null
-            children[0] = null
-            current.childCount = 0
-            current.index = 0
-            current.childIndex = 0
-            current._gameInfoNode = null
-            current.gameInfo = null
-            current = child
-        }
-        current.nullableTree = null
-        current.parent = null
-        val children = current.childArray
-        current.childArray = null
-        val n = current.childCount
-        current.childCount = 0
-        current.index = 0
-        current.childIndex = 0
-        current._gameInfoNode = null
-        current.gameInfo = null
-        if (children != null) {
-            for(i in 0 until n) {
-                val child = children[i]!!
-                children[i] = null
-                child.deleteRecursive()
-            }
-        }
+    private fun fastDelete(marker: InternalMarker): Array<GoSGFNode?>? {
+        marker.ignore()
+        nullableTree = null
+        parent = null
+        val children = childArray
+        childArray = null
+        childCount = 0
+        index = 0
+        childIndex = 0
+        _gameInfoNode = null
+        _gameInfo = null
+        return children
     }
 
     internal fun writeSGFTree(tree: SGFTree, marker: InternalMarker) {
