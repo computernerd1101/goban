@@ -18,6 +18,7 @@ module computernerd1101.goban.test {
     requires junit;
 
     requires annotations;
+    requires kotlin.test;
 
 
     uses com.computernerd1101.goban.test.sandbox.MyServiceLoader;

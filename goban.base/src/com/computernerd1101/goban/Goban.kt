@@ -68,7 +68,7 @@ sealed class AbstractGoban(
         }
     }
 
-    fun isEmpty() = count == 0L
+    fun isEmpty() = InternalGoban.COUNT[this] == 0L
 
     fun isNotEmpty() = !isEmpty()
 
@@ -211,7 +211,7 @@ sealed class AbstractGoban(
     }
 
     override fun toString(): String {
-        return "${javaClass.name}[${width}x$height]"
+        return "${javaClass.simpleName}[${width}x$height]"
     }
 
 }
