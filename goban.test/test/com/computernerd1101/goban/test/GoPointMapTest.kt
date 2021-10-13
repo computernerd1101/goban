@@ -17,7 +17,7 @@ internal class GoPointMapTest {
 
         @BeforeClass
         @JvmStatic
-        fun setUp() {
+        fun setUpClass() {
             val seed = System.nanoTime()
             println("Setting up GoPointMapTest...")
             println("Using seed $seed")
