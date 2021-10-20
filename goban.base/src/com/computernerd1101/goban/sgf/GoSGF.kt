@@ -595,7 +595,6 @@ sealed class GoSGFNode {
             var current = node
             while (true) {
                 val gameInfoNode = current.gameInfoNode
-                // TODO test
                 if (gameInfoNode != null) return@DeepRecursiveFunction gameInfoNode.gameInfo != exclude
                 if (current.children != 1) break
                 current = current.fastChild(0, InternalMarker)
@@ -662,27 +661,6 @@ sealed class GoSGFNode {
             parent = node.parent ?: return node
         }
         return parent.fastChild(node.childIndex + direction, InternalMarker)
-    }
-
-    private fun findGameInfoChild(stop: GoSGFNode, forward: Boolean): GoSGFNode? {
-        var current = this
-        var nextStop = true
-        while(current.childCount == 1) {
-            if ((nextStop && current == stop) || current._gameInfoNode != null) return current
-            current = current.fastChild(0, InternalMarker)
-            nextStop = true
-        }
-        if ((nextStop && current == stop) || current._gameInfoNode != null) return current
-        current.forEachChild(forward) {
-            val child = it.findGameInfoChild(stop, forward)
-            if (child != null) return child
-        }
-        return null
-    }
-
-    private inline fun forEachChild(forward: Boolean, block: (GoSGFNode) -> Unit) {
-        if (forward) for(i in 0 until childCount) block(fastChild(i, InternalMarker))
-        else for(i in (childCount - 1) downTo 0) block(fastChild(i, InternalMarker))
     }
 
     val unknownProperties = SGFNode()

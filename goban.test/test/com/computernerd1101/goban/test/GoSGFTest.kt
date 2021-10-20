@@ -161,4 +161,125 @@ class GoSGFTest {
         }
     }
 
+    @Test fun gameInfoNode() {
+        assertNull(root.gameInfoNode)
+        for(node in variation1)
+            assertSame(variation1[0], node.gameInfoNode)
+        for(node in variation2)
+            assertNull(node.gameInfoNode)
+        for(node in variation21)
+            assertSame(variation21[0], node.gameInfoNode)
+        for(node in variation22)
+            assertNull(node.gameInfoNode)
+        assertNull(variation221[0].gameInfoNode)
+        assertSame(variation221[1], variation221[1].gameInfoNode)
+        for(node in variation222)
+            assertSame(variation222[0], node.gameInfoNode)
+    }
+
+    @Test fun setGameInfo() {
+        val gameInfo = GameInfo()
+        gameInfo.gameName = "Variation 2.2"
+        variation22[1].gameInfo = gameInfo
+        assertNull(root.gameInfoNode)
+        for(node in variation1)
+            assertSame(variation1[0], node.gameInfoNode)
+        for(node in variation2)
+            assertNull(node.gameInfoNode)
+        for(node in variation21)
+            assertSame(variation21[0], node.gameInfoNode)
+        assertNull(variation22[0].gameInfoNode)
+        assertSame(variation22[1], variation22[1].gameInfoNode)
+        assertSame(gameInfo, variation22[1].gameInfo)
+        for(node in variation221) {
+            assertSame(variation22[1], node.gameInfoNode)
+            assertSame(gameInfo, node.gameInfo)
+        }
+        for(node in variation222) {
+            assertSame(variation22[1], node.gameInfoNode)
+            assertSame(gameInfo, node.gameInfo)
+        }
+    }
+
+    @Test fun setGameInfoNull() {
+        variation2[0].gameInfo = null
+        assertNull(root.gameInfoNode)
+        assertNull(root.gameInfo)
+        for(node in variation1) {
+            assertSame(variation1[0], node.gameInfoNode)
+            assertNotNull(node.gameInfo)
+        }
+        for(node in variation2) {
+            assertNull(node.gameInfoNode)
+            assertNull(node.gameInfo)
+        }
+        for(node in variation21) {
+            assertNull(node.gameInfoNode)
+            assertNull(node.gameInfo)
+        }
+        for(node in variation22) {
+            assertNull(node.gameInfoNode)
+            assertNull(node.gameInfo)
+        }
+        for(node in variation221) {
+            assertNull(node.gameInfoNode)
+            assertNull(node.gameInfo)
+        }
+        for(node in variation222) {
+            assertNull(node.gameInfoNode)
+            assertNull(node.gameInfo)
+        }
+    }
+
+    @Test fun hasGameInfoChildren() {
+        variation22[0].gameInfo = null
+        for(node in arrayOf(root, *variation1, *variation2, *variation21)) assertTrue(node.hasGameInfoChildren)
+        for(node in arrayOf(*variation22, *variation221, *variation222)) assertFalse(node.hasGameInfoChildren)
+    }
+
+    @Test fun hasGameInfoExcluding() {
+        val info1 = GameInfo()
+        info1.gameName = "Variation 1"
+        val info21 = GameInfo()
+        info21.gameName = "Variation 2.1"
+        val info221 = GameInfo()
+        info221.gameName = "Variation 2.2.1"
+        val info222 = GameInfo()
+        info222.gameName = "Variation 2.2.2"
+        for(node in variation1) assertFalse(node.hasGameInfoExcluding(info1))
+        for(node in variation21) assertFalse(node.hasGameInfoExcluding(info21))
+        for(node in variation221) assertFalse(node.hasGameInfoExcluding(info221))
+        for(node in variation222) assertFalse(node.hasGameInfoExcluding(info222))
+        for(node in arrayOf(root, *variation2, *variation21, *variation22, *variation221, *variation222))
+            assertTrue(node.hasGameInfoExcluding(info1))
+        for(node in arrayOf(root, *variation1, *variation2, *variation22, *variation221, *variation222))
+            assertTrue(node.hasGameInfoExcluding(info21))
+        for(node in arrayOf(root, *variation1, *variation2, *variation21, *variation22, *variation222))
+            assertTrue(node.hasGameInfoExcluding(info221))
+        for(node in arrayOf(root, *variation1, *variation2, *variation21, *variation22, *variation221))
+            assertTrue(node.hasGameInfoExcluding(info222))
+    }
+
+    @Test fun nextGameInfoNode() {
+        assertSame(variation1[0], root.nextGameInfoNode)
+        for(node in variation1 + variation2)
+            assertSame(variation21[0], node.nextGameInfoNode)
+        for(node in variation21 + variation22 + arrayOf(variation221[0]))
+            assertSame(variation221[1], node.nextGameInfoNode)
+        assertSame(variation222[0], variation221[1].nextGameInfoNode)
+        for(node in variation222)
+            assertSame(variation1[0], node.nextGameInfoNode)
+    }
+
+    @Test fun previousGameInfoNode() {
+        for(node in arrayOf(root, *variation1))
+            assertSame(variation222[0], node.previousGameInfoNode)
+        for(node in variation2 + variation21)
+            assertSame(variation1[0], node.previousGameInfoNode)
+        for(node in variation22 + variation221)
+            assertSame(variation21[0], node.previousGameInfoNode)
+        for(node in variation222)
+            assertSame(variation221[1], node.previousGameInfoNode)
+    }
+
 }
