@@ -165,7 +165,7 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
                     "Invalid variation view ST[$s]: $e", e)
             }
         }
-        rootNode.parseSGFNodes(InternalMarker, reader.fileFormat, tree, hadGameInfo=false, wasRoot=true)
+        rootNode.parseSGFNodes(reader.fileFormat, tree, InternalMarker)
     }
 
     private class GoSGFReader(val tree: SGFTree, val warnings: SGFWarningList) {
@@ -542,14 +542,14 @@ sealed class GoSGFNode {
             }
         }
 
-    private fun clearGameInfo(marker: InternalMarker) {
-        marker.ignore()
-        _gameInfo = null
-    }
-
     private fun getGameInfoDirect(marker: InternalMarker): GameInfo? {
         marker.ignore()
         return _gameInfo
+    }
+
+    private fun setGameInfoDirect(info: GameInfo?, marker: InternalMarker) {
+        marker.ignore()
+        _gameInfo = info
     }
 
     private fun setGameInfoNodeDirect(node: GoSGFNode?, marker: InternalMarker) {
@@ -566,7 +566,7 @@ sealed class GoSGFNode {
                 current = current.fastChild(0, InternalMarker)
                 if (!overwrite && current.gameInfoNode?.getGameInfoDirect(InternalMarker) != null)
                     return@DeepRecursiveFunction
-                current.clearGameInfo(InternalMarker)
+                current.setGameInfoDirect(null, InternalMarker)
                 current.setGameInfoNodeDirect(node, InternalMarker)
             }
             // minimize risk of StackOverflowError
@@ -574,7 +574,7 @@ sealed class GoSGFNode {
             for (i in 0 until n) {
                 val next = current.fastChild(i, InternalMarker)
                 if (overwrite || next.gameInfoNode?.getGameInfoDirect(InternalMarker) == null) {
-                    next.clearGameInfo(InternalMarker)
+                    next.setGameInfoDirect(null, InternalMarker)
                     callRecursive(next)
                 }
             }
@@ -805,658 +805,679 @@ sealed class GoSGFNode {
         return children
     }
 
-    internal fun writeSGFTree(tree: SGFTree, marker: InternalMarker) {
-        val charset = this.tree.charset
-        val nodeList = tree.nodes
-        var node = nodeList[0]
+    @OptIn(ExperimentalStdlibApi::class)
+    internal fun writeSGFTree(rootTree: SGFTree, marker: InternalMarker) {
         var current = this
         val markupSets = Array(PointMarkup.TYPES - 1) {
             MutableGoPointSet()
         }
-        var start = true
-        while(true) {
-            if (!start) {
-                node = SGFNode()
-                nodeList.add(node)
-            }
-            val propMap = node.properties
-            current.writeSGFNode(node)
-            var s = current.nodeName
-            if (s.isNotEmpty())
-                propMap["N"] = SGFProperty(SGFValue(s, charset))
-            var i = current.hotspot
-            if (i != 0)
-                propMap["HO"] = SGFProperty(SGFValue(SGFBytes(byteArrayOf(('0' + i).code.toByte()))))
-            current.positionState?.let { state ->
-                propMap[state.code] = SGFProperty(SGFValue(
-                    if (state.extent == 0) SGFBytes()
-                    else SGFBytes(byteArrayOf(('0' + state.extent).code.toByte()))
-                ))
-            }
-            val d = current.positionValue
-            if (!d.isNaN())
-                propMap["V"] = SGFProperty(SGFValue(SGFBytes(d.toString())))
-            i = current._figure and 0xFFFF
-            current._figureName?.let { name ->
-                propMap["FG"] = SGFProperty(SGFValue(SGFBytes(i.toString())).addText(name, charset))
-            } ?: if (i != 0) propMap["FG"] = SGFProperty(SGFValue(SGFBytes()))
-            current.newVisiblePoints?.toSGFProperty(true)?.let { prop ->
-                propMap["VW"] = prop
-            }
-            current.newDimPoints?.toSGFProperty(true)?.let { prop ->
-                propMap["DD"] = prop
-            }
-            current.newPrintMethod?.let { pm ->
-                propMap["PM"] = SGFProperty(SGFValue(SGFBytes(
-                    byteArrayOf(('0' + pm.ordinal).code.toByte())
-                )))
-            }
-            val territory = current.territory
-            territory.toPointSet(GoColor.BLACK).toSGFProperty(false)?.let { prop ->
-                propMap["TB"] = prop
-            }
-            territory.toPointSet(GoColor.WHITE).toSGFProperty(false)?.let { prop ->
-                propMap["TW"] = prop
-            }
-            if (current._gameInfoNode == current)
-                current.gameInfo?.writeSGFNode(node, charset)
-            var prop: SGFProperty? = null
-            for((point, markup) in current.pointMarkup) {
-                i = markup.ordinal
-                if (i == 0) {
-                    val value = SGFValue(SGFBytes(point.toString())).addText(markup.label, charset)
-                    prop?.values?.add(value) ?: SGFProperty(value).let { prop = it }
-                } else markupSets[i - 1].add(point)
-            }
-            prop?.let { propMap.put("LB", it) }
-            for(markup in markupSets.indices) {
-                val points = markupSets[markup]
-                points.toSGFProperty(true)?.let {
-                    propMap[PointMarkup.ordinal(markup + 1).type] = it
+        val charset = tree.charset
+        DeepRecursiveFunction<SGFTree, Unit> { tree ->
+            val nodeList = tree.nodes
+            var node = nodeList[0]
+            var start = true
+            while (true) {
+                if (!start) {
+                    node = SGFNode()
+                    nodeList.add(node)
                 }
-                points.clear()
+                val propMap = node.properties
+                current.writeSGFNode(node)
+                var s = current.nodeName
+                if (s.isNotEmpty())
+                    propMap["N"] = SGFProperty(SGFValue(s, charset))
+                var i = current.hotspot
+                if (i != 0)
+                    propMap["HO"] = SGFProperty(SGFValue(SGFBytes(byteArrayOf(('0' + i).code.toByte()))))
+                current.positionState?.let { state ->
+                    propMap[state.code] = SGFProperty(
+                        SGFValue(
+                            if (state.extent == 0) SGFBytes()
+                            else SGFBytes(byteArrayOf(('0' + state.extent).code.toByte()))
+                        )
+                    )
+                }
+                val d = current.positionValue
+                if (!d.isNaN())
+                    propMap["V"] = SGFProperty(SGFValue(SGFBytes(d.toString())))
+                i = current.figureMode
+                current.figureName?.let { name ->
+                    propMap["FG"] = SGFProperty(SGFValue(SGFBytes(i.toString())).addText(name, charset))
+                } ?: if (i != 0) propMap["FG"] = SGFProperty(SGFValue(SGFBytes()))
+                current.newVisiblePoints?.toSGFProperty(true)?.let { prop ->
+                    propMap["VW"] = prop
+                }
+                current.newDimPoints?.toSGFProperty(true)?.let { prop ->
+                    propMap["DD"] = prop
+                }
+                current.newPrintMethod?.let { pm ->
+                    propMap["PM"] = SGFProperty(
+                        SGFValue(
+                            SGFBytes(
+                                byteArrayOf(('0' + pm.ordinal).code.toByte())
+                            )
+                        )
+                    )
+                }
+                val territory = current.territory
+                territory.toPointSet(GoColor.BLACK).toSGFProperty(false)?.let { prop ->
+                    propMap["TB"] = prop
+                }
+                territory.toPointSet(GoColor.WHITE).toSGFProperty(false)?.let { prop ->
+                    propMap["TW"] = prop
+                }
+                if (current.gameInfoNode == current)
+                    current.gameInfo?.writeSGFNode(node, charset)
+                var prop: SGFProperty? = null
+                for ((point, markup) in current.pointMarkup) {
+                    i = markup.ordinal
+                    if (i == 0) {
+                        val value = SGFValue(SGFBytes(point.toString())).addText(markup.label, charset)
+                        prop?.values?.add(value) ?: SGFProperty(value).let { prop = it }
+                    } else markupSets[i - 1].add(point)
+                }
+                prop?.let { propMap.put("LB", it) }
+                for (markup in markupSets.indices) {
+                    val points = markupSets[markup]
+                    points.toSGFProperty(true)?.let {
+                        propMap[PointMarkup.ordinal(markup + 1).type] = it
+                    }
+                    points.clear()
+                }
+                prop = null
+                var propAR: SGFProperty? = null
+                for (lm in current.lineMarkup) {
+                    val value = SGFValue(SGFBytes(lm.start.toString()))
+                    value.parts.add(SGFBytes(lm.end.toString()))
+                    if (lm.isArrow)
+                        propAR?.values?.add(value) ?: SGFProperty(value).let { propAR = it }
+                    else
+                        prop?.values?.add(value) ?: SGFProperty(value).let { prop = it }
+                }
+                prop?.let { propMap["LN"] = it }
+                propAR?.let { propMap["AR"] = it }
+                s = current.comment
+                for (entry in current.unknownProperties.properties) {
+                    val name = entry.key
+                    if ((s.isEmpty() || name != "C") && !propMap.containsKey(name))
+                        propMap[name] = entry.value
+                }
+                if (s.isNotEmpty()) propMap["C"] = SGFProperty(SGFValue(s, charset))
+                if (current.children != 1) break
+                current = current.fastChild(0, marker)
+                start = false
             }
-            prop = null
-            var propAR: SGFProperty? = null
-            for(lm in current.lineMarkup) {
-                val value = SGFValue(SGFBytes(lm.start.toString()))
-                value.parts.add(SGFBytes(lm.end.toString()))
-                if (lm.isArrow)
-                    propAR?.values?.add(value) ?: SGFProperty(value).let { propAR = it }
-                else
-                    prop?.values?.add(value) ?: SGFProperty(value).let { prop = it }
+            val next = current
+            for (i in 0 until next.children) {
+                current = next.fastChild(i, marker)
+                callRecursive(tree.subTree(SGFNode()))
             }
-            prop?.let { propMap["LN"] = it }
-            propAR?.let { propMap["AR"] = it }
-            s = current.comment
-            for(entry in current.unknownProperties.properties) {
-                val name = entry.key
-                if ((s.isEmpty() || name != "C") && !propMap.containsKey(name))
-                    propMap[name] = entry.value
-            }
-            if (s.isNotEmpty()) propMap["C"] = SGFProperty(SGFValue(s, charset))
-            if (current.childCount != 1) break
-            current = current.childArray?.get(0) ?: break
-            start = false
-        }
-        for(i in 0 until current.childCount)
-            current.childArray?.get(i)?.writeSGFTree(tree.subTree(SGFNode()), marker)
+        }(rootTree)
     }
 
     protected abstract fun writeSGFNode(node: SGFNode)
 
     @Throws(SGFException::class)
+    @OptIn(ExperimentalStdlibApi::class)
     internal fun parseSGFNodes(
-        marker: InternalMarker,
         fileFormat: Int,
-        tree: SGFTree,
-        hadGameInfo: Boolean,
-        wasRoot: Boolean
+        rootTree: SGFTree,
+        marker: InternalMarker
     ) {
-        var isRoot = wasRoot
-        var hasGameInfo = hadGameInfo
-        val warnings = this.tree.warnings
-        var gameInfoNode: GoSGFNode?
-        var gameInfo: GameInfo? = null
-        val width = this.tree.width
-        val height = this.tree.height
+        marker.ignore()
+        val sgf = this.tree
+        val warnings = sgf.warnings
+        val width = sgf.width
+        val height = sgf.height
         val ignoreCase = width <= 26 && height <= 26
-        var currentNode = this
-        val territoryPoints = arrayOf(MutableGoPointSet(), MutableGoPointSet())
-        val markupPoints = Array(PointMarkup.TYPES) {
-            MutableGoPointSet()
-        }
-        val pointMarkupProps = arrayOfNulls<SGFProperty>(PointMarkup.TYPES - 1)
-        val lineMarkupProps = arrayOfNulls<SGFProperty>(2)
-        for(node in tree.nodes) {
-            val properties = node.properties
-            var setup: GoSGFSetupNode? = null
-            var move: GoSGFMoveNode? = null
-            // setup properties
-            val addBlack = properties["AB"]
-            val addWhite = properties["AW"]
-            val addEmpty = properties["AE"]
-            var isSetupNode = addBlack != null || addWhite != null || addEmpty != null
-            // move properties
-            val moveColor: GoColor?
-            val moveProp: SGFProperty?
-            val moveBlack = properties["B"]
-            val moveWhite = properties["W"]
-            when {
-                moveBlack != null -> {
-                    if (moveWhite != null) {
-                        val blackRow = moveBlack.row
-                        val whiteRow = moveWhite.row
-                        val row: Int
-                        val column: Int
-                        when {
-                            blackRow < whiteRow -> {
-                                row = blackRow
-                                column = moveBlack.column
+        var tree = rootTree
+        var isRoot = true
+        var hasGameInfo = false
+        DeepRecursiveFunction<GoSGFNode, Unit> {
+            var currentNode = it
+            var gameInfoNode: GoSGFNode?
+            var gameInfo: GameInfo? = null
+            val territoryPoints = arrayOf(MutableGoPointSet(), MutableGoPointSet())
+            val markupPoints = Array(PointMarkup.TYPES) {
+                MutableGoPointSet()
+            }
+            val pointMarkupProps = arrayOfNulls<SGFProperty>(PointMarkup.TYPES - 1)
+            val lineMarkupProps = arrayOfNulls<SGFProperty>(2)
+            for(node in tree.nodes) {
+                val properties = node.properties
+                var setup: GoSGFSetupNode? = null
+                var move: GoSGFMoveNode? = null
+                // setup properties
+                val addBlack = properties["AB"]
+                val addWhite = properties["AW"]
+                val addEmpty = properties["AE"]
+                var isSetupNode = addBlack != null || addWhite != null || addEmpty != null
+                // move properties
+                val moveColor: GoColor?
+                val moveProp: SGFProperty?
+                val moveBlack = properties["B"]
+                val moveWhite = properties["W"]
+                when {
+                    moveBlack != null -> {
+                        if (moveWhite != null) {
+                            val blackRow = moveBlack.row
+                            val whiteRow = moveWhite.row
+                            val row: Int
+                            val column: Int
+                            when {
+                                blackRow < whiteRow -> {
+                                    row = blackRow
+                                    column = moveBlack.column
+                                }
+                                blackRow != whiteRow -> {
+                                    row = whiteRow
+                                    column = moveWhite.column
+                                }
+                                else -> {
+                                    row = blackRow
+                                    column = min(moveBlack.column, moveWhite.column)
+                                }
                             }
-                            blackRow != whiteRow -> {
-                                row = whiteRow
-                                column = moveWhite.column
+                            throw SGFException(row, column,
+                                "Move properties B[] and W[] cannot exist within the same node.")
+                        }
+                        moveColor = GoColor.BLACK
+                        moveProp = moveBlack
+                    }
+                    moveWhite != null -> {
+                        moveColor = GoColor.WHITE
+                        moveProp = moveWhite
+                    }
+                    else -> {
+                        moveColor = null
+                        moveProp = null
+                    }
+                }
+                if (moveColor == null) isSetupNode = true
+                else if (isSetupNode)
+                    warnings.addWarning(
+                        SGFWarning(node.row, node.column,
+                            "Move and setup properties were detected in the same node. " +
+                                    "They will be separated into two split nodes.")
+                    )
+                if (isRoot) isSetupNode = true
+                val goban: Goban?
+                if (isSetupNode) {
+                    val blackPoints = parsePointSet(null, addBlack)
+                    val whitePoints = parsePointSet(null, addWhite)
+                    val emptyPoints = parsePointSet(null, addEmpty)
+                    val clashes = removeClashingGoPoints(blackPoints, whitePoints, emptyPoints)
+                    if (!clashes.isNullOrEmpty())
+                        warnings += SGFWarning(node.row, node.column, buildString {
+                            append("AB, AW and AE cannot be used on the same points: ")
+                            for(point in clashes)
+                                append('[').append(point).append(']')
+                        })
+                    goban = if (isRoot) {
+                        setup = currentNode as GoSGFSetupNode
+                        if (blackPoints.isNullOrEmpty() && whitePoints.isNullOrEmpty()) null
+                        else Goban(width, height)
+                    } else Goban(currentNode.goban)
+                    if (goban != null) {
+                        if (blackPoints != null) goban.setAll(blackPoints, GoColor.BLACK)
+                        if (whitePoints != null) goban.setAll(whitePoints, GoColor.WHITE)
+                        if (emptyPoints != null) goban.setAll(emptyPoints, null)
+                        setup = currentNode.createNextSetupNodeAsync(goban.readOnly())
+                    }
+                    if (setup != null) currentNode = setup
+                }
+                if (moveProp != null) {
+                    val moveBytes: SGFBytes = moveProp.values[0].parts[0]
+                    var movePoint = InternalGoSGF.parsePoint(moveBytes, ignoreCase)
+                    if (movePoint != null && (movePoint.x >= width || movePoint.y >= height)) {
+                        if (!(movePoint.x == 19 && movePoint.y == 19 &&
+                                    width <= 19 && height <= 19))
+                            warnings += SGFWarning(moveBytes.row, moveBytes.column,
+                                InternalGoSGF.pointOutOfRange(moveBytes.toString(), movePoint.x, movePoint.y,
+                                    width, height))
+                        movePoint = null
+                    }
+                    move = currentNode.createNextMoveNodeAsync(movePoint, moveColor!!)
+                    currentNode = move
+                }
+                var propPL: SGFProperty? = null
+                var propN: SGFProperty? = null
+                var propMN: SGFProperty? = null
+                var forceMove = false
+                val moveAnnotationLimit = 4
+                var indexIT = moveAnnotationLimit
+                var indexDO = moveAnnotationLimit
+                var indexBM = moveAnnotationLimit
+                var indexTE = moveAnnotationLimit
+                var moveAnnotationIndex = 0
+                var positionState: PositionState? = null
+                var positionName: String? = null
+                var positionProp: SGFProperty? = null
+                var propBM: SGFProperty? = null
+                var propTE: SGFProperty? = null
+                var propBL: SGFProperty? = null
+                var propOB: SGFProperty? = null
+                var propWL: SGFProperty? = null
+                var propOW: SGFProperty? = null
+                var propV: SGFProperty? = null
+                var propC: SGFProperty? = null
+                var propHO: SGFProperty? = null
+                var propFG: SGFProperty? = null
+                var propVW: SGFProperty? = null
+                var propDD: SGFProperty? = null
+                var propPM: SGFProperty? = null
+                var propTB: SGFProperty? = null
+                var propTW: SGFProperty? = null
+                // Point markup properties
+                var propL: SGFProperty? = null
+                var propM: SGFProperty? = null
+                var propLB: SGFProperty? = null
+                for((name, prop) in properties) {
+                    var state: PositionState? = null
+                    var isMoveProp = false
+                    when(name) {
+                        "PL" -> propPL = prop
+                        "N" -> propN = prop
+                        "KO" -> {
+                            isMoveProp = true
+                            forceMove = true
+                        }
+                        "MN" -> {
+                            isMoveProp = true
+                            propMN = prop
+                        }
+                        "IT" -> {
+                            isMoveProp = true
+                            indexIT = moveAnnotationIndex++
+                        }
+                        "DO" -> {
+                            isMoveProp = true
+                            indexDO = moveAnnotationIndex++
+                        }
+                        "BM" -> {
+                            isMoveProp = true
+                            indexBM = moveAnnotationIndex++
+                            propBM = prop
+                        }
+                        "TE" -> {
+                            isMoveProp = true
+                            indexTE = moveAnnotationIndex++
+                            propTE = prop
+                        }
+                        "BL" -> {
+                            isMoveProp = true
+                            propBL = prop
+                        }
+                        "OB" -> {
+                            isMoveProp = true
+                            propOB = prop
+                        }
+                        "WL" -> {
+                            isMoveProp = true
+                            propWL = prop
+                        }
+                        "OW" -> {
+                            isMoveProp = true
+                            propOW = prop
+                        }
+                        "C" -> propC = prop
+                        "HO" -> propHO = prop
+                        "FG" -> propFG = prop
+                        "UC" -> state = PositionState.UNCLEAR
+                        "DM" -> state = PositionState.EVEN
+                        "GB" -> state = PositionState.GOOD_FOR_BLACK
+                        "GW" -> state = PositionState.GOOD_FOR_WHITE
+                        "V" -> propV = prop
+                        "VW" -> propVW = prop
+                        "DD" -> propDD = prop
+                        "PM" -> propPM = prop
+                        "TB" -> propTB = prop
+                        "TW" -> propTW = prop
+                        "L" -> propL = prop
+                        "M" -> propM = prop
+                        "LB" -> propLB = prop
+                        "SL" -> pointMarkupProps[0] = prop
+                        "MA" -> pointMarkupProps[1] = prop
+                        "TR" -> pointMarkupProps[2] = prop
+                        "CR" -> pointMarkupProps[3] = prop
+                        "SQ" -> pointMarkupProps[4] = prop
+                        "LN" -> lineMarkupProps[0] = prop
+                        "AR" -> lineMarkupProps[1] = prop
+                        // root properties
+                        "GM", "FF", "SZ",
+                        "CA", "AP", "ST" -> if (!isRoot)
+                            warnings += SGFWarning(prop.row, prop.column, "$name$prop in non-root node")
+                        "PB", "BR", "BT",
+                        "PW", "WR", "WT",
+                        "KM", "HA", "DT", "TM", "OT",
+                        "RE", "GN", "GC", "SO", "US", "CP",
+                        "PC", "EV", "RO", "AN", "RU", "ON" -> if (hasGameInfo)
+                            warnings += SGFWarning(prop.row, prop.column,
+                                "$name$prop conflicts with parent game-info node")
+                        else {
+                            if (gameInfo == null) {
+                                gameInfo = GameInfo()
+                                if (setup != null && move != null) {
+                                    gameInfoNode = setup
+                                    gameInfoNode.setGameInfoNodeDirect(gameInfoNode, marker)
+                                } else gameInfoNode = currentNode
+                                currentNode.setGameInfoNodeDirect(gameInfoNode, marker)
+                                gameInfoNode.setGameInfoDirect(gameInfo, marker)
                             }
-                            else -> {
-                                row = blackRow
-                                column = min(moveBlack.column, moveWhite.column)
+                            gameInfo.parseSGFProperty(name, prop, sgf.charset, warnings)
+                        }
+                        // fundamental move or setup properties
+                        // that were already parsed
+                        "B", "W", "AB", "AW", "AE" -> Unit
+                        else -> currentNode.unknownProperties.properties[name] =
+                            prop.copy(SGFCopyLevel.ALL)
+                    }
+                    if (state != null) {
+                        if (positionState == null) {
+                            positionState = state
+                            positionName = name
+                            positionProp = prop
+                        } else warnings += SGFWarning(prop.row, prop.column,
+                            "$name$prop cannot appear in the same node as $positionName$positionProp")
+                    }
+                    if (isMoveProp && moveColor == null)
+                        warnings += SGFWarning(prop.row, prop.column,
+                            "$name$prop must be accompanied by either B[] or W[] in the same node")
+                }
+                if (propPL != null) {
+                    if (isSetupNode) {
+                        var nextPlayer: GoColor? = null
+                        val bytes: SGFBytes = propPL.values[0].parts[0]
+                        loopPL@ for (b in bytes) {
+                            when (b.toInt()) {
+                                'B'.code, 'b'.code -> {
+                                    nextPlayer = GoColor.BLACK
+                                    break@loopPL
+                                }
+                                'W'.code, 'w'.code -> {
+                                    nextPlayer = GoColor.WHITE
+                                    break@loopPL
+                                }
                             }
                         }
-                        throw SGFException(row, column,
-                            "Move properties B[] and W[] cannot exist within the same node.")
+                        if (nextPlayer == null)
+                            warnings += SGFWarning(
+                                propPL.row, propPL.column,
+                                "Illegal use for PL[$bytes] - must be PL[B] or PL[W]"
+                            )
+                        else setup?.turnPlayer = nextPlayer
+                    } else warnings += SGFWarning(propPL.row, propPL.column, "Cannot use PL[] in move node")
+                }
+                if (propN != null)
+                    (setup ?: currentNode).nodeName =
+                        InternalGoSGF.parseSGFValue(propN.values[0], sgf.charset, warnings)
+                if (move != null) {
+                    move.isForced = forceMove
+                    when {
+                        indexIT < indexDO -> move.moveAnnotation = MoveAnnotation.INTERESTING
+                        indexDO < indexIT -> move.moveAnnotation = MoveAnnotation.DOUBTFUL
+                        indexTE < indexBM -> move.moveAnnotation =
+                            if (indexBM < moveAnnotationLimit) MoveAnnotation.INTERESTING
+                            else MoveAnnotation.GOOD.toExtent(parse1or2(propTE, warnings))
+                        indexBM < indexTE -> move.moveAnnotation =
+                            if (indexTE < moveAnnotationLimit) MoveAnnotation.DOUBTFUL
+                            else MoveAnnotation.BAD.toExtent(parse1or2(propBM, warnings))
                     }
-                    moveColor = GoColor.BLACK
-                    moveProp = moveBlack
+                    if (propMN != null) {
+                        val bytes: SGFBytes = propMN.values[0].parts[0]
+                        val s = bytes.toString()
+                        var num = 0
+                        val isParsed = try {
+                            num = s.toInt()
+                            true
+                        } catch (e: NumberFormatException) {
+                            warnings += SGFWarning(bytes.row, bytes.column,
+                                "Unable to parse move number MN[$s]: $e", e)
+                            false
+                        }
+                        if (num > 0) move.moveNumber = num
+                        else if (isParsed) warnings += SGFWarning(
+                            bytes.row, bytes.column,
+                            "Move number must be positive: MN[$num]"
+                        )
+                    }
+                    move.black.parseTimeRemaining(propBL, propOB)
+                    move.white.parseTimeRemaining(propWL, propOW)
                 }
-                moveWhite != null -> {
-                    moveColor = GoColor.WHITE
-                    moveProp = moveWhite
+                if (propC != null)
+                    currentNode.comment = InternalGoSGF.parseSGFValue(propC.values[0], sgf.charset, warnings)
+                if (propHO != null) currentNode.hotspot = parse1or2(propHO, warnings)
+                if (propFG != null) {
+                    val bytesList = propFG.values[0].parts
+                    var bytes = bytesList[0]
+                    val s = bytes.toString()
+                    if (s.isBlank() && bytesList.size == 1) {
+                        currentNode._figure = FIGURE_DEFAULT
+                        currentNode._figureName = null
+                    } else {
+                        var figureMode = 0
+                        val isParsed = try {
+                            figureMode = s.toInt()
+                            true
+                        } catch (e: NumberFormatException) {
+                            warnings += SGFWarning(
+                                bytes.row, bytes.column,
+                                "Invalid figure mode FG[$s]: $e", e
+                            )
+                            false
+                        }
+                        if (isParsed && figureMode !in 0..0xFFFF)
+                            warnings += SGFWarning(
+                                bytes.row, bytes.column,
+                                "Invalid figure mode FG[$s]"
+                            )
+                        val figureName = if (bytesList.size > 1) {
+                            bytes = bytesList[1]
+                            InternalGoSGF.parseSGFBytesList(
+                                bytes.row, bytes.column,
+                                bytesList.subList(1, bytesList.size),
+                                sgf.charset, warnings
+                            )
+                        } else ""
+                        currentNode.setFigure(figureName, figureMode)
+                    }
                 }
-                else -> {
-                    moveColor = null
-                    moveProp = null
+                if (positionProp != null && positionState != null) {
+                    positionState = positionState.toExtent(parse1or2(positionProp, warnings))
+                    currentNode.positionState = positionState
                 }
-            }
-            if (moveColor == null) isSetupNode = true
-            else if (isSetupNode)
-                warnings.addWarning(
-                    SGFWarning(node.row, node.column,
-                        "Move and setup properties were detected in the same node. " +
-                                "They will be separated into two split nodes.")
-                )
-            if (isRoot) isSetupNode = true
-            val goban: Goban?
-            if (isSetupNode) {
-                val blackPoints = parsePointSet(null, addBlack)
-                val whitePoints = parsePointSet(null, addWhite)
-                val emptyPoints = parsePointSet(null, addEmpty)
-                val clashes = removeClashingGoPoints(blackPoints, whitePoints, emptyPoints)
+                propV?.values?.get(0)?.parts?.get(0)?.let { bytes: SGFBytes ->
+                    val s = bytes.toString()
+                    var d = 0.0
+                    val isParsed = try {
+                        d = s.toDouble()
+                        true
+                    } catch(e: NumberFormatException) {
+                        warnings += SGFWarning(bytes.row, bytes.column,
+                            "Unable to parse floating-point value V[$s]: $e", e)
+                        false
+                    }
+                    if (isParsed) {
+                        if (d.isInfinite() || d.isNaN())
+                            warnings += SGFWarning(bytes.row, bytes.column,
+                                "Value is not finite: V[$s]")
+                        else currentNode.positionValue = d
+                    }
+                }
+                if (propVW != null)
+                    currentNode.newVisiblePoints = parsePointSet(fileFormat, MutableGoPointSet(), propVW)
+                if (propDD != null)
+                    currentNode.newDimPoints = parsePointSet(MutableGoPointSet(), propDD)
+                propPM?.values?.get(0)?.parts?.get(0)?.let { bytes: SGFBytes ->
+                    currentNode.newPrintMethod = PrintMethod.parseOrdinal(bytes.toString())
+                }
+                parsePointSet(territoryPoints[0], propTB)
+                parsePointSet(territoryPoints[1], propTW)
+                val clashes = removeClashingGoPoints(*territoryPoints)
                 if (!clashes.isNullOrEmpty())
                     warnings += SGFWarning(node.row, node.column, buildString {
-                        append("AB, AW and AE cannot be used on the same points: ")
+                        append("TB and TW cannot be used on the same points: ")
                         for(point in clashes)
                             append('[').append(point).append(']')
                     })
-                goban = if (isRoot) {
-                    setup = currentNode as GoSGFSetupNode
-                    if (blackPoints.isNullOrEmpty() && whitePoints.isNullOrEmpty()) null
-                    else Goban(width, height)
-                } else Goban(currentNode.goban)
-                if (goban != null) {
-                    if (blackPoints != null) goban.setAll(blackPoints, GoColor.BLACK)
-                    if (whitePoints != null) goban.setAll(whitePoints, GoColor.WHITE)
-                    if (emptyPoints != null) goban.setAll(emptyPoints, null)
-                    setup = currentNode.createNextSetupNodeAsync(goban.readOnly())
-                }
-                if (setup != null) currentNode = setup
-            }
-            if (moveProp != null) {
-                val moveBytes: SGFBytes = moveProp.values[0].parts[0]
-                var movePoint = InternalGoSGF.parsePoint(moveBytes, ignoreCase)
-                if (movePoint != null && (movePoint.x >= width || movePoint.y >= height)) {
-                    if (!(movePoint.x == 19 && movePoint.y == 19 &&
-                                width <= 19 && height <= 19))
-                        warnings += SGFWarning(moveBytes.row, moveBytes.column,
-                            InternalGoSGF.pointOutOfRange(moveBytes.toString(), movePoint.x, movePoint.y,
-                                width, height))
-                    movePoint = null
-                }
-                move = currentNode.createNextMoveNodeAsync(movePoint, moveColor!!)
-                currentNode = move
-            }
-            var propPL: SGFProperty? = null
-            var propN: SGFProperty? = null
-            var propMN: SGFProperty? = null
-            var forceMove = false
-            val moveAnnotationLimit = 4
-            var indexIT = moveAnnotationLimit
-            var indexDO = moveAnnotationLimit
-            var indexBM = moveAnnotationLimit
-            var indexTE = moveAnnotationLimit
-            var moveAnnotationIndex = 0
-            var positionState: PositionState? = null
-            var positionName: String? = null
-            var positionProp: SGFProperty? = null
-            var propBM: SGFProperty? = null
-            var propTE: SGFProperty? = null
-            var propBL: SGFProperty? = null
-            var propOB: SGFProperty? = null
-            var propWL: SGFProperty? = null
-            var propOW: SGFProperty? = null
-            var propV: SGFProperty? = null
-            var propC: SGFProperty? = null
-            var propHO: SGFProperty? = null
-            var propFG: SGFProperty? = null
-            var propVW: SGFProperty? = null
-            var propDD: SGFProperty? = null
-            var propPM: SGFProperty? = null
-            var propTB: SGFProperty? = null
-            var propTW: SGFProperty? = null
-            // Point markup properties
-            var propL: SGFProperty? = null
-            var propM: SGFProperty? = null
-            var propLB: SGFProperty? = null
-            for((name, prop) in properties) {
-                var state: PositionState? = null
-                var isMoveProp = false
-                when(name) {
-                    "PL" -> propPL = prop
-                    "N" -> propN = prop
-                    "KO" -> {
-                        isMoveProp = true
-                        forceMove = true
-                    }
-                    "MN" -> {
-                        isMoveProp = true
-                        propMN = prop
-                    }
-                    "IT" -> {
-                        isMoveProp = true
-                        indexIT = moveAnnotationIndex++
-                    }
-                    "DO" -> {
-                        isMoveProp = true
-                        indexDO = moveAnnotationIndex++
-                    }
-                    "BM" -> {
-                        isMoveProp = true
-                        indexBM = moveAnnotationIndex++
-                        propBM = prop
-                    }
-                    "TE" -> {
-                        isMoveProp = true
-                        indexTE = moveAnnotationIndex++
-                        propTE = prop
-                    }
-                    "BL" -> {
-                        isMoveProp = true
-                        propBL = prop
-                    }
-                    "OB" -> {
-                        isMoveProp = true
-                        propOB = prop
-                    }
-                    "WL" -> {
-                        isMoveProp = true
-                        propWL = prop
-                    }
-                    "OW" -> {
-                        isMoveProp = true
-                        propOW = prop
-                    }
-                    "C" -> propC = prop
-                    "HO" -> propHO = prop
-                    "FG" -> propFG = prop
-                    "UC" -> state = PositionState.UNCLEAR
-                    "DM" -> state = PositionState.EVEN
-                    "GB" -> state = PositionState.GOOD_FOR_BLACK
-                    "GW" -> state = PositionState.GOOD_FOR_WHITE
-                    "V" -> propV = prop
-                    "VW" -> propVW = prop
-                    "DD" -> propDD = prop
-                    "PM" -> propPM = prop
-                    "TB" -> propTB = prop
-                    "TW" -> propTW = prop
-                    "L" -> propL = prop
-                    "M" -> propM = prop
-                    "LB" -> propLB = prop
-                    "SL" -> pointMarkupProps[0] = prop
-                    "MA" -> pointMarkupProps[1] = prop
-                    "TR" -> pointMarkupProps[2] = prop
-                    "CR" -> pointMarkupProps[3] = prop
-                    "SQ" -> pointMarkupProps[4] = prop
-                    "LN" -> lineMarkupProps[0] = prop
-                    "AR" -> lineMarkupProps[1] = prop
-                    // root properties
-                    "GM", "FF", "SZ",
-					"CA", "AP", "ST" -> if (!isRoot)
-                        warnings += SGFWarning(prop.row, prop.column, "$name$prop in non-root node")
-                    "PB", "BR", "BT",
-					"PW", "WR", "WT",
-					"KM", "HA", "DT", "TM", "OT",
-                    "RE", "GN", "GC", "SO", "US", "CP",
-                    "PC", "EV", "RO", "AN", "RU", "ON" -> if (hasGameInfo)
-                        warnings += SGFWarning(prop.row, prop.column,
-                            "$name$prop conflicts with parent game-info node")
-                    else {
-                        if (gameInfo == null) {
-                            gameInfo = GameInfo()
-                            if (setup != null && move != null) {
-                                gameInfoNode = setup
-                                gameInfoNode._gameInfoNode = gameInfoNode
-                            } else gameInfoNode = currentNode
-                            currentNode._gameInfoNode = gameInfoNode
-                            gameInfoNode.gameInfo = gameInfo
-                        }
-                        gameInfo.parseSGFProperty(name, prop, this.tree.charset, warnings)
-                    }
-                    // fundamental move or setup properties
-                    // that were already parsed
-                    "B", "W", "AB", "AW", "AE" -> Unit
-                    else -> currentNode.unknownProperties.properties[name] =
-                        prop.copy(SGFCopyLevel.ALL)
-                }
-                if (state != null) {
-                    if (positionState == null) {
-                        positionState = state
-                        positionName = name
-                        positionProp = prop
-                    } else warnings += SGFWarning(prop.row, prop.column,
-                        "$name$prop cannot appear in the same node as $positionName$positionProp")
-                }
-                if (isMoveProp && moveColor == null)
-                    warnings += SGFWarning(prop.row, prop.column,
-                        "$name$prop must be accompanied by either B[] or W[] in the same node")
-            }
-            if (propPL != null) {
-                if (isSetupNode) {
-                    var nextPlayer: GoColor? = null
-                    val bytes: SGFBytes = propPL.values[0].parts[0]
-                    loopPL@ for (b in bytes) {
-                        when (b.toInt()) {
-                            'B'.code, 'b'.code -> {
-                                nextPlayer = GoColor.BLACK
-                                break@loopPL
-                            }
-                            'W'.code, 'w'.code -> {
-                                nextPlayer = GoColor.WHITE
-                                break@loopPL
-                            }
-                        }
-                    }
-                    if (nextPlayer == null)
-                        warnings += SGFWarning(
-                            propPL.row, propPL.column,
-                            "Illegal use for PL[$bytes] - must be PL[B] or PL[W]"
-                        )
-                    else setup?.turnPlayer = nextPlayer
-                } else warnings += SGFWarning(propPL.row, propPL.column, "Cannot use PL[] in move node")
-            }
-            if (propN != null)
-                (setup ?: currentNode).nodeName =
-                    InternalGoSGF.parseSGFValue(propN.values[0], this.tree.charset, warnings)
-            if (move != null) {
-                move.isForced = forceMove
-                when {
-                    indexIT < indexDO -> move.moveAnnotation = MoveAnnotation.INTERESTING
-                    indexDO < indexIT -> move.moveAnnotation = MoveAnnotation.DOUBTFUL
-                    indexTE < indexBM -> move.moveAnnotation =
-                        if (indexBM < moveAnnotationLimit) MoveAnnotation.INTERESTING
-                        else MoveAnnotation.GOOD.toExtent(parse1or2(propTE, warnings))
-                    indexBM < indexTE -> move.moveAnnotation =
-                        if (indexTE < moveAnnotationLimit) MoveAnnotation.DOUBTFUL
-                        else MoveAnnotation.BAD.toExtent(parse1or2(propBM, warnings))
-                }
-                if (propMN != null) {
-                    val bytes: SGFBytes = propMN.values[0].parts[0]
-                    val s = bytes.toString()
-                    var num = 0
-                    val isParsed = try {
-                        num = s.toInt()
-                        true
-                    } catch (e: NumberFormatException) {
-                        warnings += SGFWarning(bytes.row, bytes.column,
-                            "Unable to parse move number MN[$s]: $e", e)
-                        false
-                    }
-                    if (num > 0) move.moveNumber = num
-                    else if (isParsed) warnings += SGFWarning(
-                        bytes.row, bytes.column,
-                        "Move number must be positive: MN[$num]"
-                    )
-                }
-                move.black.parseTimeRemaining(propBL, propOB)
-                move.white.parseTimeRemaining(propWL, propOW)
-            }
-            if (propC != null)
-                currentNode.comment = InternalGoSGF.parseSGFValue(propC.values[0], this.tree.charset, warnings)
-            if (propHO != null) currentNode.hotspot = parse1or2(propHO, warnings)
-            if (propFG != null) {
-                val bytesList = propFG.values[0].parts
-                var bytes = bytesList[0]
-                val s = bytes.toString()
-                if (s.isBlank() && bytesList.size == 1) {
-                    currentNode._figure = FIGURE_DEFAULT
-                    currentNode._figureName = null
-                } else {
-                    var figureMode = 0
-                    val isParsed = try {
-                        figureMode = s.toInt()
-                        true
-                    } catch (e: NumberFormatException) {
-                        warnings += SGFWarning(
-                            bytes.row, bytes.column,
-                            "Invalid figure mode FG[$s]: $e", e
-                        )
-                        false
-                    }
-                    if (isParsed && figureMode !in 0..0xFFFF)
-                        warnings += SGFWarning(
-                            bytes.row, bytes.column,
-                            "Invalid figure mode FG[$s]"
-                        )
-                    currentNode._figure = figureMode and 0xFFFF
-                    currentNode._figureName = if (bytesList.size > 1) {
-                        bytes = bytesList[1]
-                        InternalGoSGF.parseSGFBytesList(
-                            bytes.row, bytes.column,
-                            bytesList.subList(1, bytesList.size),
-                            this.tree.charset, warnings
-                        )
-                    } else ""
-                }
-            }
-            if (positionProp != null && positionState != null) {
-                positionState = positionState.toExtent(parse1or2(positionProp, warnings))
-                currentNode.positionState = positionState
-            }
-            propV?.values?.get(0)?.parts?.get(0)?.let { bytes: SGFBytes ->
-                val s = bytes.toString()
-                var d = 0.0
-                val isParsed = try {
-                    d = s.toDouble()
-                    true
-                } catch(e: NumberFormatException) {
-                    warnings += SGFWarning(bytes.row, bytes.column,
-                        "Unable to parse floating-point value V[$s]: $e", e)
-                    false
-                }
-                if (isParsed) {
-                    if (d.isInfinite() || d.isNaN())
-                        warnings += SGFWarning(bytes.row, bytes.column,
-                            "Value is not finite: V[$s]")
-                    else currentNode.positionValue = d
-                }
-            }
-            if (propVW != null)
-                currentNode.newVisiblePoints = parsePointSet(fileFormat, MutableGoPointSet(), propVW)
-            if (propDD != null)
-                currentNode.newDimPoints = parsePointSet(MutableGoPointSet(), propDD)
-            propPM?.values?.get(0)?.parts?.get(0)?.let { bytes: SGFBytes ->
-                currentNode.newPrintMethod = PrintMethod.parseOrdinal(bytes.toString())
-            }
-            parsePointSet(territoryPoints[0], propTB)
-            parsePointSet(territoryPoints[1], propTW)
-            val clashes = removeClashingGoPoints(*territoryPoints)
-            if (!clashes.isNullOrEmpty())
-                warnings += SGFWarning(node.row, node.column, buildString {
-                    append("TB and TW cannot be used on the same points: ")
-                    for(point in clashes)
-                        append('[').append(point).append(']')
-                })
-            currentNode.territory.setAll(territoryPoints[0], GoColor.BLACK)
-            currentNode.territory.setAll(territoryPoints[1], GoColor.WHITE)
-            val labelMap = mutableMapOf<GoPoint, String>()
-            val markupLB = markupPoints[0]
-            val markupMA = markupPoints[2]
-            val markupTR = markupPoints[3]
-            propLB?.values?.forEach next@{ value ->
-                val parts = value.parts
-                val bytes = parts[0]
-                val point = InternalGoSGF.parsePoint(bytes, ignoreCase)
-                if (point == null) {
-                    warnings += SGFWarning(bytes.row, bytes.column, InternalGoSGF.malformedPoint(bytes.toString()))
-                    return@next // continue
-                }
-                if (point.x >= width && point.y >= height) {
-                    warnings += SGFWarning(bytes.row, bytes.column,
-                        InternalGoSGF.pointOutOfRange(bytes.toString(), point.x, point.y, width, height))
-                    return@next
-                }
-                var s: String
-                val partsCount = parts.size
-                if (partsCount > 1) {
-                    val bytes2 = parts[1]
-                    s = InternalGoSGF.parseSGFBytesList(bytes2.row, bytes2.column,
-                        parts.subList(1, partsCount),
-                        this.tree.charset, warnings)
-                    if (s.isNotEmpty()) {
-                        labelMap[point] = s
-                        markupLB.add(point)
-                        return@next
-                    }
-                    s = "$bytes:"
-                } else s = bytes.toString()
-                warnings += SGFWarning(bytes.row, bytes.column,
-                    "Empty label: LB[$s]")
-            }
-            propL?.values?.let { valueList ->
-                var i = 0
-                for(value in valueList) {
-                    val s = Parse.LABELS[i]
-                    if (++i >= 52) i = 0
-                    val bytes = value.parts[0]
+                currentNode.territory.setAll(territoryPoints[0], GoColor.BLACK)
+                currentNode.territory.setAll(territoryPoints[1], GoColor.WHITE)
+                val labelMap = mutableMapOf<GoPoint, String>()
+                val markupLB = markupPoints[0]
+                val markupMA = markupPoints[2]
+                val markupTR = markupPoints[3]
+                propLB?.values?.forEach next@{ value ->
+                    val parts = value.parts
+                    val bytes = parts[0]
                     val point = InternalGoSGF.parsePoint(bytes, ignoreCase)
                     if (point == null) {
-                        warnings += SGFWarning(bytes.row, bytes.column,
-                                InternalGoSGF.malformedPoint(bytes.toString()))
-                        continue
+                        warnings += SGFWarning(bytes.row, bytes.column, InternalGoSGF.malformedPoint(bytes.toString()))
+                        return@next // continue
                     }
-                    if (point.x >= width || point.y >= height) {
+                    if (point.x >= width && point.y >= height) {
                         warnings += SGFWarning(bytes.row, bytes.column,
                             InternalGoSGF.pointOutOfRange(bytes.toString(), point.x, point.y, width, height))
-                        continue
+                        return@next
                     }
-                    val label = labelMap[point]
-                    if (label != null) {
-                        warnings += SGFWarning(bytes.row, bytes.column,
-                            "Point already has label: LB[$bytes:$label]")
-                        continue
+                    var s: String
+                    val partsCount = parts.size
+                    if (partsCount > 1) {
+                        val bytes2 = parts[1]
+                        s = InternalGoSGF.parseSGFBytesList(bytes2.row, bytes2.column,
+                            parts.subList(1, partsCount),
+                            sgf.charset, warnings)
+                        if (s.isNotEmpty()) {
+                            labelMap[point] = s
+                            markupLB.add(point)
+                            return@next
+                        }
+                        s = "$bytes:"
+                    } else s = bytes.toString()
+                    warnings += SGFWarning(bytes.row, bytes.column,
+                        "Empty label: LB[$s]")
+                }
+                propL?.values?.let { valueList ->
+                    var i = 0
+                    for(value in valueList) {
+                        val s = Parse.LABELS[i]
+                        if (++i >= 52) i = 0
+                        val bytes = value.parts[0]
+                        val point = InternalGoSGF.parsePoint(bytes, ignoreCase)
+                        if (point == null) {
+                            warnings += SGFWarning(bytes.row, bytes.column,
+                                InternalGoSGF.malformedPoint(bytes.toString()))
+                            continue
+                        }
+                        if (point.x >= width || point.y >= height) {
+                            warnings += SGFWarning(bytes.row, bytes.column,
+                                InternalGoSGF.pointOutOfRange(bytes.toString(), point.x, point.y, width, height))
+                            continue
+                        }
+                        val label = labelMap[point]
+                        if (label != null) {
+                            warnings += SGFWarning(bytes.row, bytes.column,
+                                "Point already has label: LB[$bytes:$label]")
+                            continue
+                        }
+                        labelMap[point] = s
+                        markupLB.add(point)
                     }
-                    labelMap[point] = s
-                    markupLB.add(point)
                 }
-            }
-            for(i in 1 until PointMarkup.TYPES)
-                pointMarkupProps[i - 1]?.let {
-                    parsePointSet(markupPoints[i], it)
-                }
-            if (propM != null) parsePointSet(null, propM)?.let { xPoints ->
-                xPoints.removeAll(markupMA)
-                xPoints.removeAll(markupTR)
-                if (xPoints.isNotEmpty()) {
-                    val g = currentNode.goban
-                    if (!g.isEmpty()) {
-                        val trPoints = xPoints.copy()
-                        val ePoints = g.toPointSet(null)
-                        xPoints.retainAll(ePoints)
-                        trPoints.removeAll(ePoints)
-                        markupTR.addAll(trPoints)
+                for(i in 1 until PointMarkup.TYPES)
+                    pointMarkupProps[i - 1]?.let {
+                        parsePointSet(markupPoints[i], it)
                     }
-                    markupMA.addAll(xPoints)
+                if (propM != null) parsePointSet(null, propM)?.let { xPoints ->
+                    xPoints.removeAll(markupMA)
+                    xPoints.removeAll(markupTR)
+                    if (xPoints.isNotEmpty()) {
+                        val g = currentNode.goban
+                        if (!g.isEmpty()) {
+                            val trPoints = xPoints.copy()
+                            val ePoints = g.toPointSet(null)
+                            xPoints.retainAll(ePoints)
+                            trPoints.removeAll(ePoints)
+                            markupTR.addAll(trPoints)
+                        }
+                        markupMA.addAll(xPoints)
+                    }
                 }
-            }
-            val markupClashes = removeClashingGoPoints(*markupPoints)
-            if (!markupClashes.isNullOrEmpty())
-                warnings += SGFWarning(node.row, node.column, buildString {
-                    append("LB, SL, MA, TR, CR and SQ cannot be used on the same points: ")
-                    for(point in markupClashes)
-                        append('[').append(point).append(']')
-                })
-            for(point in markupPoints[0])
-                labelMap[point]?.let { s ->
-                    currentNode.pointMarkup[point] = PointMarkup.label(s)
-                }
-            for(i in 1 until PointMarkup.TYPES)
-                for(point in markupPoints[i])
-                    currentNode.pointMarkup[point] = PointMarkup.ordinal(i)
-            for(i in 0..1) {
-                val prop = lineMarkupProps[i] ?: continue
-                for(value in prop.values) {
-                    val bytesList = value.parts
-                    if (bytesList.size < 2) {
-                        warnings += SGFWarning(value.row, value.column,
+                val markupClashes = removeClashingGoPoints(*markupPoints)
+                if (!markupClashes.isNullOrEmpty())
+                    warnings += SGFWarning(node.row, node.column, buildString {
+                        append("LB, SL, MA, TR, CR and SQ cannot be used on the same points: ")
+                        for(point in markupClashes)
+                            append('[').append(point).append(']')
+                    })
+                for(point in markupPoints[0])
+                    labelMap[point]?.let { s ->
+                        currentNode.pointMarkup[point] = PointMarkup.label(s)
+                    }
+                for(i in 1 until PointMarkup.TYPES)
+                    for(point in markupPoints[i])
+                        currentNode.pointMarkup[point] = PointMarkup.ordinal(i)
+                for(i in 0..1) {
+                    val prop = lineMarkupProps[i] ?: continue
+                    for(value in prop.values) {
+                        val bytesList = value.parts
+                        if (bytesList.size < 2) {
+                            warnings += SGFWarning(value.row, value.column,
                                 Parse.WARNING_REQUIRE_2_POINTS[i])
-                        continue
+                            continue
+                        }
+                        val s1 = bytesList[0]
+                        val s2 = bytesList[1]
+                        val start = InternalGoSGF.parsePoint(s1, ignoreCase)
+                        if (start == null) {
+                            warnings += SGFWarning(s1.row, s1.column,
+                                InternalGoSGF.malformedPoint(s1.toString()))
+                            continue
+                        }
+                        if (start.x >= width || start.y >= height) {
+                            warnings += SGFWarning(s1.row, s1.column,
+                                InternalGoSGF.pointOutOfRange(s1.toString(), start.x, start.y, width, height))
+                            continue
+                        }
+                        val end = InternalGoSGF.parsePoint(s2, ignoreCase)
+                        if (end == null) {
+                            warnings += SGFWarning(s2.row, s2.column,
+                                InternalGoSGF.malformedPoint(s2.toString()))
+                            continue
+                        }
+                        if (end.x >= width || end.y >= height) {
+                            warnings += SGFWarning(s2.row, s2.column,
+                                InternalGoSGF.pointOutOfRange(s2.toString(), end.x, end.y, width, height))
+                            continue
+                        }
+                        if (end == start) {
+                            warnings += SGFWarning(s2.row, s2.column,
+                                Parse.WARNING_CONNECT_POINT_TO_SELF_PREFIX[i] + s2.toString() +
+                                        Parse.WARNING_CONNECT_POINT_TO_SELF_SUFFIX)
+                            continue
+                        }
+                        lineMarkup.add(
+                            if (i == 0) start lineMarkup end
+                            else start arrowMarkup end
+                        )
                     }
-                    val s1 = bytesList[0]
-                    val s2 = bytesList[1]
-                    val start = InternalGoSGF.parsePoint(s1, ignoreCase)
-                    if (start == null) {
-                        warnings += SGFWarning(s1.row, s1.column,
-                            InternalGoSGF.malformedPoint(s1.toString()))
-                        continue
-                    }
-                    if (start.x >= width || start.y >= height) {
-                        warnings += SGFWarning(s1.row, s1.column,
-                            InternalGoSGF.pointOutOfRange(s1.toString(), start.x, start.y, width, height))
-                        continue
-                    }
-                    val end = InternalGoSGF.parsePoint(s2, ignoreCase)
-                    if (end == null) {
-                        warnings += SGFWarning(s2.row, s2.column,
-                            InternalGoSGF.malformedPoint(s2.toString()))
-                        continue
-                    }
-                    if (end.x >= width || end.y >= height) {
-                        warnings += SGFWarning(s2.row, s2.column,
-                            InternalGoSGF.pointOutOfRange(s2.toString(), end.x, end.y, width, height))
-                        continue
-                    }
-                    if (end == start) {
-                        warnings += SGFWarning(s2.row, s2.column,
-                            Parse.WARNING_CONNECT_POINT_TO_SELF_PREFIX[i] + s2.toString() +
-                                    Parse.WARNING_CONNECT_POINT_TO_SELF_SUFFIX)
-                        continue
-                    }
-                    lineMarkup.add(
-                        if (i == 0) start lineMarkup end
-                        else start arrowMarkup end
-                    )
                 }
+                isRoot = false
+                if (gameInfo != null) hasGameInfo = true
+                pointMarkupProps.fill(null)
+                lineMarkupProps.fill(null)
+                for(points in markupPoints)
+                    points.clear()
+                for(points in territoryPoints)
+                    points.clear()
             }
-            isRoot = false
-            if (gameInfo != null) hasGameInfo = true
-            pointMarkupProps.fill(null)
-            lineMarkupProps.fill(null)
-            for(points in markupPoints)
-                points.clear()
-            for(points in territoryPoints)
-                points.clear()
-        }
-        for(subTree in tree.subTrees)
-            currentNode.parseSGFNodes(marker, fileFormat, subTree, hadGameInfo=hasGameInfo, wasRoot=false)
+            val parentTree = tree
+            val hadGameInfo = hasGameInfo
+            for(subTree in parentTree.subTrees) {
+                tree = subTree
+                hasGameInfo = hadGameInfo
+                callRecursive(currentNode)
+            }
+        }(this)
     }
 
     private object Parse {
