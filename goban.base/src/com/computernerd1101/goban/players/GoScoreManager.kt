@@ -5,6 +5,7 @@ import com.computernerd1101.goban.internal.*
 import com.computernerd1101.goban.sgf.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
+import kotlinx.coroutines.selects.SelectClause1
 import kotlinx.coroutines.selects.select
 import kotlin.coroutines.*
 
@@ -50,6 +51,8 @@ class GoScoreManager internal constructor(val game: GoGameManager, marker: Inter
     suspend fun computeScore(): GoColor? {
         submitPlayerFlags = 0
         val scope = CoroutineScope(coroutineContext)
+        val deadStones = _deadStones
+        val livingStones = _livingStones
         val deferredSubmit: Deferred<GoColor?> = submitted.suspendAsync(scope)
         val blackPlayer = game.blackPlayer
         val whitePlayer = game.whitePlayer
@@ -64,7 +67,7 @@ class GoScoreManager internal constructor(val game: GoGameManager, marker: Inter
         var resumeRequest: GoColor? = null
         var waiting = true
         while(waiting) select<Unit> {
-            _deadStones.onReceive {
+            deadStones.onReceive {
                 unSubmitScore(InternalMarker)
                 receiveStones.copyFrom(it)
                 sendStones.clear()
@@ -79,7 +82,7 @@ class GoScoreManager internal constructor(val game: GoGameManager, marker: Inter
                 blackPlayer.updateScoring(stones, false)
                 whitePlayer.updateScoring(stones, false)
             }
-            _livingStones.onReceive {
+            livingStones.onReceive {
                 unSubmitScore(InternalMarker)
                 receiveStones.copyFrom(it)
                 sendStones.clear()

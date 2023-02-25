@@ -171,19 +171,20 @@ class GameResult private constructor(
         @JvmField val blackWins = makeTable(BLACK_FORFEIT, BLACK_RESIGN, BLACK_TIME)
         @JvmField val whiteWins = makeTable(WHITE_FORFEIT, WHITE_RESIGN, WHITE_TIME)
 
+        @JvmStatic
         private fun makeTable(vararg results: GameResult): Array<GameResult?> {
             val table = arrayOfNulls<GameResult>(0x100)
             for (result in results) {
                 val ch = (result.code shr 16) and 0xFF
                 table[ch] = result
-                when {
-                    ch == 0 -> { // draw
+                when (ch) {
+                    0 -> { // draw
                         table['0'.code] = result
                         table['D'.code] = result
                         table['d'.code] = result
                     }
-                    ch.toChar() in 'A'..'Z' -> table[ch + ('a' - 'A')] = result
-                    ch.toChar() in 'a'..'z' -> table[ch - ('a' - 'A')] = result
+                    in 'A'.code..'Z'.code -> table[ch + ('a' - 'A')] = result
+                    in 'a'.code..'z'.code -> table[ch - ('a' - 'A')] = result
                 }
             }
             return table

@@ -294,13 +294,23 @@ class SGFNode: SGFTreeElement, Serializable {
             val cap = if (other is PropertyMap) other.table.size
             else Private.capacity(((1 + other.size)*1.1).toInt())
             val tab = arrayOfNulls<PropertyEntry>(cap)
-            for(entry in other) {
+            entries@for(entry in other) {
                 val key = entry.key
                 if (!isPropertyName(key)) continue
                 var value = entry.value
                 if (copy) value = value.copy(level)
                 val pe = PropertyEntry(key, value, root)
-                val i = pe.hash and (cap - 1)
+                var i = pe.hash and (cap - 1)
+                var e = tab[i]
+                while(e != null) {
+                    if (key == e.key) {
+                        e.setValue(value)
+                        pe.remove()
+                        continue@entries
+                    }
+                    i = Private.nextKeyIndex(i, cap)
+                    e = tab[i]
+                }
                 pe.index = i
                 tab[i] = pe
                 n++

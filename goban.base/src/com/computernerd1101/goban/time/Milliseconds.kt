@@ -201,6 +201,7 @@ class Milliseconds private constructor(
         return (hash xor (hash ushr 32)).toInt()
     }
 
+    @Transient
     private var string: String? = null
 
     override fun toString(): String = string ?: run {

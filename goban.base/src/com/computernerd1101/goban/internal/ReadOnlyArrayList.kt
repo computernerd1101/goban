@@ -24,24 +24,24 @@ internal class ReadOnlyArrayList<out E> private constructor(
     }
 
     override fun indexOf(element: @UnsafeVariance E): Int {
-        val limit = offset + _size
+        val size = _size
         if (element == null) {
-            for(i in offset until limit)
-                if (array[i] == null) return i
+            for(i in 0 until size)
+                if (array[i + offset] == null) return i
         } else {
-            for(i in offset until limit)
-                if (element == array[i]) return i
+            for(i in 0 until size)
+                if (element == array[i + offset]) return i
         }
         return -1
     }
     override fun lastIndexOf(element: @UnsafeVariance E): Int {
-        var i = offset + _size
+        var i = _size
         if (element == null) {
-            while(i > offset)
-                if (array[--i] == null) return i
+            while(i > 0)
+                if (array[--i + offset] == null) return i
         } else {
-            while(i > offset)
-                if (element == array[--i]) return i
+            while(i > 0)
+                if (element == array[--i + offset]) return i
         }
         return -1
     }
@@ -88,17 +88,10 @@ internal class ReadOnlyArrayList<out E> private constructor(
         return true
     }
 
-    @Transient private var hashCodeInitialized: Boolean = false
-    @Transient private var hashCode: Int = 0
-
     override fun hashCode(): Int {
-        if (hashCodeInitialized)
-            return hashCode
         var h = 1
         for(i in offset until offset + _size)
             h = 31*h + array[i].hashCode()
-        hashCode = h
-        hashCodeInitialized = true
         return h
     }
 

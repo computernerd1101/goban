@@ -77,7 +77,7 @@ class Date private constructor(private val value: Int): Comparable<Date>, Serial
         fun daysInMonth(month: Int): Int = if (month in 1..12) Private.daysInMonth[month] else 0
 
         @JvmStatic
-        fun parse(s: String): Date? = InternalDate.parse(null, s)
+        fun parse(s: String): Date? = parseDateInternal(null, s)
 
         private const val serialVersionUID = 1L
 
@@ -138,7 +138,7 @@ class Date private constructor(private val value: Int): Comparable<Date>, Serial
 
     @Suppress("unused")
     fun parseNext(s: String): Date {
-        return InternalDate.parse(this, s) ?: this
+        return parseDateInternal(this, s) ?: this
     }
 
     private fun readResolve(): Any {
@@ -155,7 +155,7 @@ class Date private constructor(private val value: Int): Comparable<Date>, Serial
 }
 
 fun Date?.parseNext(s: String): Date? {
-    return InternalDate.parse(this, s) ?: this
+    return parseDateInternal(this, s) ?: this
 }
 
 @Suppress("unused")
@@ -388,8 +388,8 @@ class DateSet(): MutableIterable<Date>, Serializable {
                 }
                 @Suppress("UNCHECKED_CAST")
                 val type = when(index) {
-                    30 -> Table2d.Table1d.YearTable.MonthTable30::class.java
                     31 -> Table2d.Table1d.YearTable.MonthTable31::class.java
+                    30 -> Table2d.Table1d.YearTable.MonthTable30::class.java
                     else -> Table2d.Table1d.YearTable.MonthTable::class.java
                 } as Class<Table2d.Table1d.YearTable.MonthTable>
                 AtomicReferenceFieldUpdater.newUpdater(type, Date::class.java, buf.concatToString(0, nBuf))
@@ -951,14 +951,14 @@ class DateSet(): MutableIterable<Date>, Serializable {
                                 if (Private.DAYS[i].getAndSet(this, null) != null) delta--
                             }
                         } else {
-                            delta = if (Private.DAYS[d].getAndSet(this, date) == null) 1 else 0
-                            if (Private.DAYS[0].getAndSet(this, null) != null) delta--
+                            if (Private.DAYS[d].getAndSet(this, date) != null) return false
+                            delta = if (Private.DAYS[0].getAndSet(this, null) == null) 1 else 0
                         }
-                        return if (delta != 0) {
+                        if (delta != 0) {
                             Private.DAY_COUNT.addAndGet(this, delta)
                             Private.COUNT.addAndGet(this@DateSet, delta)
-                            true
-                        } else false
+                        }
+                        return true
                     }
 
                     fun contains(date: Date, exact: Boolean): Boolean {

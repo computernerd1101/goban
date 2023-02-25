@@ -1,6 +1,7 @@
 package com.computernerd1101.goban.internal
 
 import com.computernerd1101.goban.*
+import java.io.Serializable
 import java.lang.ref.ReferenceQueue
 import java.lang.ref.WeakReference
 
@@ -84,7 +85,7 @@ internal abstract class GoPointMapCollection<out V, out E>(open val map: GoPoint
 
     abstract fun elementFrom(entry: Map.Entry<GoPoint, @UnsafeVariance V>): E
 
-    abstract val immutable: GoPointMapCollection<V, *>
+    abstract val immutable: GoPointMapCollection<V, E>
 
     open fun expungeStaleRows() = Unit
 
@@ -237,6 +238,7 @@ internal open class GoPointEntries<out V>(
         if (map is MutableGoPointMap<*>) {
             foundValue = true
             value = element.value
+            // TODO Do I really want this here?
             if (!map.isValidValue(value, InternalMarker)) return false
         } else {
             foundValue = false
@@ -260,11 +262,11 @@ internal open class GoPointEntries<out V>(
         if (elements !is GoPointEntries<*>)
             return super.containsAll(elements)
         elements.expungeStaleRows()
-        val rows1 = map.secrets
-        val rows2 = elements.map.secrets
+        val secrets1 = map.secrets
+        val secrets2 = elements.map.secrets
         for(y in 0..51) {
-            val row2 = rows2[y] ?: continue
-            val row1 = rows1[y] ?: return false
+            val row2 = secrets2[y] ?: continue
+            val row1 = secrets1[y] ?: return false
             for(x in 0..51)
                 row2[x]?.let { entry2 ->
                     val entry1 = row1[x]
@@ -294,7 +296,7 @@ internal open class GoPointEntries<out V>(
                 return map.secrets.size == 0 && other.map.secrets.size == 0
             other.immutable
         } else other
-        return map.secrets.size == other.size && immutable.containsAll(set)
+        return map.secrets.size == set.size && immutable.containsAll(set)
     }
 
     override fun hashCode(): Int {
@@ -319,11 +321,11 @@ internal class MutableGoPointEntry<V>(
     map: MutableGoPointMap<V>,
     override val key: GoPoint,
     value: V
-): MutableMap.MutableEntry<GoPoint, V> {
+): MutableMap.MutableEntry<GoPoint, V>, Serializable {
 
     override var value: V = value; private set
 
-    var map: MutableGoPointMap<V>? = map
+    @Transient var map: MutableGoPointMap<V>? = map
 
     override fun setValue(newValue: V): V {
         map?.filterValue(newValue, InternalMarker)
@@ -345,17 +347,16 @@ internal class MutableGoPointEntry<V>(
         return "$key=${map.valueToString(this)}"
     }
 
-}
+    companion object {
+        private const val serialVersionUID = 1L
+    }
 
-@Suppress("UNCHECKED_CAST")
-internal fun <V> MutableGoPointMap<V>.mutableEntries() =
-    MutableGoPointEntries(this, secrets.entries) as MutableSet<MutableMap.MutableEntry<GoPoint, V>>
+}
 
 internal class MutableGoPointEntries<V>(
     map: MutableGoPointMap<V>,
     override val immutable: GoPointEntries<V>
-): GoPointEntries<V>(map),
-    MutableSet<Map.Entry<GoPoint, V>> {
+): GoPointEntries<V>(map), MutableSet<Map.Entry<GoPoint, V>> {
 
     override val map: MutableGoPointMap<V>
         get() = super.map as MutableGoPointMap<V>
@@ -498,6 +499,13 @@ internal class MutableGoPointEntries<V>(
                     val row1 = secrets1[y] ?: continue
                     val row2 = secrets2[y]
                     if (row2 == null) {
+                        for(x in 0..51) {
+                            val entry = row1[x] as MutableGoPointEntry<V>?
+                            if (entry != null) {
+                                entry.map = null
+                                row1[x] = null
+                            }
+                        }
                         AtomicArray52.SIZE.getAndAdd(secrets1, -AtomicArray52.SIZE.getAndSet(row1, 0))
                         secrets1[y] = null
                         modified = true
@@ -778,7 +786,7 @@ internal class MutableGoPointKeys<V>(
                 is GoRectangle -> for(y in elements.start.y..elements.end.y) {
                     val row = secrets1[y] as AtomicArray52<MutableGoPointEntry<V>>?
                     if (row != null && removeRangeFromRow(elements.start.x, elements.end.x,
-                            y, secrets1, row, retain=false))
+                            y, secrets1, row, retain = false))
                         modified = true
                 }
                 else -> {
@@ -823,9 +831,9 @@ internal class MutableGoPointKeys<V>(
                         val row1 = secrets1[y] ?: continue
                         val row2 = secrets2[y]
                         if (row2 == null) {
-                            AtomicArray52.SIZE.getAndAdd(secrets1, -AtomicArray52.SIZE.getAndSet(row1, 0))
-                            secrets1[y] = null
-                            modified = true
+                            val row = row1 as AtomicArray52<MutableGoPointEntry<V>>
+                            if (removeRangeFromRow(0, 51, y, secrets1, row, retain = false))
+                                modified = true
                         } else {
                             for(x in 0..51) {
                                 val entry = row1[x] as MutableGoPointEntry<V>?
@@ -855,13 +863,13 @@ internal class MutableGoPointKeys<V>(
                         val row = secrets1[y] as AtomicArray52<MutableGoPointEntry<V>>?
                         if (row != null && removeRangeFromRow(
                                 elements.start.x, elements.end.x,
-                                y, secrets1, row, retain=true))
+                                y, secrets1, row, retain = true))
                             modified = true
                     }
                     if (removeRows(elements.end.y + 1, 51, secrets1))
                         modified = true
                 }
-                else -> modified = MutableGoPointMapItr(this).removeAll(toImmutable(elements), retain=true)
+                else -> modified = MutableGoPointMapItr(this).removeAll(toImmutable(elements), retain = true)
             }
         } finally {
             expungeStaleRows()
@@ -875,7 +883,7 @@ internal class MutableGoPointKeys<V>(
         row: AtomicArray52<MutableGoPointEntry<V>>,
         bits: Long
     ): Boolean {
-        var remainingBits = bits
+        var remainingBits = bits and ((1L shl 52) - 1L)
         var modified = false
         while (remainingBits != 0L) {
             val bit = remainingBits and -remainingBits
@@ -955,7 +963,7 @@ internal class MutableGoPointKeys<V>(
         var modified = false
         for(y in y1..y2) {
             val row = secrets[y] as AtomicArray52<MutableGoPointEntry<V>>?
-            if (row != null && removeRangeFromRow(0, 51, y, secrets, row, false))
+            if (row != null && removeRangeFromRow(0, 51, y, secrets, row, retain = false))
                 modified = true
         }
         return modified
@@ -1062,7 +1070,7 @@ internal class MutableGoPointValues<V>(
 
     override fun removeAll(elements: Collection<V>): Boolean {
         if (this === elements) {
-            if (AtomicArray52.SIZE[map.secrets] == 0) {
+            if (map.secrets.size == 0) {
                 expungeStaleRows()
                 return false
             }

@@ -66,7 +66,7 @@ public class GobanView extends JComponent {
     public void setShowCoordinates(boolean show) {
         if (!show)
             setFormatLocale(null);
-        else if (formatLocale != null)
+        else if (formatLocale == null)
             setFormatLocale(Locale.getDefault(Locale.Category.FORMAT));
     }
 

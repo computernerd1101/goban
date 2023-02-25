@@ -36,11 +36,13 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
         val cmp = renderer.getTreeCellRendererComponent(tree, value, selected, expanded, leaf, row, hasFocus)
         val sgf = root ?: return cmp
         val move: String?
+        val annotation: MoveAnnotation?
         val icon: Icon
         val node: GoSGFNode
         when(value) {
             sgf -> {
                 move = null
+                annotation = null
                 icon = if (sgf.rootNode.turnPlayer == GoColor.WHITE) iconSetupWhite
                 else iconSetupBlack
                 node = sgf.rootNode
@@ -48,18 +50,21 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
             is GoSGFMoveNode -> {
                 node = value
                 move = value.playStoneAt.formatOrPass(sgf.width, sgf.height)
+                annotation = value.moveAnnotation
                 icon = if (value.turnPlayer == GoColor.BLACK) iconPlayBlack
                 else iconPlayWhite
             }
             is GoSGFSetupNode -> {
                 node = value
                 move = null
+                annotation = null
                 icon = if (getNextPlayer(node) == GoColor.BLACK) iconSetupBlack
                 else iconSetupWhite
             }
             else -> return cmp
         }
-        renderer.text = nodeFormatter.format(node.index, move, node.hotspot, node.gameInfoNode === node)
+        renderer.text = nodeFormatter.format(node.index, move, annotation, node.hotspot,
+            node.gameInfoNode === node)
         renderer.icon = icon
         return cmp
     }
@@ -169,11 +174,11 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
     }
 
     override fun canImport(support: TransferSupport): Boolean {
-        return import(support, doImport=false)
+        return import(support, doImport = false)
     }
 
     override fun importData(support: TransferSupport): Boolean {
-        return import(support, doImport=true)
+        return import(support, doImport = true)
     }
 
     private fun import(support: TransferSupport, doImport: Boolean): Boolean {
@@ -185,8 +190,7 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
         val path = (support.dropLocation as? JTree.DropLocation)?.path ?: return false
         return when {
             isNode -> importNode(support, path, doImport)
-            isGameInfo -> importGameInfo(support, path, doImport)
-            else -> false
+            else -> importGameInfo(support, path, doImport)
         }
     }
 
@@ -272,11 +276,11 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
                     "GameInfo.Warning.Selected"
                 else -> "GameInfo.Warning.Parent"
             }
-            val tree = support.component as JTree
+            val component = support.component
             if (warning != null) SwingUtilities.invokeLater {
                 val resources = gobanDesktopResources()
                 if (JOptionPane.showConfirmDialog(
-                        tree,
+                        component,
                         resources.getString(warning),
                         resources.getString("GameInfo.Warning.Title"),
                         JOptionPane.YES_NO_OPTION,
@@ -294,7 +298,7 @@ class SGFTreeModel: TransferHandler(), TreeModel, TreeCellRenderer {
         dstNode.gameInfo = if (dstNode.gameInfo === info) info
         else info.copy()
         val event = TreeModelEvent(this, path)
-        synchronized(this) {
+        synchronized(this@SGFTreeModel) {
             for(i in (listenerList.size - 1) downTo 0)
                 listenerList[i].treeNodesChanged(event)
         }

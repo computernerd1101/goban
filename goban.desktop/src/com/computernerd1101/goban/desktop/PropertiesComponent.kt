@@ -1,6 +1,6 @@
 package com.computernerd1101.goban.desktop
 
-import com.computernerd1101.goban.annotations.*
+import com.computernerd1101.goban.properties.*
 import com.computernerd1101.goban.desktop.resources.gobanDesktopResources
 import java.awt.*
 import java.text.ParseException

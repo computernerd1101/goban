@@ -14,7 +14,11 @@ internal fun interface GoPointFormatter {
         override fun format(point: GoPoint?, width: Int, height: Int): String {
             if (point == null) return "Pass"
             val y = height - point.y
-            return if (y in 1..52) point.gtpFormat(height) else "${point.x.gtpFormatX()}$y"
+            return when {
+                y !in 1..52 -> "${point.x.gtpFormatX()}$y"
+                height <= 52 -> point.gtpFormat(height)
+                else -> GoPoint(point.x, 52 - y).gtpFormat(52)
+            }
         }
 
     }

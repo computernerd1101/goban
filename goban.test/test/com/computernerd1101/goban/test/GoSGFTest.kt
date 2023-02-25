@@ -64,6 +64,13 @@ class GoSGFTest {
         assertEquals(0, variation222.last().children)
     }
 
+    @Test fun leafNodes() {
+        assertEquals(
+            listOf(variation1[2], variation21[3], variation221[1], variation222[1]),
+            sgf.leafNodes()
+        )
+    }
+
     @Test fun tree() {
         assertSame(sgf, root.tree)
         for(node in variation1 + variation2 + variation21 + variation22 + variation221 + variation222) {

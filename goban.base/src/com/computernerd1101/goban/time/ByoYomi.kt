@@ -1,6 +1,6 @@
 package com.computernerd1101.goban.time
 
-import com.computernerd1101.goban.annotations.*
+import com.computernerd1101.goban.properties.*
 import com.computernerd1101.goban.resources.*
 import java.util.*
 

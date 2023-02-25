@@ -72,11 +72,11 @@ internal class ContinuationProxy<T> {
 
 internal class SendOnlyChannel<E>(private val channel: Channel<E>): SendChannel<E> by channel {
 
-    private val hexAddress = "@" + Integer.toHexString(System.identityHashCode(channel))
-    private val replaceHexAddress = "@" + Integer.toHexString(System.identityHashCode(this))
-
-    override fun toString(): String =
-        channel.toString().replaceFirst(hexAddress, replaceHexAddress, true)
+    override fun toString(): String = channel.toString().replaceFirst(
+        "@" + Integer.toHexString(System.identityHashCode(channel)),
+        "@" + Integer.toHexString(System.identityHashCode(this)),
+        ignoreCase = true
+    )
 
 }
 
@@ -89,7 +89,7 @@ private val deBruijn64tab = byteArrayOf(
     54, 26, 40, 15, 34, 20, 31, 10, 25, 14, 19,  9, 13,  8,  7,  6
 )
 
-// the given argument must be two to the power of k.
+// The given argument must be two to the power of k.
 // Multiplying by a power of two is equivalent to
 // left shifting, in this case by k bits. The de Bruijn (64 bit) constant
 // is such that all six bit, consecutive substrings are distinct.

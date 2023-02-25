@@ -22,6 +22,10 @@ class GoRectangle internal constructor(
         @JvmStatic
         fun rect(x1: Int, y1: Int, x2: Int, y2: Int): GoRectangle {
             if (x1 == x2 && y1 == y2) return GoPoint(x1, y1).selfRect
+            if ((x1 == 0 && y1 == 0) || (x2 == 0 && y2 == 0))
+                return GoPoint(x1, y1).rect(x2, y2)
+            if ((x1 == 0 && y2 == 0) || (x2 == 0 && y1 == 0))
+                return GoPoint(x1, y2).rect(x2, y1)
             val startX: Int
             val startY: Int
             val endX: Int
@@ -47,12 +51,17 @@ class GoRectangle internal constructor(
 
     }
 
+    val x1: Int @JvmName("x1") get() = start.x
+    val y1: Int @JvmName("y1") get() = start.y
+    val x2: Int @JvmName("x2") get() = end.x
+    val y2: Int @JvmName("y2") get() = end.y
+
     override val size: Int
-        get() = (end.x - start.x + 1)*(end.y - start.y + 1)
+        get() = (x2 - x1 + 1)*(y2 - y1 + 1)
 
     override fun isEmpty() = false
 
-    override fun contains(element: GoPoint) = element.x in start.x..end.x && element.y in start.y..end.y
+    override fun contains(element: GoPoint) = element.x in x1..x2 && element.y in y1..y2
 
     override fun containsAll(elements: Collection<GoPoint>): Boolean {
         when(elements) {
@@ -88,7 +97,7 @@ class GoRectangle internal constructor(
         return true
     }
 
-    override fun iterator(): Iterator<GoPoint> = Itr(start.x, start.y, end.x, end.y)
+    override fun iterator(): Iterator<GoPoint> = Itr(x1, y1, x2, y2)
 
     private class Itr(
         // Every time the iterator starts a new row, x will reset to x1
@@ -141,8 +150,8 @@ class GoRectangle internal constructor(
     override fun hashCode(): Int {
         // The hash code of a Set is the sum of the hash codes of its elements.
         // start.hashCode() = x1 + 52*y1
-        val x = end.x - start.x // x2 - x1
-        val y = end.y - start.y // y2 - y1
+        val x = x2 - x1
+        val y = y2 - y1
         // sum[y0=y1..y2]sum[x0=x1..x2](x0+52*y0) = (y+1)*(x+1)*(x/2 + y*26 + start.hashCode())
         // Proof: sum[y0=y1..y2]sum[x0=x1..x2](x0 + 52*y0)
         // = sum[y0=0..y]sum[x0=0..x](x0 + x1 + 52*(y0 + y1))
@@ -164,10 +173,10 @@ class GoRectangle internal constructor(
     operator fun component2() = end
 
     fun copy(
-        x1: Int = this.start.x,
-        y1: Int = this.start.y,
-        x2: Int = this.end.x,
-        y2: Int = this.end.y,
+        x1: Int = this.x1,
+        y1: Int = this.y1,
+        x2: Int = this.x2,
+        y2: Int = this.y2,
         from: GoPoint? = null,
         to: GoPoint? = null
     ): GoRectangle {
@@ -203,6 +212,7 @@ class GoRectangle internal constructor(
         val end = GoPoint(endX, endY)
         return when {
             start == end -> start.selfRect
+            startX == 0 && startY == 0 -> start rect end
             start == this.start && end == this.end -> this
             else -> GoRectangle(start, end, null, InternalGoRectangle)
         }
@@ -216,12 +226,17 @@ class GoRectangle internal constructor(
         val end: GoPoint
         when {
             y1 <= y2 -> {
-                if (x1 <= x2) {
-                    string = InternalGoRectangle.toString(this.start, this.end)
-                    return this
+                if (x1 > x2) {
+                    start = GoPoint(x2, y1)
+                    end   = GoPoint(x1, y2)
+                } else {
+                    start = this.start
+                    end = this.end
+                    if (x1 != 0 || y1 != 0) {
+                        string = InternalGoRectangle.toString(start, end)
+                        return this
+                    }
                 }
-                start = GoPoint(x2, y1)
-                end   = GoPoint(x1, y2)
             }
             x1 < x2 -> {
                 start = GoPoint(x1, y2)
@@ -232,7 +247,8 @@ class GoRectangle internal constructor(
                 end = this.start
             }
         }
-        return GoRectangle(start, end, null, InternalGoRectangle)
+        return if (start.x == 0 && start.y == 0) start rect end
+        else GoRectangle(start, end, null, InternalGoRectangle)
     }
 
 }

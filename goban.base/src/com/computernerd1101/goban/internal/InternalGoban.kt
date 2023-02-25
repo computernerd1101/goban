@@ -14,7 +14,7 @@ internal object InternalGoban: LongBinaryOperator {
             height <= 26 -> height*2 - 1
             else -> height + 25 // height + 26 - 1
         }
-        return GobanRows.empty[index]
+        return GobanRows1.empty(index)
     }
 
     fun newRows(width: Int, height: Int): GobanRows1 = emptyRows(width, height).newInstance()
@@ -23,7 +23,7 @@ internal object InternalGoban: LongBinaryOperator {
         var count = 0L
         for(i in 0 until src.size) {
             val row = src[i]
-            val oldRow = GobanRows.ROWS[i].getAndSet(dst, row)
+            val oldRow = GobanRows1.getRow(i).getAndSet(dst, row)
             count += countStonesInRow(row) - countStonesInRow(oldRow)
         }
         return count
@@ -61,7 +61,7 @@ internal object InternalGoban: LongBinaryOperator {
             x < 32 -> y*2
             else -> y*2 + 1
         }
-        val row = GobanRows.ROWS[y2].getAndAccumulate(goban.rows,
+        val row = GobanRows1.getRow(y2).getAndAccumulate(goban.rows,
             (1L shl x2) or when(newColor) {
                 null -> 0L
                 GoColor.BLACK -> NEW_BLACK
@@ -88,6 +88,7 @@ internal object InternalGoban: LongBinaryOperator {
             when(newColor) {
                 GoColor.BLACK -> recount += BLACK
                 GoColor.WHITE -> recount += WHITE
+                null -> {}
             }
             COUNT.addAndGet(goban, recount)
         }
@@ -159,7 +160,11 @@ internal object InternalGoban: LongBinaryOperator {
 
 internal object GobanBulk: LongBinaryOperator {
 
-    fun setAll(goban: AbstractMutableGoban, rows: Any, color: GoColor?): Boolean {
+    fun setAll(
+        goban: AbstractMutableGoban,
+        rows: Any, // GoRectangle | GoPointSet | LongArray
+        color: GoColor?
+    ): Boolean {
         val width = goban.width
         val height = goban.height
         var mask1 = 1.shl(width) - 1
@@ -211,7 +216,7 @@ internal object GobanBulk: LongBinaryOperator {
         if (color == null) removeBits *= InternalGoban.MASK // remove both black and white
         else if (color == GoColor.BLACK) removeBits = removeBits shl 32 // remove white
         // else remove black
-        val row = GobanRows.ROWS[i].getAndAccumulate(goban.rows, removeBits, this)
+        val row = GobanRows1.getRow(i).getAndAccumulate(goban.rows, removeBits, this)
         val recount: Long = if (color == null)
             -InternalGoban.countStonesInRow(row and removeBits)
         else {
@@ -237,7 +242,7 @@ internal object GobanBulk: LongBinaryOperator {
         return (row or add) and remove.inv()
     }
 
-    fun  isAlive(width: Int, height: Int,
+    fun isAlive(width: Int, height: Int,
                 xBit: Long, y: Int,
                 player: Int, opponent: Int,
                 falseEyeScore: Int = -1,
@@ -331,6 +336,7 @@ internal object GobanBulk: LongBinaryOperator {
                 }
             }
             // pop next point
+            @Suppress("DuplicatedCode")
             while(pendingY < height) {
                 val row = pending[pendingY]
                 if (row != 0L) {
@@ -346,7 +352,7 @@ internal object GobanBulk: LongBinaryOperator {
             if (falseEyes == null) return isAlive
             val score = arrays[falseEyeScore]
             y1 = -1
-            // Return true unless score and falseEyes have exactly one bit in common.
+            // Return true unless score and falseEyes have exactly one set bit in common.
             for(i in 0 until height) {
                 val row = score[i] and falseEyes[i]
                 if (row == 0L) continue

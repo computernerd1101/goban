@@ -2,7 +2,7 @@ package com.computernerd1101.goban.desktop
 
 import com.computernerd1101.goban.*
 import com.computernerd1101.goban.players.GoGameSetup
-import com.computernerd1101.goban.annotations.PropertyList
+import com.computernerd1101.goban.properties.PropertyList
 import com.computernerd1101.goban.desktop.internal.*
 import com.computernerd1101.goban.desktop.resources.*
 import com.computernerd1101.goban.sgf.GameInfo

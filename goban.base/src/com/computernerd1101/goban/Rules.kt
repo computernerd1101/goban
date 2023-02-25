@@ -128,7 +128,7 @@ enum class GoRules(
 
         @JvmStatic
         fun valueOf(superko: Superko, territoryScore: Boolean): GoRules {
-            return Private.VALUES[superko.ordinal*4 + (if (territoryScore) 2 else 0)]
+            return Private.VALUES[superko.ordinal*4 + territoryScore.toFlag(2)]
         }
 
         @JvmStatic
@@ -137,8 +137,10 @@ enum class GoRules(
             territoryScore: Boolean,
             allowSuicide: Boolean
         ): GoRules {
-            return Private.VALUES[superko.ordinal*4 + (if (territoryScore) 2 else 0) + (if (allowSuicide) 1 else 0)]
+            return Private.VALUES[superko.ordinal*4 + territoryScore.toFlag(2) + allowSuicide.toFlag(1)]
         }
+
+        private fun Boolean.toFlag(flag: Int): Int = if (this) flag else 0
 
     }
 

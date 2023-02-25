@@ -1,4 +1,4 @@
-package com.computernerd1101.goban.annotations
+package com.computernerd1101.goban.properties
 
 @Target(AnnotationTarget.PROPERTY)
 @Retention(AnnotationRetention.RUNTIME)

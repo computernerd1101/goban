@@ -45,17 +45,16 @@ class GoGameManager {
         var node = sgf.rootNode
         gameInfo = setup?.gameInfo ?: GameInfo()
         node.gameInfo = gameInfo
-        if (setup?.isFreeHandicap != true) {
-            // If setup is null, then handicap is zero, in which case goban will be null.
-            val goban = setup?.generateFixedHandicap()
+        if (setup?.isFreeHandicap == false) {
+            val goban = setup.generateFixedHandicap()
             if (goban != null) {
                 gameInfo.handicap = goban.blackCount
                 node = node.createNextSetupNode(goban)
-            }
+            } else gameInfo.handicap = 0
         }
         _node = node
-        var player1 = setup?.blackPlayer ?: defaultPlayerFactory
-        var player2 = setup?.whitePlayer ?: defaultPlayerFactory
+        var player1 = setup?.blackPlayer
+        var player2 = setup?.whitePlayer
         if (setup?.randomPlayer?.nextBoolean() == true) {
             val tmp = player1
             player1 = player2
@@ -64,8 +63,8 @@ class GoGameManager {
             setup.player2 = player2
             gameInfo.swapPlayers()
         }
-        blackPlayer = player1.safeCreatePlayer(GoColor.BLACK)
-        whitePlayer = player2.safeCreatePlayer(GoColor.WHITE)
+        blackPlayer = (player1 ?: defaultPlayerFactory).safeCreatePlayer(GoColor.BLACK)
+        whitePlayer = (player2 ?: defaultPlayerFactory).safeCreatePlayer(GoColor.WHITE)
     }
 
     @Suppress("unused")
@@ -81,9 +80,12 @@ class GoGameManager {
 
     private fun GoPlayer.Factory.safeCreatePlayer(color: GoColor): GoPlayer {
         val player = createPlayer(this@GoGameManager, color)
+        if (player.game != this@GoGameManager)
+            throw IllegalStateException("GoPlayer.Factory.createPlayer(GoGameManager, GoColor) " +
+                    "returned a GoPlayer with a different GoGameManager")
         val realColor = player.color
         if (realColor != color)
-            throw IllegalStateException("GoPlayer.Factory.createPlayer(GoColor." + color.name +
+            throw IllegalStateException("GoPlayer.Factory.createPlayer(..., GoColor." + color.name +
                     ") returned a GoPlayer whose color was ${realColor.name}")
         return player
     }
@@ -102,8 +104,8 @@ class GoGameManager {
             }
             if (goban.whiteCount > 0)
                 goban.clear(GoColor.WHITE)
-            setNode(node.createNextSetupNode(goban).also {
-                it.turnPlayer = GoColor.WHITE
+            setNode(node.createNextSetupNode(goban).apply {
+                turnPlayer = GoColor.WHITE
             }, InternalMarker)
             blackPlayer.update()
             whitePlayer.update()

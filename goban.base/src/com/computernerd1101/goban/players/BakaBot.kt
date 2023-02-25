@@ -19,14 +19,31 @@ class BakaBot: GoPlayer {
     }
 
     constructor(game: GoGameManager, color: GoColor, random: Random): super(game, color) {
-        this.random = random
-        javaRandom = if (random === Random) ThreadLocalRandom.current() else random.asJavaRandom()
-
+        var kotlinRandom = random
+        val javaRandom: java.util.Random
+        if (kotlinRandom === Random) {
+            javaRandom = ThreadLocalRandom.current()
+        } else {
+            javaRandom = kotlinRandom.asJavaRandom()
+            if (javaRandom === ThreadLocalRandom.current())
+                kotlinRandom = Random
+        }
+        this.random = kotlinRandom
+        this.javaRandom = javaRandom
     }
 
     constructor(game: GoGameManager, color: GoColor, random: java.util.Random): super(game, color) {
-        this.random = if (random === ThreadLocalRandom.current()) Random else random.asKotlinRandom()
-        javaRandom = random
+        val kotlinRandom: Random
+        var javaRandom = random
+        if (javaRandom === ThreadLocalRandom.current()) {
+            kotlinRandom = Random
+        } else {
+            kotlinRandom = javaRandom.asKotlinRandom()
+            if (kotlinRandom === Random)
+                javaRandom = ThreadLocalRandom.current()
+        }
+        this.random = kotlinRandom
+        this.javaRandom = javaRandom
     }
 
     @Suppress("unused")
@@ -59,11 +76,11 @@ class BakaBot: GoPlayer {
         }
 
         constructor(random: Random) {
-            _random = RandomWrapper.kotlinWrapper(random)
+            _random = RandomWrapper.wrapKotlin(random)
         }
 
         constructor(random: java.util.Random) {
-            _random = RandomWrapper.javaWrapper(random)
+            _random = RandomWrapper.wrapJava(random)
         }
 
         constructor(seed: Int): this(seed.toLong())
@@ -88,7 +105,7 @@ class BakaBot: GoPlayer {
             }
             @JvmName("setKotlinRandom")
             set(random) {
-                _random = RandomWrapper.kotlinWrapper(random)
+                _random = RandomWrapper.wrapKotlin(random)
             }
 
         var javaRandom: java.util.Random
@@ -101,7 +118,7 @@ class BakaBot: GoPlayer {
                 }
             }
             @JvmName("setRandom") set(random) {
-                _random = RandomWrapper.javaWrapper(random)
+                _random = RandomWrapper.wrapJava(random)
             }
 
         /**
@@ -135,12 +152,19 @@ class BakaBot: GoPlayer {
         private val kotlinWrapper = java.util.Random().asKotlinRandom().javaClass
         private val javaWrapper = RandomWrapper.asJavaRandom().javaClass
 
-        @JvmStatic fun kotlinWrapper(random: Random): Any = if (random === Random || kotlinWrapper.isInstance(random))
-            random else random.asJavaRandom()
+        @JvmStatic fun wrapKotlin(random: Random): Any = when {
+            random === Random -> random
+            kotlinWrapper.isInstance(random) -> {
+                if (random.asJavaRandom() === ThreadLocalRandom.current()) Random else random
+            }
+            else -> random.asJavaRandom()
+        }
 
-        @JvmStatic fun javaWrapper(random: java.util.Random): Any = when {
+        @JvmStatic fun wrapJava(random: java.util.Random): Any = when {
             random === ThreadLocalRandom.current() -> Random
-            javaWrapper.isInstance(random) -> random
+            javaWrapper.isInstance(random) -> {
+                if (random.asKotlinRandom() === Random) Random else random
+            }
             else -> random.asKotlinRandom()
         }
 

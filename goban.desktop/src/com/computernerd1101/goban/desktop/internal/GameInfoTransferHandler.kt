@@ -78,7 +78,7 @@ class GameInfoTransferHandler(
             try {
                 when(val transfer = contents.getTransferData(flavor)) {
                     is GameInfo -> return transfer
-                    is CharSequence, is CharBuffer -> {
+                    is CharSequence -> {
                         encode = Charsets.UTF_8
                         sgf = SGFTree(if (isSGF) transfer.toString() else "($transfer)")
                     }

@@ -10,7 +10,7 @@ fun main() {
     val setup = GoGameSetup(5)
     setup.isFreeHandicap = true
     val info = setup.gameInfo
-    info.handicap = 24
+    info.handicap = 22
     info.rules = GoRules.JAPANESE
     info.timeLimit = 30000L // 30 seconds
     info.overtime = ByoYomi(periods = 3, millis = 10000L)

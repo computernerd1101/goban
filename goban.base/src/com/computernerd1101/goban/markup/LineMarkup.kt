@@ -66,6 +66,11 @@ class LineMarkup private constructor(
 
     }
 
+    val x1: Int @JvmName("x1") get() = start.x
+    val y1: Int @JvmName("y1") get() = start.y
+    val x2: Int @JvmName("x2") get() = end.x
+    val y2: Int @JvmName("y2") get() = end.y
+
     operator fun component1(): GoPoint = start
     operator fun component2(): GoPoint = end
     operator fun component3(): Boolean = isArrow

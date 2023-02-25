@@ -234,7 +234,7 @@ class GoGameSetup {
     }
 
     override fun hashCode(): Int {
-        return (((((width)*31 + height)*31 +
+        return ((((width*31 + height)*31 +
                 blackPlayer.hashCode()*31 +
                 whitePlayer.hashCode())*31 +
                 gameInfo.hashCode())*31 +

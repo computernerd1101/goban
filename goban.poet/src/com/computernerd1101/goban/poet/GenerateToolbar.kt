@@ -10,8 +10,8 @@ import kotlin.math.sqrt
 fun main(args: Array<String>) {
     val dir = File("goban.desktop/src/com/computernerd1101/goban/desktop/icons/toolbar")
         .absoluteFile
-    val playBlack = playStone(Color.BLACK, Color.WHITE)
-    val playWhite = playStone(Color.WHITE, Color.BLACK)
+    val playBlack = toolbarPlayStone(Color.BLACK, Color.WHITE)
+    val playWhite = toolbarPlayStone(Color.WHITE, Color.BLACK)
     val labelMarkup = toolbarText("A", Color.RED)
     val selectMarkup = makeIcon(32, 32) { g ->
         g.color = Color.RED
@@ -159,7 +159,7 @@ fun main(args: Array<String>) {
     ImageIO.write(inheritVisible, "PNG", File(dir, "InheritVisible.png"))
 }
 
-fun playStone(fill: Color, draw: Color) =  makeIcon(32, 32) { g ->
+fun toolbarPlayStone(fill: Color, draw: Color) =  makeIcon(32, 32) { g ->
     g.color = fill
     g.fillOval(0, 0, 31, 31)
     g.color = draw

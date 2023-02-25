@@ -92,11 +92,12 @@ abstract class GoPlayer(val game: GoGameManager, val color: GoColor) {
     @Suppress("LeakingThis")
     private val timeLimit: TimeLimit? = TimeLimit.fromSGF(color, game.node, this, overtime = overtime)?.also {
         it.addTimeListener { e ->
-            fireTimeEvent(this, e, InternalMarker)
-            opponent.fireTimeEvent(this, e, InternalMarker)
+            val event = if (e.source === this) e
+            else TimeEvent(this, e.timeRemaining, e.overtimeCode, e.flags)
+            fireTimeEvent(this, event, InternalMarker)
+            opponent.fireTimeEvent(this, event, InternalMarker)
         }
     }
-
 
     protected fun resign() {
         game.gameOver(GameResult.resign(winner = color.opponent), InternalMarker)

@@ -43,17 +43,39 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
 
         @JvmStatic
         fun readOnly(vararg points: Iterable<GoPoint>): GoPointSet {
-            val set = GoPointSet(InternalGoPointSet)
+            var rect: GoRectangle? = if (points.size != 1) null
+            else {
+                val other = points[0]
+                if (other is GoPointSet) return other.readOnly()
+                if (other is GoPoint) other.selfRect
+                else other as? GoRectangle
+            }
+            var set = GoPointSet(InternalGoPointSet)
             InternalGoPointSet.init(set, points)
             if (InternalGoPointSet.SIZE_AND_HASH[set] == 0L) return EMPTY
+            var foundSet = false
             for(elements in points) {
-                if (elements is GoPointSet && elements !is MutableGoPointSet && set == elements)
-                    return elements
+                if (elements is GoPointSet) {
+                    val readOnly = elements.readOnly()
+                    if (set == readOnly) {
+                        set = readOnly
+                        foundSet = true
+                    }
+                }
+                var hasCompressed = rect != null || set.hasCompressed(InternalMarker)
+                if (!hasCompressed && elements is GoRectangle && set == elements) {
+                    rect = elements
+                    hasCompressed = true
+                }
+                if (foundSet && hasCompressed) break
             }
+            if (rect != null) set.copyRect(rect, InternalMarker)
             return set
         }
 
         private const val serialVersionUID = 1L
+
+        private val serialPersistentFields: Array<ObjectStreamField> = ObjectStreamClass.NO_FIELDS
 
     }
 
@@ -123,6 +145,11 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
     }
 
     private var compressed: List<GoRectangle>? = null
+
+    internal fun hasCompressed(marker: InternalMarker): Boolean {
+        marker.ignore()
+        return compressed != null
+    }
 
     fun compress(): List<GoRectangle> {
         val readOnly = readOnly()
@@ -224,6 +251,7 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
 
     fun copy() = MutableGoPointSet(this)
 
+    @Suppress("DuplicatedCode")
     internal fun copyInto(dst: GoPointSet, intern: InternalGoPointSet) {
         dst.row0 = row0
         dst.row1 = row1
@@ -282,10 +310,8 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
 
     internal fun copyCache(other: GoPointSet, intern: InternalGoPointSet): Boolean {
         if (sizeAndHash != other.sizeAndHash) return false
-        for(y in 0..51) {
-            val updater = intern.ROWS[y]
+        for(updater in intern.ROWS)
             if (updater[this] != updater[other]) return false
-        }
         val compressed = this.compressed
         val otherCompressed = other.compressed
         val string = this.string
@@ -418,8 +444,17 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
 
     private fun readObject(input: ObjectInputStream) {
         for(updater in InternalGoPointSet.ROWS)
-            updater[this] = input.readLong()
+            updater[this] = input.readLong() and ((1L shl 52) - 1L)
         sizeAndHash = InternalGoPointSet.sizeAndHash(this)
+    }
+
+    private fun writeReplace(): Any = if (isEmpty()) EmptyProxy else this
+    private fun readResolve(): Any = if (isEmpty()) EMPTY else this
+
+    private object EmptyProxy: Serializable {
+
+        private fun readResolve(): Any = EMPTY
+
     }
 
 }
@@ -431,15 +466,21 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
     }
 
     constructor(other: GoPointSet): super(InternalGoPointSet) {
-        readOnly = if (other is MutableGoPointSet) other.readOnly else other
+        readOnly = when {
+            other is MutableGoPointSet -> other.readOnly
+            other.isEmpty() -> null
+            else -> other
+
+        }
         other.copyInto(this, InternalGoPointSet)
     }
 
     constructor(vararg points: Iterable<GoPoint>): super(InternalGoPointSet) {
-        readOnly = if (points.size != 1) null
+        this.readOnly = if (points.size != 1) null
         else when(val other = points[0]) {
             is MutableGoPointSet -> other.readOnly
-            is GoPointSet -> other
+            is GoPointSet -> if (other.isEmpty()) null else other
+            is GoRectangle, is GoPoint -> GoPointSet(other)
             else -> null
         }
         InternalGoPointSet.init(this, points)
@@ -480,7 +521,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
             val mask = (1L shl x).inv()
             val row = InternalGoPointSet.ROWS[y].getAndAccumulate(set, mask, BinOp.AND)
             if (row and mask != row) {
-                InternalGoPointSet.SIZE_AND_HASH.addAndGet(this@MutableGoPointSet,
+                InternalGoPointSet.SIZE_AND_HASH.addAndGet(set,
                     -(x + y*52L).shl(32) - 1L)
             }
             lastReturned = null
@@ -620,7 +661,7 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
             }
             size > elements.size ->
                 @Suppress("USELESS_CAST")
-                for(e in elements as Collection<*>)
+                for(e in elements as Iterable<*>)
                     if (e is GoPoint && remove(e)) modified = true
             else -> {
                 val itr = iterator()
@@ -744,19 +785,14 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                 for(y in (y2+1)..51) if (clearRow(y)) modified = true
                 var readOnly = this.readOnly
                 if (readOnly != null) for(y in 0..51) {
-                    val expected = if (y in y1..y2) 0L else newBits
-                    if (InternalGoPointSet.ROWS[y][readOnly] != expected)
+                    val expected = if (y in y1..y2) newBits else 0L
+                    if (InternalGoPointSet.ROWS[y][readOnly] != expected) {
                         readOnly = null
+                        break
+                    }
                 }
-                if (readOnly == null) {
-                    readOnly = GoPointSet(InternalGoPointSet)
-                    for(y in y1..y2)
-                        InternalGoPointSet.ROWS[y][readOnly] = newBits
-                    InternalGoPointSet.SIZE_AND_HASH[readOnly] =
-                        elements.size.toLong() or elements.hashCode().toLong().shl(32)
-                    this.readOnly = readOnly
-                }
-                readOnly.copyRect(elements, InternalMarker)
+                if (readOnly == null) this.readOnly = GoPointSet(elements)
+                else readOnly.copyRect(elements, InternalMarker)
             }
             else -> {
                 val rows: LongArray = ThreadLocalRows.get()
@@ -808,20 +844,20 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
 
     private fun invertRow(y: Int, invBits: Long): Boolean {
         var modified = false
-        var words = 0L
+        var sizeAndHash = 0L
         val oldBits = InternalGoPointSet.ROWS[y].getAndAccumulate(this, invBits, BinOp.XOR)
         var modBits = invBits and oldBits.inv()
         if (modBits != 0L) {
-            words += InternalGoPointSet.sizeAndHash(y, modBits)
+            sizeAndHash += InternalGoPointSet.sizeAndHash(y, modBits)
             modified = true
         }
         modBits = invBits and oldBits
         if (modBits != 0L) {
-            words -= InternalGoPointSet.sizeAndHash(y, modBits)
+            sizeAndHash -= InternalGoPointSet.sizeAndHash(y, modBits)
             modified = true
         }
-        if (modified && words != 0L)
-            InternalGoPointSet.SIZE_AND_HASH.addAndGet(this, words)
+        if (modified && sizeAndHash != 0L)
+            InternalGoPointSet.SIZE_AND_HASH.addAndGet(this, sizeAndHash)
         return modified
     }
 
@@ -869,6 +905,10 @@ class MutableGoPointSet: GoPointSet, MutableSet<GoPoint> {
                 set?.removeAll(clashes)
             return clashes
         }
+
+        private const val serialVersionUID = 1L
+
+        private val serialPersistentFields: Array<ObjectStreamField> = ObjectStreamClass.NO_FIELDS
 
     }
 

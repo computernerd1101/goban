@@ -39,7 +39,7 @@ internal object InternalGoRectangle {
                 buffer[7] = '.'
                 buffer[8] = ','
                 buffer[9] = ' '
-            }
+            } // else assume offset == 5
             // buffer[offset] = x2
             // buffer[offset + 1] = y2
             buffer[offset + 2] = ']'

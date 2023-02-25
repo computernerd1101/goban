@@ -82,7 +82,7 @@ sealed class AbstractGoban(
 
     operator fun get(p: GoPoint) = this[p.x, p.y]
 
-    operator fun contains(p: GoPoint) = this[p] != null
+    operator fun contains(p: GoPoint) = p.x < width && p.y < height && this[p] != null
 
     /**
      * Returns this instance if it is already a [FixedGoban], otherwise
@@ -120,7 +120,7 @@ sealed class AbstractGoban(
         getChainOrGroup(x, y, chain, isChain = true)
 
     @JvmOverloads
-    fun  getGroup(p: GoPoint, group: MutableGoPointSet? = null): GoPointSet =
+    fun getGroup(p: GoPoint, group: MutableGoPointSet? = null): GoPointSet =
         getGroup(p.x, p.y, group)
 
     @JvmOverloads
@@ -405,7 +405,7 @@ sealed class AbstractMutableGoban: AbstractGoban {
         if (mask == null) {
             diff = InternalGoban.copyRows(goban.rows, rows)
         } else {
-            diff = 0
+            diff = 0L
             GobanBulk.threadLocalGoban(width, height, goban.rows)
             val copyRows = GobanThreadLocals.INSTANCE
             val group: LongArray = copyRows.get()[GobanThreadLocals.GROUP]
@@ -419,6 +419,11 @@ sealed class AbstractMutableGoban: AbstractGoban {
                     for(y in 0 until y1) group[y] = 0L
                     for(y in y1..minOf(y2, height - 1)) group[y] = rowBits
                     for(y in y2 + 1 until height) group[y] = 0L
+                }
+                is GoPointKeys<*> -> {
+                    set.expungeStaleRows()
+                    for (y in 0 until height)
+                        group[y] = set.rowBits(y)
                 }
                 else -> {
                     for(y in 0 until height) group[y] = 0L
@@ -434,7 +439,7 @@ sealed class AbstractMutableGoban: AbstractGoban {
                 //              ((pos / 2) shl 32)     or ((pos % 2) * 32)
                 pos = if (wide) ((pos and -2L) shl 31) or ((pos and 1L) shl 5)
                 else pos shl 32
-                val oldRow = GobanRows.ROWS[y].getAndAccumulate(rows, pos, copyRows)
+                val oldRow = GobanRows1.getRow(y).getAndAccumulate(rows, pos, copyRows)
                 val newRow = copyRows.applyAsLong(oldRow, pos)
                 diff += InternalGoban.countStonesInRow(newRow) - InternalGoban.countStonesInRow(oldRow)
             }
@@ -453,7 +458,7 @@ sealed class AbstractMutableGoban: AbstractGoban {
             else -> -1L shl 32
         }
         for (i in 0 until rows.size) {
-            val updater = GobanRows.ROWS[i]
+            val updater = GobanRows1.getRow(i)
             val row: Long = if (color == null) updater.getAndSet(rows, 0L)
             else updater.getAndAccumulate(rows, mask.inv(), BinOp.AND)
             count -= InternalGoban.countStonesInRow(row) and mask
@@ -463,7 +468,7 @@ sealed class AbstractMutableGoban: AbstractGoban {
 
     /**
      * Returns a [FixedGoban] with the same contents as this instance.
-     * The returned instance will be newly created unless it is an empty square,
+     * The returned instance will be newly created unless it is empty,
      * in which case it will be a preexisting instance.
      * @return a [FixedGoban] with the same contents as this instance
      */
@@ -472,7 +477,7 @@ sealed class AbstractMutableGoban: AbstractGoban {
         val height = this.height
         if (isEmpty()) return FixedGoban(width, height)
         val oldRows = this.rows
-        val rows = InternalGoban.newRows(width, height)
+        val rows = oldRows.newInstance()
         val count = InternalGoban.copyRows(oldRows, rows)
         if (count == 0L) return FixedGoban(width, height)
         return FixedGoban(width, height, rows, count)
@@ -683,7 +688,6 @@ class Goban: AbstractMutableGoban {
                 white[y1] and xBit2 != 0L -> hasWhite = true
                 groupRow and xBit2 != 0L -> {
                     group[y1] = groupRow - xBit2
-                    chain[y1] = chain[y1] or xBit2
                     bits = xBit2
                 }
             }
@@ -693,11 +697,13 @@ class Goban: AbstractMutableGoban {
                 white[y1] and xBit2 != 0L -> hasWhite = true
                 groupRow and xBit2 != 0L -> {
                     group[y1] = groupRow - xBit2
-                    chain[y1] = chain[y1] or xBit2
                     bits = bits or xBit2
                 }
             }
-            if (bits != 0L) pending[y1] = pending[y1] or bits
+            if (bits != 0L) {
+                chain[y1] = chain[y1] or bits
+                pending[y1] = pending[y1] or bits
+            }
             y2 = y1 + 1 // below
             if (y2 < height) {
                 groupRow = group[y2]
@@ -712,6 +718,7 @@ class Goban: AbstractMutableGoban {
                 }
             }
             // pop next point
+            @Suppress("DuplicatedCode")
             while(pendingY < height) {
                 val row = pending[pendingY]
                 if (row != 0L) {

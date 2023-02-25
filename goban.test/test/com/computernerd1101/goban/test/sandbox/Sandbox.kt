@@ -3,13 +3,19 @@
 package com.computernerd1101.goban.test.sandbox
 
 import kotlin.reflect.*
+import kotlin.reflect.full.findAnnotation
+import kotlin.reflect.jvm.javaMethod
+
+fun main() = annotatedFunction()
 
 @MyAnnotation(1)
 @MyAnnotation(2)
-fun main() {
-    val regex = """@[0-9A-Fa-f]+""".toRegex()
-    println("foo@42{@3}".replaceFirst(regex, "@54"))
-    //println(MyInterfaceDelegate(MyInterfaceImpl("foobar")))
+fun annotatedFunction() {
+    val f = ::annotatedFunction
+    println(f.annotations)
+    println(f.javaMethod!!.getAnnotationsByType(MyAnnotation::class.java)!!.contentToString())
+    println(MyAnnotation::class.annotations)
+    println(MyAnnotation::class.findAnnotation<java.lang.annotation.Repeatable>()!!.value.java.annotations.contentToString())
 }
 
 interface MyInterface {
@@ -30,8 +36,24 @@ class MyInterfaceDelegate(val delegate: MyInterface): MyInterface by delegate {
 
 }
 
+interface GenericInterface<T: Comparable<T>> {
+
+    var mutableProperty: T
+
+}
+
+object GenericNothing: GenericInterface<Nothing> {
+
+    override var mutableProperty: Nothing
+        get() = throw UnsupportedOperationException()
+        set(_) { }
+
+}
+
+class GenericInt(override var mutableProperty: Int): GenericInterface<Int>
+
 @Repeatable
-@Retention(AnnotationRetention.SOURCE)
+@Retention(AnnotationRetention.RUNTIME)
 annotation class MyAnnotation(val value: Int)
 
 

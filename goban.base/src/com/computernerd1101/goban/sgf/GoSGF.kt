@@ -48,11 +48,21 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
         return current
     }
 
-    @Suppress("unused")
+    @OptIn(ExperimentalStdlibApi::class)
     @Synchronized
     fun leafNodes(): List<GoSGFNode> {
         val list = mutableListOf<GoSGFNode>()
-        leafNodes(rootNode, list)
+        DeepRecursiveFunction<GoSGFNode, Unit> {
+            var current = it
+            var childCount = current.children
+            while(childCount == 1) {
+                current = current.child(0)
+                childCount = current.children
+            }
+            if (childCount == 0) list.add(current)
+            else for(i in 0 until childCount)
+                callRecursive(current.child(i))
+        }(rootNode)
         return list
     }
 
@@ -60,18 +70,6 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
     fun resumeNode(): GoSGFNode {
         val gameInfoNodeList = mutableListOf<GoSGFNode>()
         TODO()
-    }
-
-    private fun leafNodes(node: GoSGFNode, list: MutableList<GoSGFNode>) {
-        var current = node
-        var childCount = node.children
-        while(childCount == 1) {
-            current = current.child(0)
-            childCount = current.children
-        }
-        if (childCount == 0) list.add(current)
-        else for(i in 0 until childCount)
-            leafNodes(current.child(i), list)
     }
 
     @Suppress("unused")
@@ -326,13 +324,13 @@ sealed class GoSGFNode {
         if (i < 0) throw childIndexOutOfBoundsException(i)
         return syncTreeOrThrow {
             if (i >= childCount) throw childIndexOutOfBoundsException(i)
-            fastChild(i, InternalMarker)
+            fastChild(i, InternalMarker)!!
         }
     }
 
-    private fun fastChild(i: Int, marker: InternalMarker): GoSGFNode {
+    private fun fastChild(i: Int, marker: InternalMarker): GoSGFNode? {
         marker.ignore()
-        return childArray!![i]!!
+        return childArray?.get(i)
     }
 
     private fun childIndexOutOfBoundsException(i: Int) = IndexOutOfBoundsException(
@@ -455,7 +453,7 @@ sealed class GoSGFNode {
             }
             else -> {
                 o = 0
-                a = 0xFFFF xor flag
+                a = 0xFFFF and flag.inv()
             }
         }
         _figure = (_figure or o) and a
@@ -480,36 +478,52 @@ sealed class GoSGFNode {
 
     val territory: MutableGoban
 
-    private inline fun getInheritedNode(prop: GoSGFNode.() -> Any?): GoSGFNode = syncTreeOrDefault(this) {
-        if (!isAlive) return@syncTreeOrDefault this
+    private inline fun getInheritedNode(prop: GoSGFNode.() -> Any?): GoSGFNode = syncTreeOrDefault(this) sync@{
+        if (!isAlive) return@sync this
         var current: GoSGFNode? = this
         while(current != null) {
-            if (current.prop() != null) return@syncTreeOrDefault current
+            if (current.prop() != null) return@sync current
             current = current.parent
         }
         this
     }
 
-    var newPrintMethod: PrintMethod? = null; private set
+    private var _printMethod: PrintMethod? = null
+    val newPrintMethod: PrintMethod? get() = _printMethod
     val printMethodNode: GoSGFNode
-        get() = getInheritedNode { newPrintMethod }
+        get() = getInheritedNode { _printMethod }
     var printMethod: PrintMethod?
-        get() = printMethodNode.newPrintMethod
-        set(pm) = syncTreeOrAsyncNull { newPrintMethod = pm }
+        get() = printMethodNode._printMethod
+        set(pm) = syncTreeOrAsyncNull { _printMethod = pm }
+    private fun setPrintMethod(pm: PrintMethod?, marker: InternalMarker) {
+        marker.ignore()
+        _printMethod = pm
+    }
 
-    var newVisiblePoints: MutableGoPointSet? = null; private set
+    private var _visiblePoints: MutableGoPointSet? = null
+    val newVisiblePoints: MutableGoPointSet? get() = _visiblePoints
     val visiblePointsNode: GoSGFNode
-        get() = getInheritedNode { newVisiblePoints }
+        get() = getInheritedNode { _visiblePoints }
     var visiblePoints: MutableGoPointSet?
-        get() = visiblePointsNode.newVisiblePoints
-        set(points) = syncTreeOrAsyncNull { newVisiblePoints = points }
+        get() = visiblePointsNode._visiblePoints
+        set(points) = syncTreeOrAsyncNull { _visiblePoints = points }
+    private fun setVisiblePoints(points: MutableGoPointSet?, marker: InternalMarker) {
+        marker.ignore()
+        _visiblePoints = points
+    }
 
-    var newDimPoints: MutableGoPointSet? = null; private set
+
+    private var _dimPoints: MutableGoPointSet? = null
+    val newDimPoints: MutableGoPointSet? get() = _dimPoints
     val dimPointsNode: GoSGFNode
-        get() = getInheritedNode { newDimPoints }
+        get() = getInheritedNode { _dimPoints }
     var dimPoints: MutableGoPointSet?
-        get() = dimPointsNode.newDimPoints
-        set(points) = syncTreeOrAsyncNull { newDimPoints = points }
+        get() = dimPointsNode._dimPoints
+        set(points) = syncTreeOrAsyncNull { _dimPoints = points }
+    private fun setDimPoints(points: MutableGoPointSet?, marker: InternalMarker) {
+        marker.ignore()
+        _dimPoints = points
+    }
 
     val pointMarkup = PointMarkupMap()
     val lineMarkup = LineMarkupSet()
@@ -519,7 +533,7 @@ sealed class GoSGFNode {
 
     val gameInfoNode: GoSGFNode? get() = _gameInfoNode
     var gameInfo: GameInfo?
-        get() = syncTreeOrDefault(null as GameInfo?) {
+        get() = syncTreeOrDefault(null) {
             if (isAlive) _gameInfoNode?._gameInfo
             else null
         }
@@ -559,20 +573,19 @@ sealed class GoSGFNode {
 
     @OptIn(ExperimentalStdlibApi::class)
     private fun setGameInfoNode(node: GoSGFNode?, overwrite: Boolean) {
-        DeepRecursiveFunction<GoSGFNode, Unit> { writeNode ->
-            writeNode.setGameInfoNodeDirect(node, InternalMarker)
-            var current = writeNode
+        DeepRecursiveFunction<GoSGFNode, Unit> dr@{
+            var current = it
+            current.setGameInfoNodeDirect(node, InternalMarker)
             while (current.childCount == 1) {
-                current = current.fastChild(0, InternalMarker)
+                current = current.fastChild(0, InternalMarker)!!
                 if (!overwrite && current.gameInfoNode?.getGameInfoDirect(InternalMarker) != null)
-                    return@DeepRecursiveFunction
+                    return@dr
                 current.setGameInfoDirect(null, InternalMarker)
                 current.setGameInfoNodeDirect(node, InternalMarker)
             }
-            // minimize risk of StackOverflowError
             val n = current.children
             for (i in 0 until n) {
-                val next = current.fastChild(i, InternalMarker)
+                val next = current.fastChild(i, InternalMarker)!!
                 if (overwrite || next.gameInfoNode?.getGameInfoDirect(InternalMarker) == null) {
                     next.setGameInfoDirect(null, InternalMarker)
                     callRecursive(next)
@@ -591,56 +604,62 @@ sealed class GoSGFNode {
 
     @OptIn(ExperimentalStdlibApi::class)
     private fun hasGameInfoChildrenRecursive(exclude: GameInfo?): Boolean {
-        return DeepRecursiveFunction<GoSGFNode, Boolean> { node ->
-            var current = node
+        return DeepRecursiveFunction<GoSGFNode, Boolean> dr@{
+            var current = it
             while (true) {
                 val gameInfoNode = current.gameInfoNode
-                if (gameInfoNode != null) return@DeepRecursiveFunction gameInfoNode.gameInfo != exclude
+                if (gameInfoNode != null) return@dr gameInfoNode.gameInfo != exclude
                 if (current.children != 1) break
-                current = current.fastChild(0, InternalMarker)
+                current = current.fastChild(0, InternalMarker)!!
             }
             for (i in 0 until current.children)
-                if (callRecursive(current.fastChild(i, InternalMarker)))
-                    return@DeepRecursiveFunction true
+                if (callRecursive(current.fastChild(i, InternalMarker)!!))
+                    return@dr true
             false
         }(this)
     }
 
     val previousGameInfoNode: GoSGFNode get() = syncTreeOrDefault(this) {
-        if (isAlive) (_gameInfoNode ?: this).findGameInfoNode(forward=false)
+        if (isAlive) (_gameInfoNode ?: this).findGameInfoNode(direction = -1)
         else this
     }
 
     val nextGameInfoNode: GoSGFNode get() = syncTreeOrDefault(this) {
-        if (isAlive) (_gameInfoNode ?: this).findGameInfoNode(forward=true)
+        if (isAlive) (_gameInfoNode ?: this).findGameInfoNode(direction = 1)
         else this
     }
 
     @OptIn(ExperimentalStdlibApi::class)
-    private fun findGameInfoNode(forward: Boolean): GoSGFNode {
-        val direction = if (forward) 1 else -1
-        var start = if (forward && _gameInfoNode == null) this
+    private fun findGameInfoNode(direction: Int): GoSGFNode {
+        var start = if (direction > 0 && _gameInfoNode == null) this
         else findGameInfoStart(direction)
         val stop = this
         var nextStop = false
-        val findChild = DeepRecursiveFunction<GoSGFNode, GoSGFNode?> { node ->
-            var current = node
+        val findChild = DeepRecursiveFunction<GoSGFNode, GoSGFNode?> dr@{
+            var current = it
             while (current.children == 1) {
                 if ((nextStop && current === stop) || current.gameInfoNode != null)
-                    return@DeepRecursiveFunction current
-                current = current.fastChild(0, InternalMarker)
+                    return@dr current
+                current = current.fastChild(0, InternalMarker) ?: return@dr null
                 nextStop = true
             }
             if ((nextStop && current === stop) || current.gameInfoNode != null)
-                return@DeepRecursiveFunction current
+                return@dr current
             nextStop = true
-            val n = current.children
-            if (forward) for(i in 0 until n) {
-                val child = callRecursive(current.fastChild(i, InternalMarker))
-                if (child != null) return@DeepRecursiveFunction child
-            } else for(i in (n - 1) downTo 0) {
-                val child = callRecursive(current.fastChild(i, InternalMarker))
-                if (child != null) return@DeepRecursiveFunction child
+            var i = current.children
+            val end: Int
+            if (direction > 0) {
+                end = i
+                i = 0
+            } else {
+                i--
+                end = -1
+            }
+            while(i != end) {
+                var child = current.fastChild(i, InternalMarker)
+                if (child != null) child = callRecursive(child)
+                if (child != null) return@dr child
+                i += direction
             }
             null
         }
@@ -649,7 +668,7 @@ sealed class GoSGFNode {
             val child = findChild(start)
             if (child != null) return child
             start = start.findGameInfoStart(direction)
-            if (start == this) return this
+            if (start === this) return this
         }
     }
 
@@ -660,7 +679,7 @@ sealed class GoSGFNode {
             node = parent
             parent = node.parent ?: return node
         }
-        return parent.fastChild(node.childIndex + direction, InternalMarker)
+        return parent.fastChild(node.childIndex + direction, InternalMarker)!!
     }
 
     val unknownProperties = SGFNode()
@@ -716,11 +735,11 @@ sealed class GoSGFNode {
     }
 
     fun moveVariation(index: Int): Boolean {
-        return index >= 0 && syncTreeOrDefault(false) {
+        return index >= 0 && syncTreeOrDefault(false) sync@{
             val parent = parent
             val variations = parent?.childArray
             if (variations == null || index == childIndex || index >= parent.childCount)
-                return@syncTreeOrDefault false
+                return@sync false
             if (index > childIndex) {
                 for(i in childIndex until index) {
                     val node = variations[i + 1]
@@ -742,11 +761,11 @@ sealed class GoSGFNode {
 
     @Suppress("unused")
     fun swapVariation(index: Int): Boolean {
-        return index >= 0 && syncTreeOrDefault(false) {
+        return index >= 0 && syncTreeOrDefault(false) sync@{
             val parent = parent
             val variations = parent?.childArray
             if (variations == null || index == childIndex || index >= parent.childCount)
-                return@syncTreeOrDefault false
+                return@sync false
             val other = variations[index]
             other?.childIndex = childIndex
             variations[childIndex] = other
@@ -769,12 +788,12 @@ sealed class GoSGFNode {
             }
             parent.childCount = count
             next[count] = null
-            DeepRecursiveFunction<GoSGFNode, Unit> { node ->
-                var current = node
+            DeepRecursiveFunction<GoSGFNode, Unit> dr@{
+                var current = it
                 var n = current.children
                 while(n == 1) {
-                    val children = current.fastDelete(InternalMarker)!!
-                    val child = children[0]!!
+                    val children = current.fastDelete(InternalMarker) ?: return@dr
+                    val child = children[0] ?: return@dr
                     children[0] = null
                     current = child
                     n = current.children
@@ -782,9 +801,9 @@ sealed class GoSGFNode {
                 val children = current.fastDelete(InternalMarker)
                 if (children != null) {
                     for(i in 0 until n) {
-                        val child = children[i]!!
+                        val child = children[i]
                         children[i] = null
-                        callRecursive(child)
+                        if (child != null) callRecursive(child)
                     }
                 }
             }(this)
@@ -815,12 +834,7 @@ sealed class GoSGFNode {
         DeepRecursiveFunction<SGFTree, Unit> { tree ->
             val nodeList = tree.nodes
             var node = nodeList[0]
-            var start = true
             while (true) {
-                if (!start) {
-                    node = SGFNode()
-                    nodeList.add(node)
-                }
                 val propMap = node.properties
                 current.writeSGFNode(node)
                 var s = current.nodeName
@@ -828,12 +842,12 @@ sealed class GoSGFNode {
                     propMap["N"] = SGFProperty(SGFValue(s, charset))
                 var i = current.hotspot
                 if (i != 0)
-                    propMap["HO"] = SGFProperty(SGFValue(SGFBytes(byteArrayOf(('0' + i).code.toByte()))))
+                    propMap["HO"] = SGFProperty(SGFValue(SGFBytes(byteArrayOf(('0'.code + i).toByte()))))
                 current.positionState?.let { state ->
                     propMap[state.code] = SGFProperty(
                         SGFValue(
                             if (state.extent == 0) SGFBytes()
-                            else SGFBytes(byteArrayOf(('0' + state.extent).code.toByte()))
+                            else SGFBytes(byteArrayOf(('0'.code + state.extent).toByte()))
                         )
                     )
                 }
@@ -841,9 +855,11 @@ sealed class GoSGFNode {
                 if (!d.isNaN())
                     propMap["V"] = SGFProperty(SGFValue(SGFBytes(d.toString())))
                 i = current.figureMode
-                current.figureName?.let { name ->
-                    propMap["FG"] = SGFProperty(SGFValue(SGFBytes(i.toString())).addText(name, charset))
-                } ?: if (i != 0) propMap["FG"] = SGFProperty(SGFValue(SGFBytes()))
+                current.figureName.let { name ->
+                    if (name != null)
+                        propMap["FG"] = SGFProperty(SGFValue(SGFBytes(i.toString())).addText(name, charset))
+                    else if (i != 0) propMap["FG"] = SGFProperty(SGFValue(SGFBytes()))
+                }
                 current.newVisiblePoints?.toSGFProperty(true)?.let { prop ->
                     propMap["VW"] = prop
                 }
@@ -904,12 +920,13 @@ sealed class GoSGFNode {
                 }
                 if (s.isNotEmpty()) propMap["C"] = SGFProperty(SGFValue(s, charset))
                 if (current.children != 1) break
-                current = current.fastChild(0, marker)
-                start = false
+                current = current.fastChild(0, marker)!!
+                node = SGFNode()
+                nodeList.add(node)
             }
             val next = current
             for (i in 0 until next.children) {
-                current = next.fastChild(i, marker)
+                current = next.fastChild(i, marker)!!
                 callRecursive(tree.subTree(SGFNode()))
             }
         }(rootTree)
@@ -917,14 +934,13 @@ sealed class GoSGFNode {
 
     protected abstract fun writeSGFNode(node: SGFNode)
 
-    @Throws(SGFException::class)
     @OptIn(ExperimentalStdlibApi::class)
+    @Throws(SGFException::class)
     internal fun parseSGFNodes(
         fileFormat: Int,
         rootTree: SGFTree,
         marker: InternalMarker
     ) {
-        marker.ignore()
         val sgf = this.tree
         val warnings = sgf.warnings
         val width = sgf.width
@@ -1001,11 +1017,10 @@ sealed class GoSGFNode {
                                     "They will be separated into two split nodes.")
                     )
                 if (isRoot) isSetupNode = true
-                val goban: Goban?
                 if (isSetupNode) {
-                    val blackPoints = parsePointSet(null, addBlack)
-                    val whitePoints = parsePointSet(null, addWhite)
-                    val emptyPoints = parsePointSet(null, addEmpty)
+                    val blackPoints = Parse.parsePointSet(sgf, null, addBlack)
+                    val whitePoints = Parse.parsePointSet(sgf, null, addWhite)
+                    val emptyPoints = Parse.parsePointSet(sgf, null, addEmpty)
                     val clashes = removeClashingGoPoints(blackPoints, whitePoints, emptyPoints)
                     if (!clashes.isNullOrEmpty())
                         warnings += SGFWarning(node.row, node.column, buildString {
@@ -1013,7 +1028,7 @@ sealed class GoSGFNode {
                             for(point in clashes)
                                 append('[').append(point).append(']')
                         })
-                    goban = if (isRoot) {
+                    val goban = if (isRoot) {
                         setup = currentNode as GoSGFSetupNode
                         if (blackPoints.isNullOrEmpty() && whitePoints.isNullOrEmpty()) null
                         else Goban(width, height)
@@ -1052,6 +1067,7 @@ sealed class GoSGFNode {
                 var moveAnnotationIndex = 0
                 var positionState: PositionState? = null
                 var positionName: String? = null
+                @Suppress("DuplicatedCode")
                 var positionProp: SGFProperty? = null
                 var propBM: SGFProperty? = null
                 var propTE: SGFProperty? = null
@@ -1062,6 +1078,7 @@ sealed class GoSGFNode {
                 var propV: SGFProperty? = null
                 var propC: SGFProperty? = null
                 var propHO: SGFProperty? = null
+                @Suppress("DuplicatedCode")
                 var propFG: SGFProperty? = null
                 var propVW: SGFProperty? = null
                 var propDD: SGFProperty? = null
@@ -1218,10 +1235,10 @@ sealed class GoSGFNode {
                         indexDO < indexIT -> move.moveAnnotation = MoveAnnotation.DOUBTFUL
                         indexTE < indexBM -> move.moveAnnotation =
                             if (indexBM < moveAnnotationLimit) MoveAnnotation.INTERESTING
-                            else MoveAnnotation.GOOD.toExtent(parse1or2(propTE, warnings))
+                            else MoveAnnotation.GOOD.toExtent(Parse.parse1or2(propTE, warnings))
                         indexBM < indexTE -> move.moveAnnotation =
                             if (indexTE < moveAnnotationLimit) MoveAnnotation.DOUBTFUL
-                            else MoveAnnotation.BAD.toExtent(parse1or2(propBM, warnings))
+                            else MoveAnnotation.BAD.toExtent(Parse.parse1or2(propBM, warnings))
                     }
                     if (propMN != null) {
                         val bytes: SGFBytes = propMN.values[0].parts[0]
@@ -1246,7 +1263,7 @@ sealed class GoSGFNode {
                 }
                 if (propC != null)
                     currentNode.comment = InternalGoSGF.parseSGFValue(propC.values[0], sgf.charset, warnings)
-                if (propHO != null) currentNode.hotspot = parse1or2(propHO, warnings)
+                if (propHO != null) currentNode.hotspot = Parse.parse1or2(propHO, warnings)
                 if (propFG != null) {
                     val bytesList = propFG.values[0].parts
                     var bytes = bytesList[0]
@@ -1283,7 +1300,7 @@ sealed class GoSGFNode {
                     }
                 }
                 if (positionProp != null && positionState != null) {
-                    positionState = positionState.toExtent(parse1or2(positionProp, warnings))
+                    positionState = positionState.toExtent(Parse.parse1or2(positionProp, warnings))
                     currentNode.positionState = positionState
                 }
                 propV?.values?.get(0)?.parts?.get(0)?.let { bytes: SGFBytes ->
@@ -1305,14 +1322,15 @@ sealed class GoSGFNode {
                     }
                 }
                 if (propVW != null)
-                    currentNode.newVisiblePoints = parsePointSet(fileFormat, MutableGoPointSet(), propVW)
+                    currentNode.setVisiblePoints(
+                        Parse.parsePointSet(fileFormat, sgf, MutableGoPointSet(), propVW), marker)
                 if (propDD != null)
-                    currentNode.newDimPoints = parsePointSet(MutableGoPointSet(), propDD)
+                    currentNode.setDimPoints(Parse.parsePointSet(sgf, MutableGoPointSet(), propDD), marker)
                 propPM?.values?.get(0)?.parts?.get(0)?.let { bytes: SGFBytes ->
-                    currentNode.newPrintMethod = PrintMethod.parseOrdinal(bytes.toString())
+                    currentNode.setPrintMethod(PrintMethod.parseOrdinal(bytes.toString()), marker)
                 }
-                parsePointSet(territoryPoints[0], propTB)
-                parsePointSet(territoryPoints[1], propTW)
+                Parse.parsePointSet(sgf, territoryPoints[0], propTB)
+                Parse.parsePointSet(sgf, territoryPoints[1], propTW)
                 val clashes = removeClashingGoPoints(*territoryPoints)
                 if (!clashes.isNullOrEmpty())
                     warnings += SGFWarning(node.row, node.column, buildString {
@@ -1329,16 +1347,7 @@ sealed class GoSGFNode {
                 propLB?.values?.forEach next@{ value ->
                     val parts = value.parts
                     val bytes = parts[0]
-                    val point = InternalGoSGF.parsePoint(bytes, ignoreCase)
-                    if (point == null) {
-                        warnings += SGFWarning(bytes.row, bytes.column, InternalGoSGF.malformedPoint(bytes.toString()))
-                        return@next // continue
-                    }
-                    if (point.x >= width && point.y >= height) {
-                        warnings += SGFWarning(bytes.row, bytes.column,
-                            InternalGoSGF.pointOutOfRange(bytes.toString(), point.x, point.y, width, height))
-                        return@next
-                    }
+                    val point = Parse.parsePoint(sgf, bytes, ignoreCase) ?: return@next // continue
                     var s: String
                     val partsCount = parts.size
                     if (partsCount > 1) {
@@ -1362,17 +1371,7 @@ sealed class GoSGFNode {
                         val s = Parse.LABELS[i]
                         if (++i >= 52) i = 0
                         val bytes = value.parts[0]
-                        val point = InternalGoSGF.parsePoint(bytes, ignoreCase)
-                        if (point == null) {
-                            warnings += SGFWarning(bytes.row, bytes.column,
-                                InternalGoSGF.malformedPoint(bytes.toString()))
-                            continue
-                        }
-                        if (point.x >= width || point.y >= height) {
-                            warnings += SGFWarning(bytes.row, bytes.column,
-                                InternalGoSGF.pointOutOfRange(bytes.toString(), point.x, point.y, width, height))
-                            continue
-                        }
+                        val point = Parse.parsePoint(sgf, bytes, ignoreCase) ?: continue
                         val label = labelMap[point]
                         if (label != null) {
                             warnings += SGFWarning(bytes.row, bytes.column,
@@ -1384,10 +1383,10 @@ sealed class GoSGFNode {
                     }
                 }
                 for(i in 1 until PointMarkup.TYPES)
-                    pointMarkupProps[i - 1]?.let {
-                        parsePointSet(markupPoints[i], it)
+                    pointMarkupProps[i - 1]?.let { prop ->
+                        Parse.parsePointSet(sgf, markupPoints[i], prop)
                     }
-                if (propM != null) parsePointSet(null, propM)?.let { xPoints ->
+                if (propM != null) Parse.parsePointSet(sgf, null, propM)?.let { xPoints ->
                     xPoints.removeAll(markupMA)
                     xPoints.removeAll(markupTR)
                     if (xPoints.isNotEmpty()) {
@@ -1427,28 +1426,8 @@ sealed class GoSGFNode {
                         }
                         val s1 = bytesList[0]
                         val s2 = bytesList[1]
-                        val start = InternalGoSGF.parsePoint(s1, ignoreCase)
-                        if (start == null) {
-                            warnings += SGFWarning(s1.row, s1.column,
-                                InternalGoSGF.malformedPoint(s1.toString()))
-                            continue
-                        }
-                        if (start.x >= width || start.y >= height) {
-                            warnings += SGFWarning(s1.row, s1.column,
-                                InternalGoSGF.pointOutOfRange(s1.toString(), start.x, start.y, width, height))
-                            continue
-                        }
-                        val end = InternalGoSGF.parsePoint(s2, ignoreCase)
-                        if (end == null) {
-                            warnings += SGFWarning(s2.row, s2.column,
-                                InternalGoSGF.malformedPoint(s2.toString()))
-                            continue
-                        }
-                        if (end.x >= width || end.y >= height) {
-                            warnings += SGFWarning(s2.row, s2.column,
-                                InternalGoSGF.pointOutOfRange(s2.toString(), end.x, end.y, width, height))
-                            continue
-                        }
+                        val start = Parse.parsePoint(sgf, s1, ignoreCase) ?: continue
+                        val end = Parse.parsePoint(sgf, s2, ignoreCase) ?: continue
                         if (end == start) {
                             warnings += SGFWarning(s2.row, s2.column,
                                 Parse.WARNING_CONNECT_POINT_TO_SELF_PREFIX[i] + s2.toString() +
@@ -1501,88 +1480,103 @@ sealed class GoSGFNode {
 
         const val WARNING_CONNECT_POINT_TO_SELF_SUFFIX = "] and itself"
 
-    }
-
-    private fun parse1or2(prop: SGFProperty?, warnings: SGFWarningList): Int {
-        val s = prop?.values?.get(0)?.let { value ->
-            InternalGoSGF.parseSGFValue(value, null, warnings)
-        } ?: return 0
-        var i = 0
-        for(ch in s) {
-            if (ch !in '0'..'9') break
-            i = i*10 + (ch - '0')
-            if (i > 1) return 2
-        }
-        return i
-    }
-
-    private fun parsePointSet(fileFormat: Int, points: MutableGoPointSet?, prop: SGFProperty?): MutableGoPointSet? {
-        if (fileFormat < 4 && prop != null) {
-            val values = prop.values
-            if (values.size == 2) {
-                val v1 = values[0].parts
-                val v2 = values[1].parts
-                if (v1.size == 1 && v2.size == 1)
-                    return parsePointRect(points, v1[0], v2[0])
+        @JvmStatic fun parse1or2(prop: SGFProperty?, warnings: SGFWarningList): Int {
+            val s = prop?.values?.get(0)?.let { value ->
+                InternalGoSGF.parseSGFValue(value, null, warnings)
+            } ?: return 0
+            var i = 0
+            for(ch in s) {
+                if (ch !in '0'..'9') break
+                i = i*10 + (ch - '0')
+                if (i > 1) return 2
             }
+            return i
         }
-        return parsePointSet(points, prop)
-    }
 
-    private fun parsePointSet(points: MutableGoPointSet?, prop: SGFProperty?): MutableGoPointSet? {
-        if (prop == null) return points
-        var pointSet = points
-        for(value in prop.values) {
-            val parts = value.parts
-            val b1 = parts[0]
-            val b2 = if (parts.size >= 2) parts[1] else null
-            pointSet = parsePointRect(pointSet, b1, b2)
+        @JvmStatic
+        fun parsePointSet(fileFormat: Int, tree: GoSGF, points: MutableGoPointSet?, prop: SGFProperty?):
+                MutableGoPointSet? {
+            if (fileFormat < 4 && prop != null) {
+                val values = prop.values
+                if (values.size == 2) {
+                    val v1 = values[0].parts
+                    val v2 = values[1].parts
+                    if (v1.size == 1 && v2.size == 1)
+                        return parsePointRect(tree, points, v1[0], v2[0])
+                }
+            }
+            return parsePointSet(tree, points, prop)
         }
-        return pointSet
-    }
 
-    private fun parsePointRect(points: MutableGoPointSet?, s1: SGFBytes, s2: SGFBytes?): MutableGoPointSet? {
-        val width = tree.width
-        val height = tree.height
-        val warnings = tree.warnings
-        val ignoreCase = width <= 26 && height <= 26
-        var p1 = InternalGoSGF.parsePoint(s1, ignoreCase)
-        if (p1 == null) {
-            if (s1.size != 0)
-                warnings += SGFWarning(s1.row, s1.column, InternalGoSGF.malformedPoint(s1.toString()))
-        } else if (p1.x >= width || p1.y >= height)
-            warnings += SGFWarning(s1.row, s1.column,
-                InternalGoSGF.pointOutOfRange(s1.toString(), p1.x, p1.y, width, height))
-        var p2 = InternalGoSGF.parsePoint(s2, ignoreCase)
-        if (p2 != null) {
-            if (s2 != null && (p2.x >= width || p2.y >= height))
-                warnings += SGFWarning(s2.row, s2.column,
-                    InternalGoSGF.pointOutOfRange(s2.toString(), p2.x, p2.y, width, height))
-            if (p1 == null) p1 = p2
-        } else {
-            if (s2 != null && s2.size != 0)
-                warnings += SGFWarning(s2.row, s2.column, InternalGoSGF.malformedPoint(s2.toString()))
-            p2 = p1 ?: return points
+        @JvmStatic
+        fun parsePointSet(tree: GoSGF, points: MutableGoPointSet?, prop: SGFProperty?): MutableGoPointSet? {
+            if (prop == null) return points
+            var pointSet = points
+            for(value in prop.values) {
+                val parts = value.parts
+                val b1 = parts[0]
+                val b2 = if (parts.size >= 2) parts[1] else null
+                pointSet = parsePointRect(tree, pointSet, b1, b2)
+            }
+            return pointSet
         }
-        var (x1, y1) = p1
-        var (x2, y2) = p2
-        if (x1 > x2) {
-            val tmp = x1
-            x1 = x2
-            x2 = tmp
+
+        @JvmStatic fun parsePointRect(tree: GoSGF, points: MutableGoPointSet?, s1: SGFBytes, s2: SGFBytes?):
+                MutableGoPointSet? {
+            val width = tree.width
+            val height = tree.height
+            val warnings = tree.warnings
+            val ignoreCase = width <= 26 && height <= 26
+            var p1 = InternalGoSGF.parsePoint(s1, ignoreCase)
+            if (p1 == null) {
+                if (s1.size != 0)
+                    warnings += SGFWarning(s1.row, s1.column, InternalGoSGF.malformedPoint(s1.toString()))
+            } else if (p1.x >= width || p1.y >= height)
+                warnings += SGFWarning(s1.row, s1.column,
+                    InternalGoSGF.pointOutOfRange(s1.toString(), p1.x, p1.y, width, height))
+            var p2 = InternalGoSGF.parsePoint(s2, ignoreCase)
+            if (p2 != null) {
+                if (s2 != null && (p2.x >= width || p2.y >= height))
+                    warnings += SGFWarning(s2.row, s2.column,
+                        InternalGoSGF.pointOutOfRange(s2.toString(), p2.x, p2.y, width, height))
+                if (p1 == null) p1 = p2
+            } else {
+                if (s2 != null && s2.size != 0)
+                    warnings += SGFWarning(s2.row, s2.column, InternalGoSGF.malformedPoint(s2.toString()))
+                p2 = p1 ?: return points
+            }
+            var (x1, y1) = p1
+            var (x2, y2) = p2
+            if (x1 >= width) { // warnings already registered
+                if (x2 >= width) return points
+                x1 = width - 1
+            } else if (x2 >= width) x2 = width - 1
+            if (y1 >= height) {
+                if (y2 >= height) return points
+                y1 = height - 1
+            } else if (y2 >= height) y2 = height - 1
+            val rect = GoRectangle(x1, y1, x2, y2)
+            return points?.apply { addAll(rect) } ?: MutableGoPointSet(rect)
         }
-        if (y1 > y2) {
-            val tmp = y1
-            y1 = y2
-            y2 = tmp
+
+        @JvmStatic fun parsePoint(tree: GoSGF, bytes: SGFBytes, ignoreCase: Boolean): GoPoint? {
+            val width = tree.width
+            val height = tree.height
+            val warnings = tree.warnings
+            val point = InternalGoSGF.parsePoint(bytes, ignoreCase)
+            if (point == null) {
+                warnings += SGFWarning(bytes.row, bytes.column,
+                    InternalGoSGF.malformedPoint(bytes.toString()))
+                return null
+            }
+            if (point.x >= width || point.y >= height) {
+                warnings += SGFWarning(bytes.row, bytes.column,
+                    InternalGoSGF.pointOutOfRange(bytes.toString(), point.x, point.y, width, height))
+                return null
+            }
+            return point
         }
-        if (x1 >= width || y1 >= height) // warnings already registered
-            return points
-        if (x2 >= width) x2 = width - 1
-        if (y2 >= height) y2 = height - 1
-        val pointSet = points ?: MutableGoPointSet()
-        pointSet.addAll(GoRectangle(x1, y1, x2, y2))
-        return pointSet
+
     }
 
 }
@@ -1636,23 +1630,22 @@ class GoSGFMoveNode internal constructor(
     fun isLegal(rules: GoRules? = null): Boolean {
         val point = playStoneAt ?: return true
         val tree = treeOrNull ?: return false
-        return synchronized(tree) {
-            var parent: GoSGFNode? = this.parent
-            if (parent == null) return@synchronized false
+        return synchronized(tree) sync@{
+            var parent: GoSGFNode = this.parent ?: return@sync false
             val parentGoban = parent.goban
             val goban = this.goban
             //  override stone                single-stone suicide
-            if (parentGoban[point] != null || parentGoban == goban) return@synchronized false
+            if (parentGoban[point] != null || parentGoban == goban) return@sync false
             val gameRules = rules ?: gameInfo?.rules ?: GoRules.DEFAULT
-            if (!gameRules.allowSuicide && goban[point] == null) return@synchronized false
+            if (!gameRules.allowSuicide && goban[point] == null) return@sync false
             val superko = gameRules.superko
             while(parent is GoSGFMoveNode) {
                 if (parent.goban == goban &&
                     (superko == Superko.POSITIONAL ||
                             InternalGoSGF.violatesSituationalSuperko(turnPlayer, parent,
                                 superko == Superko.NATURAL)))
-                    return@synchronized false
-                parent = parent.parent
+                    return@sync false
+                parent = parent.parent ?: break
             }
             true
         }
@@ -1672,8 +1665,8 @@ class GoSGFMoveNode internal constructor(
 
     fun getSuperkoRestrictions(superko: Superko? = null, set: MutableGoPointSet? = null): GoPointSet {
         val tree = treeOrNull ?: return set ?: GoPointSet.EMPTY
-        return synchronized(tree) {
-            if (!isAlive) return@synchronized set ?: GoPointSet.EMPTY
+        return synchronized(tree) sync@{
+            if (!isAlive) return@sync set ?: GoPointSet.EMPTY
             val tmpSet: MutableGoPointSet = ThreadLocalSuperko.get()
             tmpSet.clear()
             val nextPlayer = turnPlayer.opponent
@@ -1699,7 +1692,7 @@ class GoSGFMoveNode internal constructor(
                     parent = parent.parent
                 }
             }
-            if (set == null) return@synchronized tmpSet.readOnly()
+            if (set == null) return@sync tmpSet.readOnly()
             set.copyFrom(tmpSet)
             set
         }
@@ -1718,8 +1711,8 @@ class GoSGFMoveNode internal constructor(
     fun getPrisonerScores(scores: IntArray? = null): IntArray {
         var scores2: IntArray = scores ?: IntArray(2)
         val tree = treeOrNull ?: return scores2
-        synchronized(tree) {
-            if (!isAlive) return@synchronized
+        synchronized(tree) sync@{
+            if (!isAlive) return@sync
             if (scores2.size < 2) scores2 = IntArray(2)
             var blackScore = 0
             var whiteScore = 0

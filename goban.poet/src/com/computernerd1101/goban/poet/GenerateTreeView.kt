@@ -86,7 +86,7 @@ private class PreviewTreeModel(
     override fun getRoot(): Any = icons[0]
 
     override fun getChild(parent: Any?, index: Int): Any? =
-         if (parent !== icons[0] || index < 0 || index >= icons.size - 1) null else icons[index + 1]
+         if (parent !== icons[0] || index !in 0 until icons.size - 1) null else icons[index + 1]
 
     override fun getChildCount(parent: Any?): Int = if (parent === icons[0]) icons.size - 1 else 0
 

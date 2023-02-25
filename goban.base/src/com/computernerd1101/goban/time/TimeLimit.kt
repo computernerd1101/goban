@@ -35,13 +35,13 @@ class TimeLimit private constructor(
             overtime: Overtime? = Events
         ): TimeLimit? {
             val tree = node.treeOrNull ?: return null
-            return synchronized(tree) {
-                if (!node.isAlive) return@synchronized null
+            return synchronized(tree) sync@{
+                if (!node.isAlive) return@sync null
                 val gameInfo = node.gameInfo
                 var remainingTime = mainTime
                 if (remainingTime < 0L) remainingTime = gameInfo?.timeLimit ?: 0L
                 val realOvertime = if (overtime === Events) gameInfo?.overtime else overtime
-                if (remainingTime == 0L && realOvertime == null) return@synchronized null
+                if (remainingTime == 0L && realOvertime == null) return@sync null
                 var overtimeCode = realOvertime?.initialOvertimeCode ?: 0
                 var flags = 0
                 var foundTime = false
@@ -196,7 +196,7 @@ class TimeLimit private constructor(
                             time,
                             e.overtimeCode,
                             e.flags or TimeEvent.FLAG_TICKING
-                        ), filter=false
+                        ), filter = false
                     )
                     time %= 1000L
                     if (time <= 0) time += 1000L
@@ -214,7 +214,7 @@ class TimeLimit private constructor(
                                     timeRemaining - r,
                                     event.overtimeCode,
                                     event.flags or TimeEvent.FLAG_TICKING
-                                ), filter=true
+                                ), filter = true
                             )
                             if (event.isExpired) {
                                 cancel()
@@ -252,7 +252,7 @@ class TimeLimit private constructor(
                 if (source != null && source !== e.source)
                     e = TimeEvent(source, e.timeRemaining, e.overtimeCode, e.flags)
             } else e = Companion.extendTime(e, extension)
-            /*this.*/Events.updateTimeEvent(e, true)
+            /*this.*/Events.updateTimeEvent(e, filter = true)
         }
     }
 
@@ -294,8 +294,6 @@ class TimeLimit private constructor(
                         overtimeCode == e.overtimeCode &&
                         flags == e.flags -> e
                 e !== e2 && (source1 == null || source1 === source2) &&
-                        timeRemaining == e2.timeRemaining &&
-                        overtimeCode == e2.overtimeCode &&
                         flags == e2.flags -> e2
                 else -> TimeEvent(source1 ?: source2 ?: this, timeRemaining, overtimeCode, flags)
             }

@@ -9,8 +9,6 @@ import com.computernerd1101.sgf.SGFBytes
 import java.io.*
 import java.util.*
 import kotlin.NoSuchElementException
-import kotlin.contracts.ExperimentalContracts
-import kotlin.contracts.contract
 
 fun GoPoint(x: Int, y: Int) = GoPoint.pointAt(x, y)
 
@@ -22,7 +20,7 @@ fun GoPoint?.formatOrPass(width: Int, height: Int, locale: Locale): String =
     GoPoint.format(this, width, height, locale)
 fun GoPoint?.formatOrPass(height: Int, width: Int): String = GoPoint.format(this, width, height)
 fun String.gtpParse(width: Int, height: Int): GoPoint = GoPoint.gtpParse(this, width, height)
-fun String.gtpParseOrNull(width: Int, height: Int): GoPoint? = GoPoint.gtpParseOrNull(this, width, height)
+fun String?.gtpParseOrNull(width: Int, height: Int): GoPoint? = GoPoint.gtpParseOrNull(this, width, height)
 fun Int.gtpFormatX(): Char = GoPoint.gtpFormatX(this)
 fun Char.gtpParseXOrThrow(width: Int): Int = GoPoint.gtpParseXOrThrow(this, width)
 fun Char.gtpParseX(width: Int): Int = GoPoint.gtpParseX(this, width)
@@ -36,13 +34,15 @@ class GoPoint private constructor(
     cache: Cache
 ): Iterable<GoPoint>, Comparable<GoPoint>, Serializable {
 
-    @Transient private val string: String = buffer.concatToString(1, 3).intern()
-    @Transient private val gtp: String = buffer.concatToString(4, if (y < 9) 6 else 7).intern()
+    @Transient private val string: String = buffer.concatToString(10, 12).intern()
+    @Transient private val gtp: String = buffer.concatToString(13, if (y < 9) 15 else 16).intern()
 
     @Transient
     @get:JvmName("selfRect")
-    val selfRect: GoRectangle = GoRectangle(this, this,
-        buffer.concatToString(0, 4).intern(), InternalGoRectangle)
+    val selfRect: GoRectangle
+
+    @Transient
+    private val fromZeroRect: GoRectangle
 
     infix fun rect(other: GoPoint): GoRectangle = rect(other, other.x, other.y)
 
@@ -58,6 +58,10 @@ class GoPoint private constructor(
         val end: GoPoint
         when {
             x1 == x2 && y1 == y2 -> return selfRect
+            x1 == 0 && y1 == 0 -> return (other ?: pointAt(x2, y2)).fromZeroRect
+            x2 == 0 && y2 == 0 -> return fromZeroRect
+            x1 == 0 && y2 == 0 -> return pointAt(x2, y1).fromZeroRect
+            x2 == 0 && y1 == 0 -> return pointAt(x1, y2).fromZeroRect
             y1 <= y2 -> if (x1 <= x2) {
                 start = this
                 end   = other ?: pointAt(x2, y2)
@@ -78,6 +82,28 @@ class GoPoint private constructor(
     }
 
     init {
+        buffer[9] = '['
+        selfRect = GoRectangle(this, this,
+            buffer.concatToString(9, 13).intern(), InternalGoRectangle)
+        if (x == 0 && y == 0) {
+            fromZeroRect = selfRect
+        } else {
+            val start: Int
+            if ((x == 0 && y == 1) || (x == 1 && y == 0)) {
+                buffer[5] = '['
+                buffer[6] = 'a'
+                buffer[7] = 'a'
+                start = 5
+            } else {
+                buffer[5] = '.'
+                buffer[6] = '.'
+                buffer[7] = '.'
+                start = 0
+            }
+            buffer[9] = ' '
+            fromZeroRect = GoRectangle(cache.points[0], this,
+                buffer.concatToString(start, 13).intern(), InternalGoRectangle)
+        }
         cache.points[x + y*52] = this
     }
 
@@ -90,23 +116,34 @@ class GoPoint private constructor(
     companion object {
 
         init {
-            val buffer = CharArray(7)
+            val buffer = CharArray(16)
             buffer[0] = '['
-            buffer[3] = ']'
+            buffer[1] = 'a'
+            buffer[2] = 'a'
+            buffer[3] = ','
+            buffer[4] = ' '
+            // buffer[5] = '.' or '['
+            // buffer[6] = '.' or 'a'
+            // buffer[7] = '.' or 'a'
+            buffer[8] = ','
+            // buffer[9] = ' ' or '['
+            // buffer[10] = toChar(x)
+            // buffer[11] = toChar(y)
+            buffer[12] = ']'
             for(y in 0..51) {
-                buffer[2] = toChar(y)
+                buffer[11] = toChar(y)
                 if (y < 9)
-                    buffer[5] = '1' + y
+                    buffer[14] = '1' + y
                 else {
-                    // buffer[5] =  '0' + (1 + y) / 10
-                    //           =  (48 + (1 + y) / 10).toChar()
-                    //           = ((480 + 1 + y) / 10).toChar()
-                    buffer[5] = ((481 + y) / 10).toChar()
-                    buffer[6] = '0' + (1 + y) % 10
+                    // buffer[14] =  '0' + (1 + y) / 10
+                    //            =  (48 + (1 + y) / 10).toChar()
+                    //            = ((480 + 1 + y) / 10).toChar()
+                    buffer[14] = ((481 + y) / 10).toChar()
+                    buffer[15] = '0' + (1 + y) % 10
                 }
                 for(x in 0..51) {
-                    buffer[1] = toChar(x)
-                    buffer[4] = gtpFormatX(x)
+                    buffer[10] = toChar(x)
+                    buffer[13] = gtpFormatX(x)
                     GoPoint(x, y, buffer, Cache)
                 }
             }
@@ -240,7 +277,7 @@ class GoPoint private constructor(
                 return null
             }
             if (y !in 1..height) {
-                if (throws) throw IllegalArgumentException("y=$y is not in the range [1,$height]")
+                if (throws) throw IllegalArgumentException("Y=$y is not in the range [1,$height]")
                 return null
             }
             return Cache.points[x + 52*(height - y)]
@@ -250,12 +287,12 @@ class GoPoint private constructor(
             val base: Char = when(ch) {
                 'I' -> return when {
                     width >= 51 -> 50
-                    throws -> throw IllegalArgumentException("'I' => 51 > $width")
+                    throws -> throw IllegalArgumentException("X=51 ('I') is not in the range [1,$width]")
                     else -> -1
                 }
                 'i' -> return when {
                     width >= 51 -> width - 1
-                    throws -> throw IllegalArgumentException("'i' => 52 > $width")
+                    throws -> throw IllegalArgumentException("X=52 ('i') is not in the range [1,$width]")
                     else -> -1
                 }
                 in 'A'..'H' -> 'A'
@@ -268,10 +305,11 @@ class GoPoint private constructor(
                 }
             }
             var x = ch - base
-            if (width in 26..x)
+            val x1 = x + 1
+            if (x >= width && x >= 25)
                 x -= 25
             if (x >= width) {
-                if (throws) throw IllegalArgumentException("'$ch' => ${x + 1} > $width")
+                if (throws) throw IllegalArgumentException("X=$x1 ('$ch') is not in the range [1,$width]")
                 x = -1
             }
             return x

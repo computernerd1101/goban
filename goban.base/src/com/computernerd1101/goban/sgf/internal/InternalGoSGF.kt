@@ -9,7 +9,7 @@ import java.nio.charset.Charset
 
 internal object InternalGoSGF {
 
-    fun playStoneAt(parent: GoSGFNode, point: GoPoint?, stone: GoColor): AbstractGoban {
+    @JvmStatic fun playStoneAt(parent: GoSGFNode, point: GoPoint?, stone: GoColor): AbstractGoban {
         val parentGoban = parent.goban
         if (point == null) return parentGoban
         val oldStone = parentGoban[point]
@@ -22,13 +22,14 @@ internal object InternalGoSGF {
         return goban
     }
 
+    @JvmStatic
     fun violatesSituationalSuperko(turnPlayer: GoColor, repeatedPosition: GoSGFMoveNode, natural: Boolean): Boolean =
         turnPlayer == repeatedPosition.turnPlayer && (!natural || repeatedPosition.playStoneAt != null)
 
-    fun parseSGFValue(value: SGFValue, charset: Charset?, warnings: SGFWarningList?): String =
+    @JvmStatic fun parseSGFValue(value: SGFValue, charset: Charset?, warnings: SGFWarningList?): String =
         parseSGFBytesList(value.row, value.column, value.parts, charset, warnings)
 
-    fun parseSGFBytesList(
+    @JvmStatic fun parseSGFBytesList(
         row: Int, column: Int, list: List<SGFBytes>,
         charset: Charset?, warnings: SGFWarningList?
     ): String {
@@ -50,7 +51,7 @@ internal object InternalGoSGF {
         }
     }
 
-    fun parsePoint(bytes: SGFBytes?, ignoreCase: Boolean): GoPoint? {
+    @JvmStatic fun parsePoint(bytes: SGFBytes?, ignoreCase: Boolean): GoPoint? {
         if (bytes?.size != 2) return null
         var ch = bytes[0].toInt().toChar()
         var offset = when {
@@ -71,9 +72,9 @@ internal object InternalGoSGF {
         return GoPoint(x, y)
     }
 
-    fun malformedPoint(s: String) = "[$s] does not represent a point on a Go board"
+    @JvmStatic fun malformedPoint(s: String) = "[$s] does not represent a point on a Go board"
 
-    fun pointOutOfRange(s: String, x: Int, y: Int, width: Int, height: Int): String {
+    @JvmStatic fun pointOutOfRange(s: String, x: Int, y: Int, width: Int, height: Int): String {
         return "[$s] ($x,$y) is outside the boundaries ${width}x$height"
     }
 

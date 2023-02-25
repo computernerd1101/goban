@@ -74,7 +74,7 @@ fun SGFBytes.escape(): ByteArray {
     }
     if (start < 0) return ba
     val r = ByteArray(size)
-    if (start != 0) ba.copyInto(r, endIndex=start)
+    if (start != 0) ba.copyInto(r, endIndex = start)
     r[start] = '\\'.code.toByte()
     var n = start + 1
     for(end in (start + 1) until ba.size) {

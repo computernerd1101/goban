@@ -1,6 +1,6 @@
 package com.computernerd1101.goban.time
 
-import com.computernerd1101.goban.annotations.*
+import com.computernerd1101.goban.properties.*
 import com.computernerd1101.goban.resources.*
 import java.util.*
 
@@ -55,6 +55,19 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime(), PropertyTranslator
             }
         }
         return TimeEvent(e.source ?: this, time, overtime, flags)
+    }
+
+    override fun extendTime(e: TimeEvent, extension: Long): TimeEvent {
+        if (extension <= 0L) return e
+        var timeRemaining = e.timeRemaining
+        if (timeRemaining + extension < timeRemaining)
+            timeRemaining = Long.MAX_VALUE
+        else timeRemaining += extension
+        val flags = e.flags
+        var overtime = e.overtimeCode
+        if (flags and (TimeEvent.FLAG_OVERTIME or TimeEvent.FLAG_TICKING) == TimeEvent.FLAG_OVERTIME)
+            overtime++ // TODO will be immediately canceled out by filterEvent? Test to make sure.
+        return TimeEvent(e.source, timeRemaining, overtime, flags)
     }
 
     override fun toString() = "${millis.millisToStringSeconds()}/$moves Canadian"
