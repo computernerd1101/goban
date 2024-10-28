@@ -48,7 +48,6 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
         return current
     }
 
-    @OptIn(ExperimentalStdlibApi::class)
     @Synchronized
     fun leafNodes(): List<GoSGFNode> {
         val list = mutableListOf<GoSGFNode>()
@@ -219,8 +218,8 @@ class GoSGF(@JvmField val width: Int, @JvmField val height: Int) {
                 try {
                     w = s.toInt()
                     if (w !in 1..52) {
-                        w = 0
                         warnings += SGFWarning(v.row, v.column, "$w is not between 1 and 52")
+                        w = 0
                     }
                 } catch(e: NumberFormatException) {
                     warnings += SGFWarning(v.row, v.column,
@@ -571,7 +570,6 @@ sealed class GoSGFNode {
         _gameInfoNode = node
     }
 
-    @OptIn(ExperimentalStdlibApi::class)
     private fun setGameInfoNode(node: GoSGFNode?, overwrite: Boolean) {
         DeepRecursiveFunction<GoSGFNode, Unit> dr@{
             var current = it
@@ -602,7 +600,6 @@ sealed class GoSGFNode {
         isAlive && hasGameInfoChildrenRecursive(exclude)
     }
 
-    @OptIn(ExperimentalStdlibApi::class)
     private fun hasGameInfoChildrenRecursive(exclude: GameInfo?): Boolean {
         return DeepRecursiveFunction<GoSGFNode, Boolean> dr@{
             var current = it
@@ -629,7 +626,6 @@ sealed class GoSGFNode {
         else this
     }
 
-    @OptIn(ExperimentalStdlibApi::class)
     private fun findGameInfoNode(direction: Int): GoSGFNode {
         var start = if (direction > 0 && _gameInfoNode == null) this
         else findGameInfoStart(direction)
@@ -775,7 +771,6 @@ sealed class GoSGFNode {
         }
     }
 
-    @OptIn(ExperimentalStdlibApi::class)
     fun delete() {
         val parent = this.parent ?: return
         syncTreeOrReturn {
@@ -824,7 +819,6 @@ sealed class GoSGFNode {
         return children
     }
 
-    @OptIn(ExperimentalStdlibApi::class)
     internal fun writeSGFTree(rootTree: SGFTree, marker: InternalMarker) {
         var current = this
         val markupSets = Array(PointMarkup.TYPES - 1) {
@@ -934,7 +928,6 @@ sealed class GoSGFNode {
 
     protected abstract fun writeSGFNode(node: SGFNode)
 
-    @OptIn(ExperimentalStdlibApi::class)
     @Throws(SGFException::class)
     internal fun parseSGFNodes(
         fileFormat: Int,

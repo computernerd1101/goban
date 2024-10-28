@@ -50,7 +50,6 @@ sealed class SGFWriter {
 
     }
 
-    @OptIn(ExperimentalStdlibApi::class)
     fun writeTree(root: SGFTree) {
         var tab = 0
         DeepRecursiveFunction<SGFTree, Unit> { tree ->

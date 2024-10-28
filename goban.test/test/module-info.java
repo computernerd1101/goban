@@ -12,7 +12,7 @@ module computernerd1101.goban.test {
     requires java.desktop;
     requires kotlin.stdlib;
     requires kotlin.reflect;
-    requires kotlinx.coroutines.core.jvm;
+    requires kotlinx.coroutines.core;
     requires kotlinx.coroutines.swing;
 
     requires junit;

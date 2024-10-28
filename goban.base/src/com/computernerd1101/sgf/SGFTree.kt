@@ -693,7 +693,7 @@ class SGFNode: SGFTreeElement, Serializable {
                 }
                 entry = entry.next
             }
-            return true
+            return false
         }
 
     }

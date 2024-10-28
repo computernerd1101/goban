@@ -126,7 +126,7 @@ internal fun GoSGFMoveNode.PlayerTime.writeSGFTime(
 internal fun ObjectInputStream.GetField.getString(name: String): String {
     return try {
         this[name, null]?.toString()
-    } catch(e: Exception) {
+    } catch(_: Exception) {
         null
     } ?: ""
 }

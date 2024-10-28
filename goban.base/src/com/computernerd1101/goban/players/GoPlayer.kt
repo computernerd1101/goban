@@ -24,7 +24,7 @@ abstract class GoPlayer(val game: GoGameManager, val color: GoColor) {
         marker.ignore()
         val timeLimit: TimeLimit? = this.timeLimit
         val opponent = this.opponent
-        return scope.async {
+        return scope.async(Dispatchers.IO) {
             timeLimit?.isTicking = true
             var move: GoPoint?
             try {

@@ -103,14 +103,8 @@ class CanadianOvertime(millis: Long, moves: Int): Overtime(), PropertyTranslator
 
         fun parse(s: String, value: CanadianOvertime?): CanadianOvertime? {
             val m = REGEX.matchEntire(s) ?: return null
-            val time: Long
-            val moves: Int
-            try {
-                time = m.groupValues[GROUP_TIME].secondsToMillis()
-                moves = m.groupValues[GROUP_MOVES].toInt()
-            } catch (e: NumberFormatException) {
-                return null
-            }
+            val time: Long = m.groupValues[GROUP_TIME].secondsToMillisOrNull() ?: return null
+            val moves: Int = m.groupValues[GROUP_MOVES].toIntOrNull() ?: return null
             return value?.apply {
                 this.millis = time
                 this.moves = moves

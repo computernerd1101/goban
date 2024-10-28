@@ -7,12 +7,14 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" scope="TEST" name="KotlinJavaRuntime" level="project" />
     <orderEntry type="module" module-name="goban.base" />
     <orderEntry type="module" module-name="goban.desktop" />
     <orderEntry type="library" name="jetbrains.kotlinx.coroutines.swing" level="project" />
     <orderEntry type="library" name="jetbrains.annotations" level="project" />
     <orderEntry type="library" name="junit" level="project" />
     <orderEntry type="library" name="jetbrains.kotlinx.coroutines.core.jvm" level="project" />
+    <orderEntry type="library" name="jetbrains.kotlin.reflect" level="project" />
+    <orderEntry type="library" name="jetbrains.kotlin.test" level="project" />
+    <orderEntry type="library" name="jetbrains.kotlinx.atomicfu" level="project" />
   </component>
 </module>

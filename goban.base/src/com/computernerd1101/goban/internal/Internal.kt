@@ -2,6 +2,7 @@ package com.computernerd1101.goban.internal
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
+import kotlinx.coroutines.selects.SelectClause2
 import java.util.concurrent.atomic.*
 import kotlin.coroutines.*
 
@@ -62,21 +63,16 @@ internal object InternalMarker {
 
 internal class ContinuationProxy<T> {
 
-    @JvmField var continuation: Continuation<T>? = null
+    @JvmField var continuation: CancellableContinuation<T>? = null
 
-    fun suspendAsync(scope: CoroutineScope): Deferred<T> = scope.async {
-        suspendCoroutine { continuation = it }
+    fun suspendAsync(scope: CoroutineScope, cancelHandler: CompletionHandler? = null): Deferred<T> = scope.async {
+        continuation?.cancel()
+        suspendCancellableCoroutine {
+            if (cancelHandler != null)
+                it.invokeOnCancellation(cancelHandler)
+            continuation = it
+        }
     }
-
-}
-
-internal class SendOnlyChannel<E>(private val channel: Channel<E>): SendChannel<E> by channel {
-
-    override fun toString(): String = channel.toString().replaceFirst(
-        "@" + Integer.toHexString(System.identityHashCode(channel)),
-        "@" + Integer.toHexString(System.identityHashCode(this)),
-        ignoreCase = true
-    )
 
 }
 

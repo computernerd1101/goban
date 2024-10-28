@@ -5,6 +5,8 @@ import com.computernerd1101.goban.internal.*
 import com.computernerd1101.goban.sgf.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.select
+import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater
 import kotlin.coroutines.*
 
 class GoGameManager {
@@ -28,13 +30,9 @@ class GoGameManager {
 
     val gameInfo: GameInfo
 
-    private companion object {
-        private val HYPOTHETICAL = atomicUpdater<GoGameManager, GoSGFSetupNode?>("_hypothetical")
-    }
-
-    @Volatile private var _hypothetical: GoSGFSetupNode? = null
+    private val _hypothetical = AtomicReference<GoSGFSetupNode?>(null)
     @Suppress("unused")
-    val hypothetical: GoSGFSetupNode? get() = _hypothetical
+    val hypothetical: GoSGFSetupNode? get() = _hypothetical.get()
 
     constructor(defaultPlayerFactory: GoPlayer.Factory): this(null, defaultPlayerFactory)
 
@@ -90,104 +88,111 @@ class GoGameManager {
         return player
     }
 
-    suspend fun startGame() {
-        val handicap = gameInfo.handicap
-        if (handicap != 0 && node == sgf.rootNode) {
-            val goban = Goban(sgf.width, sgf.height)
-            while (true) {
-                blackPlayer.generateHandicapStones(handicap, goban)
-                if (goban.blackCount < handicap)
-                    continue
-                if (goban.blackCount == handicap && whitePlayer.acceptHandicapStones(goban))
-                    break
-                goban.clear()
-            }
-            if (goban.whiteCount > 0)
-                goban.clear(GoColor.WHITE)
-            setNode(node.createNextSetupNode(goban).apply {
-                turnPlayer = GoColor.WHITE
-            }, InternalMarker)
-            blackPlayer.update()
-            whitePlayer.update()
-        }
-        val scope = CoroutineScope(coroutineContext)
-        val deferredGameOver = gameOverContinuation.suspendAsync(scope)
-        var passCount = 0
-        var lastNonPass: GoSGFNode = node
-        var deferredUndoMove: Deferred<GoSGFNode>? = null
-        var ongoing = true
-        while (ongoing) {
-            val turnPlayer = node.turnPlayer?.let {
-                if (node is GoSGFMoveNode) it.opponent
-                else it
-            } ?: GoColor.BLACK
-            val player: GoPlayer
-            val opponent: GoPlayer
-            if (turnPlayer == GoColor.BLACK) {
-                player = blackPlayer
-                opponent = whitePlayer
-            } else {
-                player = whitePlayer
-                opponent = blackPlayer
-            }
-            val deferredMove = player.generateMoveAsync(scope, InternalMarker)
-            if (deferredUndoMove == null) deferredUndoMove = undoMoveContinuation.suspendAsync(scope)
-            select<Unit> {
-                deferredMove.onAwait { move ->
-                    val node = this@GoGameManager.node.createNextMoveNode(move, turnPlayer)
-                    if (node.isLegalOrForced) {
-                        if (move == null) passCount++
-                        else {
-                            passCount = 0
-                            lastNonPass = node
-                        }
-                        node.moveVariation(0)
-                        setNode(node, InternalMarker)
-                    } else node.delete()
-                    player.update()
-                    opponent.update()
+    @JvmOverloads
+    fun startGame(parentJob: Job? = null): Job {
+        val gameOverContinuation = this.gameOverContinuation
+        val undoMoveContinuation = this.undoMoveContinuation
+        val hypothetical = _hypothetical
+        val game = this
+        return CoroutineScope(parentJob ?: EmptyCoroutineContext).launch(Dispatchers.Default) {
+            val handicap = gameInfo.handicap
+            if (handicap != 0 && node == sgf.rootNode) {
+                val goban = Goban(sgf.width, sgf.height)
+                while (true) {
+                    blackPlayer.generateHandicapStones(handicap, goban)
+                    if (goban.blackCount < handicap)
+                        continue
+                    if (goban.blackCount == handicap && whitePlayer.acceptHandicapStones(goban))
+                        break
+                    goban.clear()
                 }
-                deferredGameOver.onAwait { result ->
-                    player.cancelMove(InternalMarker)
-                    gameInfo.result = result
-                    ongoing = false
-                    passCount = 0
-                }
-                deferredUndoMove?.onAwait { resumeNode ->
-                    deferredMove.cancel()
-                    player.cancelMove(InternalMarker)
-                    deferredUndoMove = null
-                    passCount = 0
-                    var node: GoSGFNode? = resumeNode
-                    while(node != null) {
-                        if (node !is GoSGFMoveNode || node.playStoneAt != null) {
-                            lastNonPass = node
-                            break
-                        }
-                        passCount++
-                        node = node.parent
-                    }
-                    setNode(resumeNode, InternalMarker)
-                    player.update()
-                    opponent.update()
-                }
+                if (goban.whiteCount > 0)
+                    goban.clear(GoColor.WHITE)
+                setNode(node.createNextSetupNode(goban).apply {
+                    turnPlayer = GoColor.WHITE
+                }, InternalMarker)
+                blackPlayer.update()
+                whitePlayer.update()
             }
-            if (passCount >= 2) {
-                val scoreManager = GoScoreManager(this, InternalMarker)
-                _scoreManager = scoreManager
-                val requestResume: GoColor = scoreManager.computeScore() ?: break
-                if (gameInfo.rules.territoryScore) {
-                    val hypotheticalNode = node.createNextSetupNode(node.goban)
-                    hypotheticalNode.turnPlayer = requestResume.opponent
-                    setNode(hypotheticalNode, InternalMarker)
-                    HYPOTHETICAL.compareAndSet(this, null, hypotheticalNode)
-                    // TODO start hypothetical play
+            val ioScope = this + Dispatchers.IO
+            val deferredGameOver = gameOverContinuation.suspendAsync(ioScope)
+            var passCount = 0
+            var lastNonPass: GoSGFNode = node
+            var deferredUndoMove: Deferred<GoSGFNode>? = null
+            var ongoing = true
+            while (ongoing) {
+                val turnPlayer = node.turnPlayer?.let {
+                    if (node is GoSGFMoveNode) it.opponent
+                    else it
+                } ?: GoColor.BLACK
+                val player: GoPlayer
+                val opponent: GoPlayer
+                if (turnPlayer == GoColor.BLACK) {
+                    player = blackPlayer
+                    opponent = whitePlayer
                 } else {
-                    setNode(lastNonPass, InternalMarker)
+                    player = whitePlayer
+                    opponent = blackPlayer
                 }
-                // TODO
-                player.update()
-                opponent.update()
+                val deferredMove = player.generateMoveAsync(ioScope, InternalMarker)
+                if (deferredUndoMove == null) deferredUndoMove = undoMoveContinuation.suspendAsync(ioScope)
+                select<Unit> {
+                    deferredMove.onAwait { move ->
+                        val node = this@GoGameManager.node.createNextMoveNode(move, turnPlayer)
+                        if (node.isLegalOrForced) {
+                            if (move == null) passCount++
+                            else {
+                                passCount = 0
+                                lastNonPass = node
+                            }
+                            node.moveVariation(0)
+                            setNode(node, InternalMarker)
+                        } else node.delete()
+                        player.update()
+                        opponent.update()
+                    }
+                    deferredGameOver.onAwait { result ->
+                        player.cancelMove(InternalMarker)
+                        gameInfo.result = result
+                        ongoing = false
+                        passCount = 0
+                    }
+                    deferredUndoMove.onAwait { resumeNode ->
+                        deferredMove.cancel()
+                        player.cancelMove(InternalMarker)
+                        deferredUndoMove = null
+                        passCount = 0
+                        var node: GoSGFNode? = resumeNode
+                        while (node != null) {
+                            if (node !is GoSGFMoveNode || node.playStoneAt != null) {
+                                lastNonPass = node
+                                break
+                            }
+                            passCount++
+                            node = node.parent
+                        }
+                        setNode(resumeNode, InternalMarker)
+                        player.update()
+                        opponent.update()
+                    }
+                }
+                if (passCount >= 2) {
+                    val scoreManager = GoScoreManager(game, InternalMarker)
+                    setScoreManager(scoreManager, InternalMarker)
+                    val requestResume: GoColor = scoreManager.computeScore() ?: break
+                    if (gameInfo.rules.territoryScore) {
+                        val hypotheticalNode = node.createNextSetupNode(node.goban)
+                        hypotheticalNode.turnPlayer = requestResume.opponent
+                        setNode(hypotheticalNode, InternalMarker)
+                        hypothetical.compareAndSet(null, hypotheticalNode)
+                        // TODO start hypothetical play
+                    } else {
+                        setNode(lastNonPass, InternalMarker)
+                    }
+                    // TODO
+                    player.update()
+                    opponent.update()
+                }
             }
         }
     }
@@ -220,6 +225,11 @@ class GoGameManager {
 
     private var _scoreManager: GoScoreManager? = null
     val scoreManager: GoScoreManager? get() = _scoreManager
+
+    private fun setScoreManager(manager: GoScoreManager, marker: InternalMarker) {
+        marker.ignore()
+        _scoreManager = manager
+    }
 
 }
 

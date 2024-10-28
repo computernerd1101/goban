@@ -75,9 +75,7 @@ open class SGFException(
         val fields: ObjectOutputStream.PutField = oos.putFields()
         fields.put("row", row)
         fields.put("column", column)
-        fields.put("warnings", warningList?.let {
-            if (it.count == 0) null else it
-        })
+        fields.put("warnings", warningList?.takeIf { it.count != 0 })
         oos.writeFields()
     }
 

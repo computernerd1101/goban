@@ -62,7 +62,7 @@ fun main() {
             .append("(); }\n    @Override public int getSize() { return ").append(i)
             .append("; }\n    @SuppressWarnings(\"unused\") public volatile long row")
             .append(i-2).append(" = 0L;\n    @SuppressWarnings(\"unused\") public volatile long row")
-            .append(i-1).append("= 0L;\n")
+            .append(i-1).append(" = 0L;\n")
     }
 
     buf.append("""

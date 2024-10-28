@@ -23,7 +23,7 @@ fun <T: Any> PropertyList(type: KClass<out T>) = PropertyList.propertyList(type)
 inline fun <reified T: Any> PropertyList() = PropertyList(T::class)
 
 class PropertyList<T: Any> private constructor(
-    @Suppress("CanBeParameter") val type: KClass<out T>,
+    val type: KClass<out T>,
     cache: Cache
 ): AbstractList<PropertyList.Entry<T>>(), RandomAccess {
 
@@ -341,7 +341,7 @@ class PropertyList<T: Any> private constructor(
         }
 
         override fun equals(other: Any?): Boolean = this === other ||
-                if (other is PropertyList.SubList<*>)
+                if (other is SubList<*>)
                     entryArray === other.entryArray && offset == other.offset && size == other.size
                 else other !is PropertyList<*> && super.equals(other)
 

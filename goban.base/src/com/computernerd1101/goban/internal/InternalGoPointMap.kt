@@ -75,7 +75,7 @@ internal class WeakGoPointMap<V> {
                     if (rows[y] === ref) rows[y] = null
                 }
             }
-        } catch (ignored: Exception) { }
+        } catch (_: Exception) { }
     }
 
 }

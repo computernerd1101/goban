@@ -23,13 +23,7 @@ annotation class TimeProperty(
 
         override fun toString(value: Long) = value.millisToStringSeconds()
 
-        override fun parse(s: String): Long? {
-            return try {
-                s.secondsToMillis()
-            } catch(e: Exception) {
-                null
-            }
-        }
+        override fun parse(s: String): Long? =  s.secondsToMillisOrNull()
 
         override fun increment(value: Long): Long? {
             var time = value

@@ -99,14 +99,8 @@ class ByoYomi(periods: Int, millis: Long): Overtime(), PropertyTranslator {
 
         fun parse(s: String, value: ByoYomi?): ByoYomi? {
             val m = REGEX.matchEntire(s) ?: return null
-            val periods: Int
-            val time: Long
-            try {
-                periods = m.groupValues[GROUP_PERIODS].toInt()
-                time = m.groupValues[GROUP_TIME].secondsToMillis()
-            } catch (e: NumberFormatException) {
-                return null
-            }
+            val periods: Int = m.groupValues[GROUP_PERIODS].toIntOrNull() ?: return null
+            val time: Long = m.groupValues[GROUP_TIME].secondsToMillisOrNull() ?: return null
             return value?.apply {
                 this.periods = periods
                 this.millis = time

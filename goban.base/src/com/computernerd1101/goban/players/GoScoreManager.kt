@@ -5,8 +5,8 @@ import com.computernerd1101.goban.internal.*
 import com.computernerd1101.goban.sgf.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
-import kotlinx.coroutines.selects.SelectClause1
 import kotlinx.coroutines.selects.select
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.*
 
 class GoScoreManager internal constructor(val game: GoGameManager, marker: InternalMarker) {
@@ -15,25 +15,23 @@ class GoScoreManager internal constructor(val game: GoGameManager, marker: Inter
         marker.ignore()
     }
 
-    private val _deadStones = Channel<GoPointSet>(Channel.UNLIMITED)
-    val deadStones: SendChannel<GoPointSet> = SendOnlyChannel(_deadStones)
+    private val deadStones = Channel<GoPointSet>(Channel.UNLIMITED)
 
-    private val _livingStones = Channel<GoPointSet>(Channel.UNLIMITED)
-    val livingStones: SendChannel<GoPointSet> = SendOnlyChannel(_livingStones)
+    private val livingStones = Channel<GoPointSet>(Channel.UNLIMITED)
 
-    companion object {
-        private val SUBMIT_PLAYER_FLAGS = atomicIntUpdater<GoScoreManager>("submitPlayerFlags")
+    fun submitGroupStatus(group: GoPointSet, isAlive: Boolean = false) {
+        val channel = if (isAlive) livingStones else deadStones
+        CoroutineScope(Dispatchers.Default).launch {
+            channel.send(group)
+        }
     }
 
-    @Volatile private var submitPlayerFlags: Int = 0
+    private val submitPlayerFlags = AtomicInteger(0)
     private val submitted = ContinuationProxy<GoColor?>()
-    private fun unSubmitScore(marker: InternalMarker) {
-        marker.ignore()
-        submitPlayerFlags = 0
-    }
+
     internal fun submitPlayerScore(color: GoColor, marker: InternalMarker) {
         marker.ignore()
-        val flags = SUBMIT_PLAYER_FLAGS.accumulateAndGet(this,
+        val flags = submitPlayerFlags.accumulateAndGet(
             if (color == GoColor.BLACK) 1 else 2, BinOp.OR)
         if ((flags and 3) == 3) {
             val continuation = submitted.continuation
@@ -49,10 +47,11 @@ class GoScoreManager internal constructor(val game: GoGameManager, marker: Inter
     }
 
     suspend fun computeScore(): GoColor? {
-        submitPlayerFlags = 0
+        val submitPlayerFlags = this.submitPlayerFlags
+        submitPlayerFlags.set(0)
         val scope = CoroutineScope(coroutineContext)
-        val deadStones = _deadStones
-        val livingStones = _livingStones
+        val deadStones = deadStones
+        val livingStones = livingStones
         val deferredSubmit: Deferred<GoColor?> = submitted.suspendAsync(scope)
         val blackPlayer = game.blackPlayer
         val whitePlayer = game.whitePlayer
@@ -66,9 +65,9 @@ class GoScoreManager internal constructor(val game: GoGameManager, marker: Inter
         val group = MutableGoPointSet()
         var resumeRequest: GoColor? = null
         var waiting = true
-        while(waiting) select<Unit> {
+        while(waiting) select {
             deadStones.onReceive {
-                unSubmitScore(InternalMarker)
+                submitPlayerFlags.set(0)
                 receiveStones.copyFrom(it)
                 sendStones.clear()
                 for (point in receiveStones) {
@@ -83,7 +82,7 @@ class GoScoreManager internal constructor(val game: GoGameManager, marker: Inter
                 whitePlayer.updateScoring(stones, false)
             }
             livingStones.onReceive {
-                unSubmitScore(InternalMarker)
+                submitPlayerFlags.set(0)
                 receiveStones.copyFrom(it)
                 sendStones.clear()
                 for (point in receiveStones) {
@@ -108,6 +107,7 @@ class GoScoreManager internal constructor(val game: GoGameManager, marker: Inter
         val gameInfo = game.gameInfo
         var score = gameInfo.komi.toFloat() + (scoreGoban.whiteCount - scoreGoban.blackCount)
         if (territory && node is GoSGFMoveNode) {
+            // TODO last-minute prisoners?
             score += node.getPrisonerScoreMargin(GoColor.WHITE)
         }
         gameInfo.result = if (score == 0.0f) GameResult.DRAW

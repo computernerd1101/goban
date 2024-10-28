@@ -229,7 +229,7 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
     }
 
     fun toSGFProperty(compress: Boolean): SGFProperty? {
-        if (size == 0) return null
+        if (isEmpty()) return null
         var prop: SGFProperty? = null
         if (compress) {
             val compressed = compress()
@@ -389,6 +389,7 @@ open class GoPointSet internal constructor(intern: InternalGoPointSet): Set<GoPo
                 }
                 true
             }
+            is GoPointEntries<*> -> other.isEmpty() && isEmpty()
             is GoRectangle -> {
                 val bits: Long = InternalGoRectangle.rowBits(other)
                 if (size != other.size) return false

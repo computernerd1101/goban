@@ -1,6 +1,8 @@
 package com.computernerd1101.goban.internal;
 
 import org.jetbrains.annotations.NotNull;
+
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 public class GobanRows1 {
@@ -272,158 +274,158 @@ class GobanRows54 extends GobanRows52 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows54(); }
     @Override public int getSize() { return 54; }
     @SuppressWarnings("unused") public volatile long row52 = 0L;
-    @SuppressWarnings("unused") public volatile long row53= 0L;
+    @SuppressWarnings("unused") public volatile long row53 = 0L;
 }
 class GobanRows56 extends GobanRows54 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows56(); }
     @Override public int getSize() { return 56; }
     @SuppressWarnings("unused") public volatile long row54 = 0L;
-    @SuppressWarnings("unused") public volatile long row55= 0L;
+    @SuppressWarnings("unused") public volatile long row55 = 0L;
 }
 class GobanRows58 extends GobanRows56 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows58(); }
     @Override public int getSize() { return 58; }
     @SuppressWarnings("unused") public volatile long row56 = 0L;
-    @SuppressWarnings("unused") public volatile long row57= 0L;
+    @SuppressWarnings("unused") public volatile long row57 = 0L;
 }
 class GobanRows60 extends GobanRows58 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows60(); }
     @Override public int getSize() { return 60; }
     @SuppressWarnings("unused") public volatile long row58 = 0L;
-    @SuppressWarnings("unused") public volatile long row59= 0L;
+    @SuppressWarnings("unused") public volatile long row59 = 0L;
 }
 class GobanRows62 extends GobanRows60 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows62(); }
     @Override public int getSize() { return 62; }
     @SuppressWarnings("unused") public volatile long row60 = 0L;
-    @SuppressWarnings("unused") public volatile long row61= 0L;
+    @SuppressWarnings("unused") public volatile long row61 = 0L;
 }
 class GobanRows64 extends GobanRows62 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows64(); }
     @Override public int getSize() { return 64; }
     @SuppressWarnings("unused") public volatile long row62 = 0L;
-    @SuppressWarnings("unused") public volatile long row63= 0L;
+    @SuppressWarnings("unused") public volatile long row63 = 0L;
 }
 class GobanRows66 extends GobanRows64 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows66(); }
     @Override public int getSize() { return 66; }
     @SuppressWarnings("unused") public volatile long row64 = 0L;
-    @SuppressWarnings("unused") public volatile long row65= 0L;
+    @SuppressWarnings("unused") public volatile long row65 = 0L;
 }
 class GobanRows68 extends GobanRows66 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows68(); }
     @Override public int getSize() { return 68; }
     @SuppressWarnings("unused") public volatile long row66 = 0L;
-    @SuppressWarnings("unused") public volatile long row67= 0L;
+    @SuppressWarnings("unused") public volatile long row67 = 0L;
 }
 class GobanRows70 extends GobanRows68 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows70(); }
     @Override public int getSize() { return 70; }
     @SuppressWarnings("unused") public volatile long row68 = 0L;
-    @SuppressWarnings("unused") public volatile long row69= 0L;
+    @SuppressWarnings("unused") public volatile long row69 = 0L;
 }
 class GobanRows72 extends GobanRows70 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows72(); }
     @Override public int getSize() { return 72; }
     @SuppressWarnings("unused") public volatile long row70 = 0L;
-    @SuppressWarnings("unused") public volatile long row71= 0L;
+    @SuppressWarnings("unused") public volatile long row71 = 0L;
 }
 class GobanRows74 extends GobanRows72 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows74(); }
     @Override public int getSize() { return 74; }
     @SuppressWarnings("unused") public volatile long row72 = 0L;
-    @SuppressWarnings("unused") public volatile long row73= 0L;
+    @SuppressWarnings("unused") public volatile long row73 = 0L;
 }
 class GobanRows76 extends GobanRows74 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows76(); }
     @Override public int getSize() { return 76; }
     @SuppressWarnings("unused") public volatile long row74 = 0L;
-    @SuppressWarnings("unused") public volatile long row75= 0L;
+    @SuppressWarnings("unused") public volatile long row75 = 0L;
 }
 class GobanRows78 extends GobanRows76 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows78(); }
     @Override public int getSize() { return 78; }
     @SuppressWarnings("unused") public volatile long row76 = 0L;
-    @SuppressWarnings("unused") public volatile long row77= 0L;
+    @SuppressWarnings("unused") public volatile long row77 = 0L;
 }
 class GobanRows80 extends GobanRows78 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows80(); }
     @Override public int getSize() { return 80; }
     @SuppressWarnings("unused") public volatile long row78 = 0L;
-    @SuppressWarnings("unused") public volatile long row79= 0L;
+    @SuppressWarnings("unused") public volatile long row79 = 0L;
 }
 class GobanRows82 extends GobanRows80 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows82(); }
     @Override public int getSize() { return 82; }
     @SuppressWarnings("unused") public volatile long row80 = 0L;
-    @SuppressWarnings("unused") public volatile long row81= 0L;
+    @SuppressWarnings("unused") public volatile long row81 = 0L;
 }
 class GobanRows84 extends GobanRows82 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows84(); }
     @Override public int getSize() { return 84; }
     @SuppressWarnings("unused") public volatile long row82 = 0L;
-    @SuppressWarnings("unused") public volatile long row83= 0L;
+    @SuppressWarnings("unused") public volatile long row83 = 0L;
 }
 class GobanRows86 extends GobanRows84 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows86(); }
     @Override public int getSize() { return 86; }
     @SuppressWarnings("unused") public volatile long row84 = 0L;
-    @SuppressWarnings("unused") public volatile long row85= 0L;
+    @SuppressWarnings("unused") public volatile long row85 = 0L;
 }
 class GobanRows88 extends GobanRows86 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows88(); }
     @Override public int getSize() { return 88; }
     @SuppressWarnings("unused") public volatile long row86 = 0L;
-    @SuppressWarnings("unused") public volatile long row87= 0L;
+    @SuppressWarnings("unused") public volatile long row87 = 0L;
 }
 class GobanRows90 extends GobanRows88 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows90(); }
     @Override public int getSize() { return 90; }
     @SuppressWarnings("unused") public volatile long row88 = 0L;
-    @SuppressWarnings("unused") public volatile long row89= 0L;
+    @SuppressWarnings("unused") public volatile long row89 = 0L;
 }
 class GobanRows92 extends GobanRows90 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows92(); }
     @Override public int getSize() { return 92; }
     @SuppressWarnings("unused") public volatile long row90 = 0L;
-    @SuppressWarnings("unused") public volatile long row91= 0L;
+    @SuppressWarnings("unused") public volatile long row91 = 0L;
 }
 class GobanRows94 extends GobanRows92 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows94(); }
     @Override public int getSize() { return 94; }
     @SuppressWarnings("unused") public volatile long row92 = 0L;
-    @SuppressWarnings("unused") public volatile long row93= 0L;
+    @SuppressWarnings("unused") public volatile long row93 = 0L;
 }
 class GobanRows96 extends GobanRows94 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows96(); }
     @Override public int getSize() { return 96; }
     @SuppressWarnings("unused") public volatile long row94 = 0L;
-    @SuppressWarnings("unused") public volatile long row95= 0L;
+    @SuppressWarnings("unused") public volatile long row95 = 0L;
 }
 class GobanRows98 extends GobanRows96 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows98(); }
     @Override public int getSize() { return 98; }
     @SuppressWarnings("unused") public volatile long row96 = 0L;
-    @SuppressWarnings("unused") public volatile long row97= 0L;
+    @SuppressWarnings("unused") public volatile long row97 = 0L;
 }
 class GobanRows100 extends GobanRows98 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows100(); }
     @Override public int getSize() { return 100; }
     @SuppressWarnings("unused") public volatile long row98 = 0L;
-    @SuppressWarnings("unused") public volatile long row99= 0L;
+    @SuppressWarnings("unused") public volatile long row99 = 0L;
 }
 class GobanRows102 extends GobanRows100 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows102(); }
     @Override public int getSize() { return 102; }
     @SuppressWarnings("unused") public volatile long row100 = 0L;
-    @SuppressWarnings("unused") public volatile long row101= 0L;
+    @SuppressWarnings("unused") public volatile long row101 = 0L;
 }
 @SuppressWarnings("unchecked")
 final class GobanRows104 extends GobanRows102 {
     @Override @NotNull public GobanRows1 newInstance() { return new GobanRows104(); }
     @Override public int getSize() { return 104; }
     @SuppressWarnings("unused") public volatile long row102 = 0L;
-    @SuppressWarnings("unused") public volatile long row103= 0L;
+    @SuppressWarnings("unused") public volatile long row103 = 0L;
     static final GobanRows1[] EMPTY = {
         new GobanRows1(), new GobanRows2(),
         new GobanRows3(), new GobanRows4(),

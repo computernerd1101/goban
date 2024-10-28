@@ -246,7 +246,7 @@ class GameInfo: Serializable {
                 malformedOvertime = null
             } else try {
                 overtime = Overtime.parse(str)
-            } catch(e: Exception) {
+            } catch(_: Exception) {
                 overtime = null
                 malformedOvertime = str
             }
@@ -602,7 +602,7 @@ class GameInfo: Serializable {
                     overtimeString = null
                 }
             }
-        } catch(e: Exception) { }
+        } catch(_: Exception) { }
         malformedOvertime = overtimeString
         rulesString = fields.getString("rules")
         gameName = fields.getString("gameName")

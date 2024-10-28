@@ -219,7 +219,6 @@ internal sealed class SGFReader(val warnings: SGFWarningList) {
 
     }
 
-    @OptIn(ExperimentalStdlibApi::class)
     val readRecursive = DeepRecursiveFunction<SGFSubTreeList, SGFNodeList> { subTrees ->
         var ch = skipSpaces()
         if (ch != ';'.code) throw newException("';'")

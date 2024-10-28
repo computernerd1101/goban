@@ -22,7 +22,7 @@ fun main() {
     val whitePlayer = game.whitePlayer as GoGameFrame.Player
     assert(!whitePlayer.isFrameInitialized)
     val handler = Thread.UncaughtExceptionHandler { _, e ->
-        println(e)
+        System.err.println(e)
     }
     val job = Job()
     val blackFrame = GoGameFrame(game, job)
@@ -46,18 +46,18 @@ fun main() {
     blackFrame.isVisible = true
     blackFrame.scope.launch {
         Thread.currentThread().uncaughtExceptionHandler = handler
-        val y = blackFrame.locationOnScreen.y
-        blackFrame.extendedState = Frame.MAXIMIZED_HORIZ
-        whiteFrame.extendedState = Frame.MAXIMIZED_HORIZ
+        val x = blackFrame.locationOnScreen.x
+        blackFrame.extendedState = Frame.MAXIMIZED_VERT
+        whiteFrame.extendedState = Frame.MAXIMIZED_VERT
         val toolkit: Toolkit = Toolkit.getDefaultToolkit()
         val screenSize: Dimension = toolkit.screenSize
-        val width = screenSize.width
-        val height = (screenSize.height - y) / 2
-        blackFrame.setLocation(0, y)
-        whiteFrame.setLocation(0, y + height)
+        val width = (screenSize.width - x) / 2
+        val height = screenSize.height
+        blackFrame.setLocation(x, 0)
+        whiteFrame.setLocation(x + width, 0)
         blackFrame.setSize(width, height)
         whiteFrame.setSize(width, height)
-        game.startGame()
+        game.startGame(job)
     }
     while(job.isActive) Unit
     blackFrame.dispose()

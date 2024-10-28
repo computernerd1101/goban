@@ -215,13 +215,15 @@ class BakaBot: GoPlayer {
         for(i in size - 1 downTo size - handicap) {
             val j = random.nextInt(i + 1)
             val p = points[j]!!
-            points[j] = points[i]
-            points[i] = p
+            if (j < i) {
+                points[j] = points[i]
+                points[i] = p
+            }
             goban[p] = GoColor.BLACK
         }
     }
 
-    override suspend fun generateMove(): GoPoint? = withContext(Dispatchers.IO) {
+    override suspend fun generateMove(): GoPoint? {
         val points = getPoints(InternalMarker)
         val goban = getGoban(InternalMarker)
         val node = game.node
@@ -238,7 +240,7 @@ class BakaBot: GoPlayer {
                 points[count++] = p
             }
         }
-        if (count == 0) null
+        return if (count == 0) null
         else points[random.nextInt(count)]
     }
 

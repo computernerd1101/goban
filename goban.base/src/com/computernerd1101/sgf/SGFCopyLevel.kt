@@ -57,13 +57,11 @@ enum class SGFCopyLevel {
 
     protected abstract fun copy(o: Any, level: SGFCopyLevel): Any
 
-    @OptIn(ExperimentalStdlibApi::class)
     @Suppress("UNCHECKED_CAST")
     fun <T: Any> copy(t: T): T {
         return (if (t is SGFTree) copyTree(t) else copy(t, this)) as T
     }
 
-    @OptIn(ExperimentalStdlibApi::class)
     private val copyTree: DeepRecursiveFunction<SGFTree, SGFTree> = DeepRecursiveFunction { tree ->
         val copy = SGFTree(tree, this@SGFCopyLevel, InternalMarker)
         val subTrees = copy.subTrees as SGFSubTreeList

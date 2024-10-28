@@ -30,9 +30,9 @@ class GoGameFrame private constructor(
 
     constructor(goGame: GoGameManager): this(goGame, Dispatchers.Swing, gobanDesktopResources())
 
-    constructor(job: Job): this(null, Dispatchers.Swing + job, gobanDesktopResources())
+    constructor(job: Job): this(null, job + Dispatchers.Swing, gobanDesktopResources())
 
-    constructor(goGame: GoGameManager, job: Job): this(goGame, Dispatchers.Swing + job, gobanDesktopResources())
+    constructor(goGame: GoGameManager, job: Job): this(goGame, job + Dispatchers.Swing, gobanDesktopResources())
 
     constructor(setup: GoGameSetup): this(GoGameManager(setup, PlayerFactory)) {
         initPlayers()
@@ -1103,11 +1103,7 @@ class GoGameFrame private constructor(
             }
             GameAction.COUNT_SCORE -> {
                 val scoreManager = goGame.scoreManager ?: return
-                val channel = if (isShiftDown) scoreManager.livingStones else scoreManager.deadStones
-                val group = goPointGroup
-                scope.launch {
-                    channel.send(group)
-                }
+                scoreManager.submitGroupStatus(goPointGroup, isAlive = isShiftDown)
             }
             // PLAY_BLACK, PLAY_WHITE
             else -> {

@@ -8,6 +8,7 @@ import kotlin.concurrent.scheduleAtFixedRate
 
 fun Long.millisToStringSeconds(): String = TimeLimit.millisToStringSeconds(this)
 fun String.secondsToMillis(): Long = TimeLimit.parseSeconds(this)
+fun String.secondsToMillisOrNull(): Long? = TimeLimit.parseSecondsOrNull(this)
 
 class TimeLimit private constructor(
     events: Events,
@@ -107,8 +108,12 @@ class TimeLimit private constructor(
         }
 
         @JvmStatic
-        fun parseSeconds(s: String): Long {
-            val m = REGEX.find(s) ?: throw NumberFormatException("For input string: \"$s\"")
+        fun parseSeconds(s: String): Long =
+            parseSecondsOrNull(s) ?: throw NumberFormatException("For input string: \"$s\"")
+
+        @JvmStatic
+        fun parseSecondsOrNull(s: String): Long? {
+            val m = REGEX.find(s) ?: return null
             var s1: String? = m.groups[GROUP_INT]?.value
             val s2: String?
             if (s1 != null) {
@@ -124,11 +129,7 @@ class TimeLimit private constructor(
                 pos += s2.length
             }
             while(pos < buf.size) buf[pos++] = '0'
-            return try {
-                buf.concatToString().toLong()
-            } catch (e: NumberFormatException) {
-                throw NumberFormatException("For input string: \"$s\"")
-            }
+            return buf.concatToString().toLongOrNull()
         }
 
         const val GROUP_IPART = 1

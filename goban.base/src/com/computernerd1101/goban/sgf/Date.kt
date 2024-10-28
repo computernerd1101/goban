@@ -120,9 +120,9 @@ class Date private constructor(private val value: Int): Comparable<Date>, Serial
                 year = -year
                 "-000"
             }
-            year > 1000 -> ""
-            year > 100 -> "0"
-            year > 10 -> "00"
+            year >= 1000 -> ""
+            year >= 100 -> "0"
+            year >= 10 -> "00"
             else -> "000"
         }
         val month: Int = this.month

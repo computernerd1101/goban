@@ -78,12 +78,12 @@ class GoGameSetup {
         get() = whitePlayer
         set(player) { whitePlayer = player }
 
-    var width: Int
+    var width: Int = 19
         set(value) {
             if (value !in 1..52) throw IllegalArgumentException("$value is not in the range [1,52]")
             field = value
         }
-    var height: Int
+    var height: Int = 19
         set(value) {
             if (value !in 1..52) throw IllegalArgumentException("$value is not in the range [1,52]")
             field = value
